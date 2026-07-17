@@ -1,0 +1,43 @@
+{
+  "name": "it-assets",
+  "version": "beta-1-26w27-02",
+  "description": "IT Assets Management — beta 1",
+  "main": "server/index.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "test": "jest --runInBand --forceExit",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --forceExit",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.10",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "lowdb": "^1.0.0",
+    "qrcode": "^1.5.4",
+    "selfsigned": "^5.5.0",
+    "uuid": "11.1.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "jest": "^30.4.2",
+    "jimp": "^0.22.12",
+    "jsqr": "^1.4.0",
+    "supertest": "^7.2.2"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "verbose": true,
+    "testTimeout": 10000
+  }
+}
