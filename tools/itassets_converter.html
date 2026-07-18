@@ -245,7 +245,7 @@ function renderResult(assets, history, missingSheets){
 }
 
 function row(title, subtitle, filename){
-  const id = filename.includes('assets') ? 'dl-assets' : 'dl-history';
+  const id = filename.includes('_history') ? 'dl-history' : 'dl-assets';
   return `<div class="row">
     <div class="info"><b>${title}</b><span>${subtitle}</span></div>
     <a class="btn" id="${id}" href="#">Скачать CSV</a>
