@@ -34,43 +34,108 @@ function exportCsv(tab) {
   return '\uFEFF' + csv;
 }
 
+// ─── Парсинг свободного текста "оборудование" из истории (Фаза: авто- ──────
+// сопоставление серийников) ─────────────────────────────────────────────
+//
+// Реальные данные показывают, что один текст в истории часто описывает
+// НЕСКОЛЬКО предметов через запятую ("Ноутбук ... SN ..., Монитор ... SN
+// ..."), с непоследовательным форматированием серийника внутри каждого:
+// - чаще всего явная метка SN/sn/SN:/sn: перед серийником
+// - иногда без метки, серийник — последний таб-разделённый сегмент
+// - иногда вообще без таба, серийник — последнее "слово" в тексте
+// Сопоставление ниже безопасно по конструкции: угаданный кандидат
+// принимается только если он ТОЧНО совпадает с serial реального актива в
+// базе — ложное совпадение (например, "A4TECH HU-8" по ошибке принятое
+// за кандидата) просто не найдёт пару и останется как раньше, без связи.
+
+const SN_LABEL_RE = /\bsn\s*:?\s*([A-Za-zА-Яа-я0-9/-]{4,25})/i;
+
+function looksLikeSerial(s) {
+  return s.length >= 6 && s.length <= 25 && /\d/.test(s) && !s.includes(' ');
+}
+
+function extractSerialCandidate(item) {
+  const m = SN_LABEL_RE.exec(item);
+  if (m) return m[1].replace(/[.,]+$/, '');
+  if (item.includes('\t')) {
+    const last = item.split('\t').pop().trim().replace(/[.,]+$/, '');
+    if (looksLikeSerial(last)) return last;
+  }
+  const lastWord = item.trim().replace(/[.,]+$/, '').split(' ').pop();
+  if (looksLikeSerial(lastWord)) return lastWord;
+  return null;
+}
+
+// Разбивает один текстовый блоб на отдельные позиции (по запятым) — не
+// более 20 штук на всякий случай (защита от аномально длинной строки,
+// которую разбило бы на сотни пустых фрагментов из-за опечатки в данных).
+function splitEquipmentItems(text) {
+  if (!text || !text.trim()) return [];
+  return text.split(',').map(s => s.trim()).filter(Boolean).slice(0, 20);
+}
+
 function importHistory(rows, changedByStr) {
   if (!Array.isArray(rows) || !rows.length) { const e = new Error('No data'); e.badRequest = true; throw e; }
-  let added = 0, skipped = 0;
+  let added = 0, skipped = 0, matched = 0;
   const toAdd = [];
+
+  // Индекс серийник -> актив, для сопоставления. getAllAssets() включает
+  // и списанные — намеренно: перемещения в истории могли случиться до
+  // списания, серийник актива на момент импорта истории не меняется.
+  const serialIndex = new Map(
+    assetsRepo.getAllAssets()
+      .filter(a => a.serial && a.serial.trim())
+      .map(a => [a.serial.trim().toUpperCase(), a])
+  );
+
   const allHistory = sqlite.prepare('SELECT date, equipment, from_who FROM history').all();
   const existing = new Set(
     allHistory.map(h => `${h.date&&h.date.slice(0,10)}|${h.equipment&&h.equipment}|${h.from_who}`)
   );
+
   rows.forEach(r => {
     if (!r.date && !r.equipment) { skipped++; return; }
-    const key = `${r.date&&r.date.slice(0,10)}|${r.equipment&&r.equipment}|${r.from_who||''}`;
-    if (existing.has(key)) { skipped++; return; }
-    existing.add(key);
+
     let dateVal = r.date || new Date().toISOString();
     if (dateVal && /^\d{4,5}$/.test(dateVal.trim())) {
       const excelEpoch = new Date(1899, 11, 30);
       excelEpoch.setDate(excelEpoch.getDate() + parseInt(dateVal));
       dateVal = excelEpoch.toISOString().slice(0,10);
     }
-    toAdd.push({
-      id: uuidv7(),
-      asset_id: r.asset_id||'',
-      action_type: r.action_type||'move',
-      date: dateVal,
-      from_who: r.from_who||'',
-      to_who: r.to_who||'',
-      filial: r.filial||'',
-      location: r.location||'',
-      equipment: r.equipment||'',
-      model: r.model||'',
-      type: r.type||'',
-      serial: r.serial||'',
-      reason: r.reason||'Перемещение',
-      changed_by: r.changed_by||changedByStr
+
+    const items = splitEquipmentItems(r.equipment);
+    // Пустой/неразбиваемый текст — старое поведение, одна запись без привязки.
+    const effectiveItems = items.length ? items : [r.equipment || ''];
+
+    effectiveItems.forEach(itemText => {
+      const key = `${dateVal&&dateVal.slice(0,10)}|${itemText}|${r.from_who||''}`;
+      if (existing.has(key)) { skipped++; return; }
+      existing.add(key);
+
+      const candidate = extractSerialCandidate(itemText);
+      const asset = candidate ? serialIndex.get(candidate.toUpperCase()) : null;
+      if (asset) matched++;
+
+      toAdd.push({
+        id: uuidv7(),
+        asset_id: asset ? asset.id : (r.asset_id || ''),
+        action_type: r.action_type || 'move',
+        date: dateVal,
+        from_who: r.from_who || '',
+        to_who: r.to_who || '',
+        filial: (asset && asset.filial) || r.filial || '',
+        location: (asset && asset.location) || r.location || '',
+        equipment: itemText,
+        model: (asset && asset.model) || r.model || '',
+        type: (asset && asset.type) || r.type || '',
+        serial: (asset && asset.serial) || candidate || r.serial || '',
+        reason: r.reason || 'Перемещение',
+        changed_by: r.changed_by || changedByStr
+      });
+      added++;
     });
-    added++;
   });
+
   if (toAdd.length) {
     sqlite.exec('BEGIN');
     try {
@@ -84,7 +149,7 @@ function importHistory(rows, changedByStr) {
       throw e;
     }
   }
-  return { ok:true, added, skipped };
+  return { ok:true, added, skipped, matched };
 }
 
 function previewCsvImport(rows) {

@@ -4,9 +4,9 @@
 
 **Ветка разработки**
 
-![Version](https://img.shields.io/badge/версия-β1·26w27·02-blue?style=flat-square)
-![Tests](https://img.shields.io/badge/тесты-239%20passed-brightgreen?style=flat-square&logo=jest)
-![E2E](https://img.shields.io/badge/E2E-44%20passed-brightgreen?style=flat-square&logo=playwright)
+![Version](https://img.shields.io/badge/версия-β1·26w29·01-blue?style=flat-square)
+![Tests](https://img.shields.io/badge/тесты-283%20passed-brightgreen?style=flat-square&logo=jest)
+![E2E](https://img.shields.io/badge/E2E-44%20verified%20%2B%2014%20new-yellow?style=flat-square&logo=playwright)
 ![Node](https://img.shields.io/badge/Node.js-v22.5%2B-brightgreen?style=flat-square&logo=node.js)
 ![Branch](https://img.shields.io/badge/ветка-dev%20(разработка)-orange?style=flat-square)
 
@@ -23,8 +23,8 @@
 
 | Файл / папка           | Назначение                                      |
 |------------------------|-------------------------------------------------|
-| `tests/`               | 239 тестов (Jest + Supertest)                   |
-| `tests-e2e/`           | 44 E2E теста (Playwright)                       |
+| `tests/`               | 283 теста (Jest + Supertest)                    |
+| `tests-e2e/`           | 58 E2E тестов (Playwright) — 44 проверены, 14 новых ещё не прогонялись (см. ниже) |
 | `TEST.bat`             | Запуск Jest тестов на Windows                   |
 | `TEST-E2E.bat`         | Запуск E2E тестов на Windows                    |
 | `test.sh`              | Запуск тестов на Linux / macOS                  |
@@ -33,6 +33,7 @@
 | `playwright.config.js` | Конфигурация Playwright                         |
 | `package-lock.json`    | Зафиксированные версии зависимостей             |
 | `devDependencies`      | Jest, Supertest, Playwright, jimp, jsqr         |
+| `tools/itassets_converter.html` | Автономный HTML-конвертер старых Excel-выгрузок оборудования в CSV для импорта |
 
 ---
 
@@ -48,15 +49,17 @@ npm start
 
 Приложение: **`https://localhost:3443`**
 
+Требуется **Node.js 22.5+** (используется встроенный `node:sqlite`, стабилизированный в Node 25.7/26 — на более ранних 22.x/24.x работает с предупреждением `ExperimentalWarning`, это не ошибка).
+
 ---
 
 ## 🧪 Тесты
 
 ```bash
-npm test                  # все тесты Jest (239)
+npm test                  # все тесты Jest (283)
 npm run test:watch        # watch-режим
 npm run test:coverage     # с отчётом покрытия
-npm run test:e2e          # E2E тесты Playwright (44)
+npm run test:e2e          # E2E тесты Playwright (58)
 npm run test:e2e:ui       # E2E с UI-интерфейсом
 ```
 
@@ -71,40 +74,47 @@ chmod +x test-e2e.sh && ./test-e2e.sh
 ### Результат (Jest)
 
 ```
-Test Suites: 11 passed, 11 total
-Tests:       239 passed, 239 total
+Test Suites: 14 passed, 14 total
+Tests:       283 passed, 283 total
 ```
 
 ### Результат (Playwright)
 
 ```
-smoke.spec.js  —  7 passed
-theme.spec.js  — 37 passed
-Total          — 44 passed
+smoke.spec.js                    —  7 passed
+theme.spec.js                    — 37 passed
+backup-import-export.spec.js     — 14 тестов, написаны по коду UI, но ЕЩЁ НЕ ПРОГНАНЫ
+                                     в реальном браузере (см. примечание в самом файле) —
+                                     нужен локальный npm run test:e2e перед тем как считать
+                                     их частью зелёного билда
 ```
 
 ### Покрытие Jest
 
-| Файл                  | Что тестируется                                      |
-|-----------------------|--------------------------------------------------------|
-| `api.test.js`         | CRUD активов, фильтры, поиск, пагинация              |
-| `assets.test.js`      | Создание, перемещение, списание                       |
-| `backup.test.js`      | Создание, скачивание, восстановление, path traversal |
-| `config.test.js`      | Орги, филиалы, локации, инициализация БД             |
-| `edge.test.js`        | Граничные случаи, невалидные данные                  |
-| `employees.test.js`   | Сотрудники, увольнение с переносом активов           |
-| `history.test.js`     | История, фильтры, сортировка                         |
-| `integrity.test.js`   | Целостность схемы, уникальность id/инв. номеров      |
-| `invRules.test.js`    | Правила инвентаризации, генерация номеров            |
-| `qr.test.js`          | Генерация QR-кодов                                   |
-| `settings.test.js`    | Настройки, смена пароля, warn_default_pin            |
+| Файл                        | Что тестируется                                              |
+|------------------------------|--------------------------------------------------------------|
+| `api.test.js`               | CRUD активов, фильтры, поиск, пагинация                      |
+| `assets.test.js`            | Создание, перемещение, списание                              |
+| `backup.test.js`            | Создание/скачивание/восстановление, path traversal, обратная совместимость со старыми (до SQLite) бэкапами, сквозной цикл с реальными данными |
+| `config.test.js`            | Орги, филиалы, локации, инициализация БД                     |
+| `configExportImport.test.js`| Экспорт/сравнение/импорт config.json между инстансами (кросс-инстанс синхронизация) |
+| `csvImportExport.test.js`   | Экспорт активов в CSV, импорт CSV (дедупликация, авто-создание орг/филиалов/локаций/сотрудников) |
+| `csvImportHistory.test.js`  | Импорт истории перемещений с авто-сопоставлением по серийному номеру |
+| `edge.test.js`              | Граничные случаи, невалидные данные                           |
+| `employees.test.js`         | Сотрудники, увольнение с переносом активов                    |
+| `history.test.js`           | История, фильтры, сортировка                                  |
+| `integrity.test.js`         | Целостность схемы, уникальность id/инв. номеров                |
+| `invRules.test.js`          | Правила инвентаризации, генерация номеров                     |
+| `qr.test.js`                | Генерация QR-кодов                                            |
+| `settings.test.js`          | Настройки, смена пароля, warn_default_pin                     |
 
 ### Покрытие E2E (Playwright)
 
-| Файл             | Тестов | Что покрывает                                          |
-|------------------|--------|----------------------------------------------------------|
-| `smoke.spec.js`  | 7      | Логин, вкладки, создание актива, логаут                |
-| `theme.spec.js`  | 37     | CSS-переменные, переключение темы, утечки цветов, i18n |
+| Файл                            | Тестов | Что покрывает                                                   |
+|----------------------------------|--------|-------------------------------------------------------------------|
+| `smoke.spec.js`                 | 7      | Логин, вкладки, создание актива, логаут                          |
+| `theme.spec.js`                 | 37     | CSS-переменные, переключение темы, утечки цветов, i18n            |
+| `backup-import-export.spec.js`  | 14     | Бэкапы (создание/восстановление/confirm-диалог), CSV импорт/экспорт в UI, синхронизация config.json — **не прогонялся в реальном браузере**, нужна проверка перед доверием |
 
 ---
 
@@ -140,13 +150,18 @@ git push origin dev           # отправить на GitHub
 it-assets/
 ├── server/
 │   ├── index.js              # веб-сервер (Express + HTTPS)
-│   ├── database.js           # композиция репозиториев
-│   ├── db/store.js           # lowdb-инстансы (db, cfg)
+│   ├── database.js           # композиция репозиториев + config export/diff/apply
+│   ├── db/
+│   │   ├── store.js          # lowdb-инстанс (только служебные _meta/schema_version)
+│   │   └── sqlite.js         # SQLite-подключение (node:sqlite) + автомиграция из lowdb
 │   ├── middleware/           # auth.js, rateLimit.js
-│   ├── repositories/         # orgs, filials, assets, history, csv, stats...
+│   ├── repositories/         # orgs, filials, locations, assets, employees, users,
+│   │                         # accounts, settings, history, csv, stats — все на SQLite
 │   ├── routes/               # Express Router на каждую сущность
-│   ├── migrate.js            # автомиграция схемы (v1→v7)
-│   ├── cert.js               # TLS-сертификат
+│   ├── migrate.js            # одноразовая миграция lowdb-схемы (v1→v7), выполняется
+│   │                         # до SQLite-слоя, затем становится no-op
+│   ├── logger.js             # структурированные JSON-логи с ротацией по дате
+│   ├── cert.js                # TLS-сертификат
 │   └── pin.js                # bcrypt PIN
 ├── public/
 │   ├── index.html            # SPA-оболочка
@@ -157,7 +172,7 @@ it-assets/
 │       ├── auth.js           # авторизация
 │       ├── ui-utils.js       # утилиты UI
 │       ├── qr.js             # QR-генератор
-│       ├── meta-fields.js    # MAC/IP/hostname поля
+│       ├── meta-fields.js    # MAC/IP/hostname поля (канонический список meta-ключей)
 │       ├── global-search.js  # глобальный поиск
 │       ├── router.js         # SPA-роутер
 │       ├── event-delegation.js  # делегирование событий
@@ -165,15 +180,19 @@ it-assets/
 │       └── views/            # модуль на каждый экран
 │           ├── dashboard.js, asset-tab.js, asset-forms.js
 │           ├── history.js, employees.js, accounts.js, alerts.js
-│           ├── inv-generator.js, qr-print.js
+│           ├── inv-generator.js, qr-print.js, csv-import.js
 │           └── settings-general.js, settings-config.js,
 │               settings-refdata.js, types-admin.js, users-admin.js
-├── tests/                    # Jest + Supertest (239 тестов)
-├── tests-e2e/                # Playwright E2E (44 теста)
-│   ├── smoke.spec.js         # базовая работоспособность (7)
-│   └── theme.spec.js         # тема и i18n (37)
+├── tools/
+│   └── itassets_converter.html   # автономный конвертер старых Excel-выгрузок в CSV
+├── tests/                    # Jest + Supertest (283 теста)
+├── tests-e2e/                # Playwright E2E (58 тестов: 44 проверены, 14 новых нет)
+│   ├── smoke.spec.js
+│   ├── theme.spec.js
+│   ├── backup-import-export.spec.js
+│   └── fixtures/             # тестовые CSV/JSON для E2E-импорта
 ├── docs/                     # Документация (GitHub Pages)
-├── data/                     # в git не попадает
+├── data/                     # в git не попадает — db.json, config.json, it-assets.sqlite
 ├── playwright.config.js
 ├── package.json
 ├── release.bat               # скрипт релиза dev → main
@@ -187,14 +206,15 @@ it-assets/
 
 ## ⚙️ Переменные окружения
 
-| Переменная           | По умолчанию | Описание                                                        |
-|----------------------|--------------|-------------------------------------------------------------------|
-| `PORT`               | `3000`       | HTTP-порт (редирект на HTTPS)                                   |
-| `HTTPS_PORT`         | `3443`       | HTTPS-порт приложения                                           |
-| `IT_ASSETS_DATA_DIR` | `./data`     | Путь к папке с данными                                          |
-| `TRUST_PROXY`        | —            | Установите `1` при работе за nginx/reverse proxy                |
-| `CORS_ORIGINS`       | —            | Разрешённые origins через запятую                               |
-| `NODE_ENV`           | —            | Jest выставляет `test` автоматически, отключает фоновые таймеры |
+| Переменная                     | По умолчанию | Описание                                                        |
+|----------------------------------|--------------|-------------------------------------------------------------------|
+| `PORT`                          | `3000`       | HTTP-порт (редирект на HTTPS)                                   |
+| `HTTPS_PORT`                    | `3443`       | HTTPS-порт приложения                                           |
+| `IT_ASSETS_DATA_DIR`            | `./data`     | Путь к папке с данными (db.json, config.json, it-assets.sqlite) |
+| `IT_ASSETS_LOG_RETENTION_DAYS`  | `14`         | Сколько дней хранить файлы логов в `data/logs/`                 |
+| `TRUST_PROXY`                   | —            | Установите `1` при работе за nginx/reverse proxy                |
+| `CORS_ORIGINS`                  | —            | Разрешённые origins через запятую                               |
+| `NODE_ENV`                      | —            | Jest выставляет `test` автоматически, отключает фоновые таймеры/логи |
 
 ---
 
@@ -205,20 +225,21 @@ it-assets/
 | `main` | Production — чистый билд без тестов                |
 | `dev`  | Разработка — полный код с тестами и инструментами  |
 
-**Текущая версия:** `beta-1-26w27-02`
+**Текущая версия:** `beta-1-26w29-01`
 
 ---
 
 ## 🛠️ Технологии
 
-| Слой             | Стек                                         |
-|------------------|-----------------------------------------------|
-| Сервер           | Node.js + Express                            |
-| База данных      | lowdb (JSON) + SQLite (node:sqlite, миграция в процессе — Фаза 7c) |
-| Аутентификация   | Header-based, bcrypt PIN                     |
-| TLS              | selfsigned (авто-генерация)                  |
-| Фронтенд         | Vanilla JS, SPA, 20 модулей, EN/RU           |
-| Тесты            | Jest + Supertest (239) + Playwright E2E (44) |
+| Слой             | Стек                                                                 |
+|------------------|------------------------------------------------------------------------|
+| Сервер           | Node.js 22.5+ + Express                                              |
+| База данных      | SQLite (встроенный `node:sqlite`, без нативных аддонов) — вся прикладная данные (активы, история, орг-структура, справочники, пользователи). lowdb остаётся только для служебной версии схемы |
+| Аутентификация   | Header-based, bcrypt PIN                                              |
+| TLS              | selfsigned (авто-генерация)                                           |
+| Логирование      | Структурированные JSON-логи с ротацией по дате (`server/logger.js`)   |
+| Фронтенд         | Vanilla JS, SPA, 20+ модулей, EN/RU                                  |
+| Тесты            | Jest + Supertest (283) + Playwright E2E (44 проверены + 14 новых)    |
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "name": "it-assets",
-  "version": "beta-1-26w27-02",
+  "version": "beta-1-26w29-01",
   "description": "IT Assets Management — beta 1",
   "main": "server/index.js",
   "engines": {

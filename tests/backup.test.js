@@ -177,6 +177,53 @@ describe('POST /api/backup/restore/:name', () => {
     expect(rows).toEqual([{ id: 'known-account', name: 'SIP Trunk' }]);
   });
 
+  test('старый бэкап без it-assets.sqlite (до Фазы 7c) — восстанавливает db.json/config.json, не падает', async () => {
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip();
+    zip.addFile('db.json', Buffer.from(JSON.stringify({ _meta:{version:2}, assets:[{ id:'legacy-asset' }], history:[] })));
+    zip.addFile('config.json', Buffer.from(JSON.stringify({ _meta:{version:2}, settings:{ company_name:'Legacy' } })));
+    const legacyName = `backup_manual_legacy-no-sqlite_test.zip`;
+    fs.mkdirSync(path.join(TMP_DATA_DIR, 'backups'), { recursive: true });
+    zip.writeZip(path.join(TMP_DATA_DIR, 'backups', legacyName));
+
+    const res = await request(app).post(`/api/backup/restore/${legacyName}`).set(AUTH);
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+
+    const restored = JSON.parse(fs.readFileSync(path.join(TMP_DATA_DIR, 'db.json'), 'utf-8'));
+    expect(restored.assets).toEqual([{ id: 'legacy-asset' }]);
+  });
+
+  test('сквозной цикл с реальными данными: создать актив -> бэкап -> "поломать" sqlite -> restore -> актив на месте', async () => {
+    // Пишем напрямую в TMP_DATA_DIR/it-assets.sqlite (тем же способом, что
+    // и тест "бэкап включает it-assets.sqlite" выше) — не через assetsRepo,
+    // который из-за кэша модулей после makeDb() резолвится в СВОЙ
+    // изолированный временный каталог, а не в TMP_DATA_DIR, которым
+    // реально управляет тестируемый index.js/makeBackup().
+    const { DatabaseSync } = require('node:sqlite');
+    const sqlitePath = path.join(TMP_DATA_DIR, 'it-assets.sqlite');
+    const sq = new DatabaseSync(sqlitePath);
+    sq.exec('CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, model TEXT)');
+    sq.prepare('INSERT OR REPLACE INTO assets (id, model) VALUES (?, ?)').run('real-cycle-asset', 'RealBackupCycle');
+    sq.close();
+
+    const backupRes = await request(app).post('/api/backup/create').set(AUTH);
+    expect(backupRes.body.ok).toBe(true);
+
+    // "Ломаем" файл — как будто что-то пошло не так
+    fs.writeFileSync(sqlitePath, 'CORRUPTED-NOT-A-VALID-SQLITE-FILE');
+
+    const restoreRes = await request(app)
+      .post(`/api/backup/restore/${backupRes.body.file}`).set(AUTH);
+    expect(restoreRes.status).toBe(200);
+
+    const fresh = new DatabaseSync(sqlitePath);
+    const row = fresh.prepare('SELECT * FROM assets WHERE id = ?').get('real-cycle-asset');
+    fresh.close();
+    expect(row).toBeTruthy();
+    expect(row.model).toBe('RealBackupCycle');
+  });
+
   test('перед восстановлением сам создаёт pre-restore бэкап (подстраховка)', async () => {
     const before = await request(app).get('/api/backup/list').set(AUTH);
     const created = await request(app).post('/api/backup/create').set(AUTH);

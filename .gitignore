@@ -24,3 +24,7 @@ Thumbs.db
 # Локальные переопределения окружения
 .env
 .env.local
+
+# Playwright — служебные артефакты прогонов, не для коммита
+test-results/
+.e2e-data/
