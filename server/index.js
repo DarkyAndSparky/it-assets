@@ -311,14 +311,14 @@ app.post('/api/backup/create', requireAuth, (req, res) => {
   try { res.json(makeBackup('manual')); } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/backup/download/:name', requireAuth, (req, res) => {
+app.get('/api/backup/download/:name', requireAdmin, (req, res) => {
   const name = path.basename(req.params.name);
   const file = path.join(BACKUP_DIR, name);
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'Файл не найден' });
   res.download(file, name);
 });
 
-app.post('/api/backup/restore/:name', requireAuth, (req, res) => {
+app.post('/api/backup/restore/:name', requireAdmin, (req, res) => {
   const name = path.basename(req.params.name);
   const file = path.join(BACKUP_DIR, name);
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'Файл не найден' });

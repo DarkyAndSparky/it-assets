@@ -101,6 +101,24 @@ describe('GET /api/backup/download/:name', () => {
     expect(res.status).toBe(404);
   });
 
+  test('SEC-3: оператор (не admin) получает 403, requireAdmin', async () => {
+    const op = mockDb.createUser({ name: 'Backup Op', login: 'backupop', role: 'operator', pin: 'oppin123' });
+    const created = await request(app).post('/api/backup/create').set(AUTH);
+    const res = await request(app)
+      .get(`/api/backup/download/${created.body.file}`)
+      .set({ 'x-user-id': op.id, 'x-edit-password': 'oppin123' });
+    expect(res.status).toBe(403);
+  });
+
+  test('SEC-3: viewer получает 403', async () => {
+    const viewer = mockDb.createUser({ name: 'Backup Viewer', login: 'backupviewer', role: 'viewer', pin: '' });
+    const created = await request(app).post('/api/backup/create').set(AUTH);
+    const res = await request(app)
+      .get(`/api/backup/download/${created.body.file}`)
+      .set({ 'x-user-id': viewer.id, 'x-edit-password': '' });
+    expect(res.status).toBe(403);
+  });
+
   test('защищено от path traversal (../)', async () => {
     // path.basename() внутри маршрута должен обрезать "../" — секретный файл
     // вне BACKUP_DIR не должен быть доступен даже при попытке выйти из папки
@@ -120,6 +138,24 @@ describe('POST /api/backup/restore/:name', () => {
   test('несуществующий файл → 404', async () => {
     const res = await request(app).post('/api/backup/restore/no-such-file.zip').set(AUTH);
     expect(res.status).toBe(404);
+  });
+
+  test('SEC-3: оператор (не admin) получает 403, requireAdmin', async () => {
+    const op = mockDb.createUser({ name: 'Backup Op2', login: 'backupop2', role: 'operator', pin: 'oppin456' });
+    const created = await request(app).post('/api/backup/create').set(AUTH);
+    const res = await request(app)
+      .post(`/api/backup/restore/${created.body.file}`)
+      .set({ 'x-user-id': op.id, 'x-edit-password': 'oppin456' });
+    expect(res.status).toBe(403);
+  });
+
+  test('SEC-3: viewer получает 403', async () => {
+    const viewer = mockDb.createUser({ name: 'Backup Viewer2', login: 'backupviewer2', role: 'viewer', pin: '' });
+    const created = await request(app).post('/api/backup/create').set(AUTH);
+    const res = await request(app)
+      .post(`/api/backup/restore/${created.body.file}`)
+      .set({ 'x-user-id': viewer.id, 'x-edit-password': '' });
+    expect(res.status).toBe(403);
   });
 
   test('восстанавливает db.json и config.json из бэкапа', async () => {
