@@ -61,29 +61,33 @@ async function doLogin() {
       currentUser  = d.user;
       authPassword = pwd;
       _updateAuthUI();
-      closeModal();
       toast(`Добро пожаловать, ${currentUser.name}!`, 'success');
       render();
-      // Баннер смены дефолтного пароля
-      if (d.warn_default_pin) {
-        setTimeout(() => _showDefaultPinWarning(), 600);
+      // Обязательная смена дефолтного пароля — блокирует остальной интерфейс,
+      // сервер всё равно откажет во всех действиях, кроме смены своего пароля
+      // (см. server/middleware/auth.js, SEC-1), поэтому форма не закрывается.
+      if (d.must_change_pin) {
+        setTimeout(() => _showForcedPinChange(), 400);
+      } else {
+        closeModal();
       }
     } else toast(d.error || 'Неверный логин или пароль', 'error');
   } catch(e) { toast('Ошибка соединения с сервером', 'error'); }
 }
 
-function _showDefaultPinWarning() {
+function _showForcedPinChange() {
+  window._forcePinChangeMode = true;
   const html = `
     <div style="padding:24px;max-width:420px">
-      <div style="font-size:22px;margin-bottom:12px">⚠️ Смените пароль администратора</div>
+      <div style="font-size:22px;margin-bottom:12px">⚠️ Нужно сменить пароль</div>
       <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:18px">
         Вы вошли под стандартным паролем <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">admn0000</code>.
         Это пароль по умолчанию из документации — он известен всем в сети.<br><br>
-        Смените его прямо сейчас, чтобы защитить систему.
+        Пока вы его не смените, все действия в системе будут заблокированы — доступна только эта форма.
       </div>
       <div style="margin-bottom:12px">
         <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Новый пароль</label>
-        <input id="new-pin-inp" type="password" placeholder="Минимум 4 символа"
+        <input id="new-pin-inp" type="password" placeholder="Минимум 4 символа" autofocus
           style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface1);color:var(--text);font-size:14px;box-sizing:border-box"/>
       </div>
       <div style="margin-bottom:18px">
@@ -91,9 +95,9 @@ function _showDefaultPinWarning() {
         <input id="new-pin-inp2" type="password" placeholder="Повторите пароль"
           style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface1);color:var(--text);font-size:14px;box-sizing:border-box"/>
       </div>
+      <div id="forced-pin-error" style="display:none;color:var(--danger,#e5484d);font-size:12px;margin-bottom:12px"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-primary" style="flex:1" data-action="doChangeDefaultPin">🔒 Сменить пароль</button>
-        <button class="btn btn-ghost" data-action="closeModal" style="flex:1">Напомнить позже</button>
+        <button class="btn btn-primary" style="flex:1" data-action="doChangeDefaultPin">🔒 Сменить пароль и продолжить</button>
       </div>
     </div>`;
   showModal(html);
@@ -103,8 +107,11 @@ function _showDefaultPinWarning() {
 async function doChangeDefaultPin() {
   const p1 = document.getElementById('new-pin-inp')?.value || '';
   const p2 = document.getElementById('new-pin-inp2')?.value || '';
-  if (p1.length < 4) return toast('Пароль должен быть не короче 4 символов', 'error');
-  if (p1 !== p2)     return toast('Пароли не совпадают', 'error');
+  const errEl = document.getElementById('forced-pin-error');
+  const showErr = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } else toast(msg, 'error'); };
+  if (p1.length < 4) return showErr('Пароль должен быть не короче 4 символов');
+  if (p1 !== p2)     return showErr('Пароли не совпадают');
+  if (p1 === 'admn0000') return showErr('Нельзя оставить пароль по умолчанию');
   try {
     const r = await fetch(`${API}/api/settings/password`, {
       method:'PUT', headers:{'Content-Type':'application/json','x-user-id':currentUser?.id,'x-edit-password':authPassword},
@@ -113,11 +120,28 @@ async function doChangeDefaultPin() {
     const d = await r.json();
     if (r.ok) {
       authPassword = p1;
+      window._forcePinChangeMode = false;
       closeModal();
       toast('Пароль успешно изменён ✅', 'success');
-    } else toast(d.error || 'Ошибка смены пароля', 'error');
-  } catch(e) { toast('Ошибка соединения', 'error'); }
+    } else showErr(d.error || 'Ошибка смены пароля');
+  } catch(e) { showErr('Ошибка соединения'); }
 }
+
+// Подстраховка: если 428 (must_change_pin) прилетит с любого другого запроса
+// (например, сервер перезапустили и PIN снова дефолтный, а форма уже была
+// закрыта раньше) — снова показываем блокирующую форму, а не просто toast.
+(function _installForcedPinChangeGuard() {
+  const _fetch = window.fetch;
+  window.fetch = async function(...args) {
+    const res = await _fetch.apply(this, args);
+    if (res.status === 428 && !window._forcePinChangeMode) {
+      res.clone().json().then(d => {
+        if (d && d.must_change_pin) _showForcedPinChange();
+      }).catch(() => {});
+    }
+    return res;
+  };
+})();
 
 function _updateAuthUI() {
   const btn    = document.getElementById('auth-btn');

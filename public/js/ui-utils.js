@@ -62,7 +62,10 @@ function _preventDefault(e) { e.preventDefault(); }
 
 // ─── Модалки и тосты ─────────────────────────────────────────────────────────────
 function showModal(html){document.getElementById('modal-box').innerHTML=html;document.getElementById('modal-overlay').classList.add('open');}
-function closeModal(e){if(!e||e.target===document.getElementById('modal-overlay'))document.getElementById('modal-overlay').classList.remove('open');}
+function closeModal(e){
+  if (window._forcePinChangeMode) return; // модалка смены дефолтного PIN не закрывается стороной
+  if(!e||e.target===document.getElementById('modal-overlay'))document.getElementById('modal-overlay').classList.remove('open');
+}
 function toast(msg,type=''){
   const el=document.createElement('div');el.className='toast-msg '+type;el.textContent=msg;
   document.getElementById('toast').appendChild(el);setTimeout(()=>el.remove(),3000);}

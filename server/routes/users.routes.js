@@ -8,7 +8,15 @@
 
 const express = require('express');
 const db = require('../database');
-const { verifyPin } = require('../pin');
+const { verifyPin, isEmpty } = require('../pin');
+const DEFAULT_PINS = { 'sys-user-admin': 'admn0000' };
+function effectiveRoleOf(user) {
+  return (isEmpty(user.pin) && user.role !== 'viewer') ? 'viewer' : user.role;
+}
+function mustChangePin(user) {
+  const def = DEFAULT_PINS[user.id];
+  return def != null && verifyPin(def, user.pin);
+}
 const { requireAdmin } = require('../middleware/auth');
 const { rateLimitLogin } = require('../middleware/rateLimit');
 
@@ -31,7 +39,11 @@ router.post('/auth', rateLimitLogin, (req, res) => {
   if (!user_id) return res.status(400).json({ error: 'user_id required' });
   const user = db.authUser(user_id, pin || '');
   if (!user) return res.status(401).json({ error: 'Неверный PIN или пользователь не найден' });
-  res.json({ ok:true, user:{ id:user.id, name:user.name, role:user.role } });
+  res.json({
+    ok:true,
+    user:{ id:user.id, name:user.name, role:effectiveRoleOf(user) },
+    must_change_pin: mustChangePin(user)
+  });
 });
 
 router.post('/login', rateLimitLogin, (req, res) => {
@@ -40,12 +52,14 @@ router.post('/login', rateLimitLogin, (req, res) => {
   const user = db.authByLogin(login, password || '');
   if (!user) return res.status(401).json({ error: 'Неверный логин или пароль' });
 
-  // Предупреждаем, если admin всё ещё использует дефолтный PIN
-  const DEFAULT_PINS = ['admn0000'];
-  const isDefaultPin = user.id === 'sys-user-admin' &&
-    DEFAULT_PINS.some(p => verifyPin(p, user.pin));
+  const isDefaultPin = mustChangePin(user);
 
-  res.json({ ok:true, user:{ id:user.id, name:user.name, role:user.role }, warn_default_pin: isDefaultPin });
+  res.json({
+    ok:true,
+    user:{ id:user.id, name:user.name, role:effectiveRoleOf(user) },
+    warn_default_pin: isDefaultPin, // legacy-поле, оставлено для старого фронта
+    must_change_pin: isDefaultPin
+  });
 });
 
 router.post('/', requireAdmin, (req, res) => {

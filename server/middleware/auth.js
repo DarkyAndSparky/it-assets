@@ -11,6 +11,16 @@
 'use strict';
 
 const db = require('../database');
+const { verifyPin, isEmpty } = require('../pin');
+
+// SEC-1: пользователи, у которых при заводском создании PIN известен всем
+// (используется, чтобы заблокировать привилегированные действия, пока не сменят).
+const DEFAULT_PINS = { 'sys-user-admin': 'admn0000' };
+
+function hasDefaultPin(user) {
+  const def = DEFAULT_PINS[user.id];
+  return def != null && verifyPin(def, user.pin);
+}
 
 function requireAuth(req, res, next) {
   const userId = req.headers['x-user-id'];
@@ -21,12 +31,26 @@ function requireAuth(req, res, next) {
   const user = db.getUser(userId);
   if (!user || !user.active)
     return res.status(401).json({ error: 'Пользователь не найден или неактивен' });
-  if (user.role === 'viewer')
+
+  // SEC-2: пустой PIN не даёт прав выше viewer, даже если сохранённая роль выше.
+  const effectiveRole = (isEmpty(user.pin) && user.role !== 'viewer') ? 'viewer' : user.role;
+  if (effectiveRole === 'viewer')
     return res.status(403).json({ error: 'Недостаточно прав (viewer)' });
   if (!db.authUser(userId, pwd))
     return res.status(401).json({ error: 'Неверный пароль' });
 
-  req.currentUser = user;
+  // SEC-1: пока не сменил дефолтный PIN — можно только менять свой же PIN
+  // (через PUT /api/users/:id или PUT /api/settings/password), остальные
+  // привилегированные действия блокируются.
+  if (hasDefaultPin(user)) {
+    const isOwnPinChange =
+      (req.method === 'PUT' && req.params?.id === user.id) ||
+      (req.method === 'PUT' && req.baseUrl === '/api/settings' && req.path === '/password');
+    if (!isOwnPinChange)
+      return res.status(428).json({ error: 'Смените PIN по умолчанию перед продолжением', must_change_pin: true });
+  }
+
+  req.currentUser = { ...user, role: effectiveRole };
   return next();
 }
 

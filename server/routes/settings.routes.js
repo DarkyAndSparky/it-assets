@@ -10,6 +10,7 @@ const express = require('express');
 const db = require('../database');
 const { verifyPin } = require('../pin');
 const { requireAuth } = require('../middleware/auth');
+const { rateLimitLogin } = require('../middleware/rateLimit');
 
 // Версия из package.json — та же логика, что была в index.js
 const pkg = (() => { try { return require('../../package.json'); } catch(e) { return {}; } })();
@@ -68,22 +69,14 @@ router.put('/company_name', requireAuth, (req, res) => {
   res.json({ ok: true, company_name: company_name.trim() });
 });
 
-router.put('/password', (req, res) => {
+router.put('/password', rateLimitLogin, requireAuth, (req, res) => {
   const { newPassword } = req.body || {};
   if (!newPassword || !newPassword.trim())
     return res.status(400).json({ error: 'newPassword required' });
 
-  const userId  = req.headers['x-user-id'];
-  const currPwd = req.headers['x-edit-password'] || '';
-
-  const users = db.getUsers(false);
-
-  // Находим пользователя: по id или по текущему паролю (fallback для afterEach теста)
-  let user = userId ? users.find(u => u.id === userId) : null;
-  if (!user) user = users.find(u => verifyPin(currPwd, u.pin));
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-  db.updateUser(user.id, { pin: newPassword.trim() });
+  // Меняем PIN только текущего аутентифицированного пользователя —
+  // requireAuth уже проверил x-user-id/x-edit-password выше.
+  db.updateUser(req.currentUser.id, { pin: newPassword.trim() });
   res.json({ ok: true });
 });
 

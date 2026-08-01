@@ -39,9 +39,13 @@ describe('POST /api/users/login — warn_default_pin', () => {
 // ─── Смена пароля ─────────────────────────────────────────────────────────────
 describe('PUT /api/settings/password', () => {
   afterEach(async () => {
-    // Возвращаем пароль обратно после каждого теста
+    // Возвращаем пароль обратно после каждого теста. Раньше здесь можно было
+    // не указывать x-user-id — роут искал пользователя перебором по паролю
+    // среди всех аккаунтов (дыра). Теперь роут требует полноценную
+    // аутентификацию (x-user-id + текущий x-edit-password) и меняет пароль
+    // только самому вызывающему пользователю.
     await request(app).put('/api/settings/password')
-      .set({ 'x-edit-password': 'newpass123' })
+      .set({ 'x-user-id': AUTH['x-user-id'], 'x-edit-password': 'newpass123' })
       .send({ newPassword: 'test123' });
   });
 
