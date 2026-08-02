@@ -61,7 +61,11 @@ function listHistory(query) {
   };
 
   const off = parseInt(offset) || 0;
-  const lim = parseInt(limit);
+  // SEC-8: раньше limit просто парсился без потолка — можно было запросить
+  // ?limit=1000000 и получить всю историю разом одним ответом. Кап такой
+  // же по духу, что и у /api/assets (там 200), но повыше — у истории
+  // изначально дефолт был 500, оставляем его как верхнюю границу тоже.
+  const lim = Math.min(parseInt(limit) || 500, 500);
   items = items.slice(off, off + lim);
 
   const all = selectAllHistory.all();

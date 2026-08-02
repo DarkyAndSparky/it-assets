@@ -99,7 +99,7 @@ async function renderAssetTab(tab) {
     </div>
     <div style="display:flex;gap:6px">
       ${canEdit()?`<button class="btn btn-secondary btn-sm" data-action="showCatEditor" data-args='${JSON.stringify([tab])}' title="Категории для группировки оборудования">📂 Категории</button>`:''}
-      <a href="${API}/api/export/csv?tab=${tab}" class="btn btn-secondary btn-sm">⬇ CSV</a>
+      <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=${tab}`, `IT_assets_${tab}.csv`])}'>⬇ CSV</button>
       ${canEdit()?`<button class="btn btn-primary btn-sm" data-action="showAddModal" data-args='${JSON.stringify([tab])}'>＋ Добавить</button>`:''}
     </div>
   </div>

@@ -66,6 +66,27 @@ function closeModal(e){
   if (window._forcePinChangeMode) return; // модалка смены дефолтного PIN не закрывается стороной
   if(!e||e.target===document.getElementById('modal-overlay'))document.getElementById('modal-overlay').classList.remove('open');
 }
+// SEC-8: /api/export/csv теперь требует авторизацию (requireAuth), а этот
+// проект аутентифицирует запросы через заголовки (x-user-id/x-edit-password),
+// не через cookie — обычная ссылка <a href> их передать не может. Поэтому
+// скачивание идёт через fetch() с нужными заголовками + blob.
+async function downloadWithAuth(url, filename) {
+  try {
+    const r = await fetch(url, { headers: ah() });
+    if (!r.ok) {
+      let msg = 'Ошибка скачивания';
+      try { msg = (await r.json()).error || msg; } catch(e) {}
+      return toast(msg, 'error');
+    }
+    const blob = await r.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objUrl; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+  } catch(e) { toast('Ошибка соединения при скачивании', 'error'); }
+}
+
 function toast(msg,type=''){
   const el=document.createElement('div');el.className='toast-msg '+type;el.textContent=msg;
   document.getElementById('toast').appendChild(el);setTimeout(()=>el.remove(),3000);}

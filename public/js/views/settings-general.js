@@ -117,10 +117,10 @@ function _renderGeneralPanel(isAdmin, db_company_name='', db_logo_svg='', db_ver
     <div class="card" style="max-width:520px;margin-bottom:14px">
       <div class="section-title">📥 Экспорт данных</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <a href="${API}/api/export/csv" class="btn btn-secondary btn-sm">⬇ Всё</a>
-        <a href="${API}/api/export/csv?tab=os" class="btn btn-secondary btn-sm">⬇ ОС</a>
-        <a href="${API}/api/export/csv?tab=small" class="btn btn-secondary btn-sm">⬇ Мелочи</a>
-        <a href="${API}/api/export/csv?tab=infra" class="btn btn-secondary btn-sm">⬇ Инфра</a>
+        <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv`, "IT_assets.csv"])}'>⬇ Всё</button>
+        <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=os`, "IT_assets_os.csv"])}'>⬇ ОС</button>
+        <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=small`, "IT_assets_small.csv"])}'>⬇ Мелочи</button>
+        <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=infra`, "IT_assets_infra.csv"])}'>⬇ Инфра</button>
       </div>
     </div>
 

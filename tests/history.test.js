@@ -103,6 +103,12 @@ describe('GET /api/history', () => {
     expect(res.body.items.length).toBeLessThanOrEqual(500);
   });
 
+  test('SEC-8: явно запрошенный ?limit=999999 всё равно капается потолком, не отдаёт всё разом', async () => {
+    const res = await request(app).get('/api/history?limit=999999');
+    expect(res.status).toBe(200);
+    expect(res.body.items.length).toBeLessThanOrEqual(500);
+  });
+
   test('stats.adds считает добавления', async () => {
     const res = await request(app).get('/api/history');
     expect(res.body.stats.adds).toBeGreaterThanOrEqual(2);

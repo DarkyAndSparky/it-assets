@@ -26,13 +26,13 @@ beforeAll(async () => {
 
 // ─── GET /api/export/csv ────────────────────────────────────────────────────
 describe('GET /api/export/csv', () => {
-  test('без авторизации — доступен (экспорт не защищён требованием логина)', async () => {
+  test('SEC-8: без авторизации → 401 (раньше был не защищён, это дыра)', async () => {
     const res = await request(app).get('/api/export/csv');
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(401);
   });
 
   test('возвращает CSV с BOM и корректными заголовками колонок', async () => {
-    const res = await request(app).get('/api/export/csv');
+    const res = await request(app).get('/api/export/csv').set(AUTH);
     expect(res.headers['content-type']).toMatch(/text\/csv/);
     expect(res.text.charCodeAt(0)).toBe(0xFEFF); // BOM
     expect(res.text).toContain('"Инв. номер";"Вкладка";"Коллекция"');
@@ -45,13 +45,13 @@ describe('GET /api/export/csv', () => {
       .send({ model: 'HP CSV-Retired-Test', type: 'Ноутбук', tab: 'os' });
     await request(app).delete(`/api/assets/${retired.body.id}`).set(AUTH);
 
-    const res = await request(app).get('/api/export/csv');
+    const res = await request(app).get('/api/export/csv').set(AUTH);
     expect(res.text).toContain('Dell CSV-Export-Test');
     expect(res.text).not.toContain('HP CSV-Retired-Test');
   });
 
   test('?tab= фильтрует по вкладке', async () => {
-    const res = await request(app).get('/api/export/csv?tab=small');
+    const res = await request(app).get('/api/export/csv?tab=small').set(AUTH);
     // модели из tab=os не должны попасть в выгрузку по tab=small
     expect(res.text).not.toContain('Dell CSV-Export-Test');
   });
@@ -67,6 +67,13 @@ describe('POST /api/import/csv/preview', () => {
   test('без rows → 400', async () => {
     const res = await request(app).post('/api/import/csv/preview').set(AUTH).send({});
     expect(res.status).toBe(400);
+  });
+
+  test('SEC-8: больше 5000 строк за раз → 400, не пытается обработать', async () => {
+    const rows = Array.from({ length: 5001 }, (_, i) => ({ model: `X${i}` }));
+    const res = await request(app).post('/api/import/csv/preview').set(AUTH).send({ rows });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/5000|максимум/i);
   });
 
   test('находит организации, которых ещё нет в системе', async () => {
