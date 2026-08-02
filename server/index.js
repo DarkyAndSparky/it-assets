@@ -242,6 +242,16 @@ const BACKUP_LIMITS = {
 };
 const BACKUP_LIMIT_DEFAULT = 10; // для неизвестных меток
 
+// SEC-10: помимо лимита по количеству на тип, ограничиваем ещё и суммарный
+// размер папки backups/ — иначе большая база (много вложений/учёток) при
+// лимите "20 штук на тип" всё равно могла разрастись на несколько
+// гигабайт. Настраивается через переменную окружения (читаем её заново на
+// каждый вызов, а не один раз при старте — так её можно докрутить без
+// перезапуска сервера и это же удобно тестировать).
+function _backupMaxTotalBytes() {
+  return (parseInt(process.env.IT_ASSETS_BACKUP_MAX_MB) || 2048) * 1024 * 1024; // 2GB по умолчанию
+}
+
 function pruneBackups() {
   const allFiles = fs.readdirSync(BACKUP_DIR)
     .filter(f => (f.startsWith('backup_') || f.startsWith('db_')) &&
@@ -257,14 +267,41 @@ function pruneBackups() {
     byLabel[label].push({ name: f, mtime: fs.statSync(path.join(BACKUP_DIR, f)).mtimeMs });
   }
 
+  const _removeBackupFile = (name) => {
+    fs.unlinkSync(path.join(BACKUP_DIR, name));
+    const pair = path.join(BACKUP_DIR, name.replace('.json', '.config.json'));
+    if (fs.existsSync(pair)) fs.unlinkSync(pair);
+  };
+
   for (const [label, files] of Object.entries(byLabel)) {
     const keep = BACKUP_LIMITS[label] ?? BACKUP_LIMIT_DEFAULT;
     files.sort((a, b) => b.mtime - a.mtime);
-    files.slice(keep).forEach(f => {
-      fs.unlinkSync(path.join(BACKUP_DIR, f.name));
-      const pair = path.join(BACKUP_DIR, f.name.replace('.json', '.config.json'));
-      if (fs.existsSync(pair)) fs.unlinkSync(pair);
+    files.slice(keep).forEach(f => _removeBackupFile(f.name));
+  }
+
+  // SEC-10: суммарный размер — считаем то, что осталось после чистки по
+  // количеству, и при превышении лимита удаляем самые старые файлы по
+  // ВСЕЙ папке (не по типу), пока не впишемся. Самый свежий бэкап никогда
+  // не трогаем — иначе можно случайно остаться совсем без бэкапов.
+  const maxBytes = _backupMaxTotalBytes();
+  let remaining = fs.readdirSync(BACKUP_DIR)
+    .filter(f => (f.startsWith('backup_') || f.startsWith('db_')) &&
+                 (f.endsWith('.json') || f.endsWith('.zip')) &&
+                 !f.endsWith('.config.json'))
+    .map(f => {
+      const st = fs.statSync(path.join(BACKUP_DIR, f));
+      return { name: f, mtime: st.mtimeMs, size: st.size };
     });
+
+  let total = remaining.reduce((sum, f) => sum + f.size, 0);
+  if (total > maxBytes && remaining.length > 1) {
+    remaining.sort((a, b) => a.mtime - b.mtime); // старые первыми
+    for (const f of remaining) {
+      if (total <= maxBytes || remaining.length <= 1) break;
+      _removeBackupFile(f.name);
+      total -= f.size;
+      remaining = remaining.filter(x => x.name !== f.name);
+    }
   }
 }
 

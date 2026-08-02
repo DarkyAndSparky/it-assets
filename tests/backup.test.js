@@ -377,4 +377,45 @@ describe('pruneBackups — раздельные пулы по типам', () =>
     const manuals = list.body.filter(b => b.name.startsWith('backup_manual_'));
     expect(manuals.length).toBeLessThanOrEqual(20);
   });
+
+  test('SEC-10: суммарный размер папки backups ограничен — старые файлы удаляются первыми', async () => {
+    const prevEnv = process.env.IT_ASSETS_BACKUP_MAX_MB;
+    process.env.IT_ASSETS_BACKUP_MAX_MB = '1'; // 1MB — заведомо маленький лимит для теста
+    try {
+      // Кладём несколько "толстых" фейковых бэкапов напрямую в backups/,
+      // чтобы суммарно превысить лимит, с разным временем изменения —
+      // чтобы порядок "старые первыми" был однозначным.
+      const names = [];
+      for (let i = 0; i < 5; i++) {
+        const name = `backup_manual_fatfile-${i}_test.zip`;
+        const dest = path.join(TMP_DATA_DIR, 'backups', name);
+        fs.mkdirSync(path.join(TMP_DATA_DIR, 'backups'), { recursive: true });
+        fs.writeFileSync(dest, Buffer.alloc(400 * 1024)); // 400KB каждый → 2MB суммарно на 5 штук
+        const t = new Date(Date.now() - (5 - i) * 60_000); // i=0 — самый старый
+        fs.utimesSync(dest, t, t);
+        names.push(name);
+      }
+
+      // Триггерим pruneBackups() косвенно через создание ещё одного бэкапа
+      await request(app).post('/api/backup/create').set(AUTH);
+
+      const remaining = fs.readdirSync(path.join(TMP_DATA_DIR, 'backups'))
+        .filter(f => names.includes(f));
+      // Самый старый (fatfile-0) должен быть удалён первым лимитом по размеру
+      expect(remaining.includes('backup_manual_fatfile-0_test.zip')).toBe(false);
+      // Папка не должна опустеть целиком — самый свежий бэкап всегда остаётся
+      const allAfter = fs.readdirSync(path.join(TMP_DATA_DIR, 'backups'))
+        .filter(f => f.endsWith('.zip') && !f.endsWith('.config.json'));
+      expect(allAfter.length).toBeGreaterThan(0);
+
+      const totalSize = allAfter
+        .reduce((sum, f) => sum + fs.statSync(path.join(TMP_DATA_DIR, 'backups', f)).size, 0);
+      // Лимит — 1MB, допускаем небольшой запас (последний файл может чуть
+      // превышать порог сам по себе — его всё равно не удаляем).
+      expect(totalSize).toBeLessThan(1.5 * 1024 * 1024);
+    } finally {
+      if (prevEnv === undefined) delete process.env.IT_ASSETS_BACKUP_MAX_MB;
+      else process.env.IT_ASSETS_BACKUP_MAX_MB = prevEnv;
+    }
+  });
 });
