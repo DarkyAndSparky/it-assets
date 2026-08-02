@@ -318,21 +318,57 @@ app.get('/api/backup/download/:name', requireAdmin, (req, res) => {
   res.download(file, name);
 });
 
+// SEC-6: базовая проверка, что файл действительно похож на бэкап it-assets,
+// прежде чем перезаписывать им живые данные. Не полноценная JSON-схема
+// (это SEC-9, отдельная задача) — только защита от явно мусорного/битого
+// содержимого: невалидный JSON, чужой формат файла, битая сигнатура sqlite.
+function _validateDbJson(raw) {
+  let parsed;
+  try { parsed = JSON.parse(raw); }
+  catch (e) { throw new Error('db.json в бэкапе повреждён или не является валидным JSON'); }
+  if (!parsed || !Array.isArray(parsed.assets) || !Array.isArray(parsed.history))
+    throw new Error('db.json в бэкапе не похож на бэкап it-assets (нет assets[]/history[])');
+  return parsed;
+}
+function _validateConfigJson(raw) {
+  let parsed;
+  try { parsed = JSON.parse(raw); }
+  catch (e) { throw new Error('config.json в бэкапе повреждён или не является валидным JSON'); }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || typeof parsed.settings !== 'object')
+    throw new Error('config.json в бэкапе не похож на бэкап it-assets (нет объекта settings)');
+  return parsed;
+}
+function _validateSqliteHeader(buf) {
+  const header = buf.slice(0, 16).toString('utf8');
+  if (header !== 'SQLite format 3\u0000')
+    throw new Error('it-assets.sqlite в бэкапе повреждён (неверная сигнатура файла)');
+}
+
 app.post('/api/backup/restore/:name', requireAdmin, (req, res) => {
   const name = path.basename(req.params.name);
   const file = path.join(BACKUP_DIR, name);
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'Файл не найден' });
   try {
-    makeBackup('pre-restore'); // сохраняем текущее состояние
-
     if (name.endsWith('.zip') && AdmZip) {
       const zip = new AdmZip(file);
-      const entries = zip.getEntries().map(e => e.entryName);
-      zip.extractEntryTo('db.json',     DATA_DIR, false, true);
-      zip.extractEntryTo('config.json', DATA_DIR, false, true);
+      const entries = zip.getEntries();
+      const dbEntry     = entries.find(e => e.entryName === 'db.json');
+      const configEntry = entries.find(e => e.entryName === 'config.json');
+      const sqliteEntry = entries.find(e => e.entryName === 'it-assets.sqlite');
+
+      // Проверяем ДО любой записи на диск — если что-то не так, restore
+      // отменяется целиком, живые файлы не трогаются.
+      if (dbEntry)     _validateDbJson(dbEntry.getData().toString('utf8'));
+      if (configEntry) _validateConfigJson(configEntry.getData().toString('utf8'));
+      if (sqliteEntry) _validateSqliteHeader(sqliteEntry.getData());
+
+      makeBackup('pre-restore'); // сохраняем текущее состояние
+
+      if (dbEntry)     zip.extractEntryTo('db.json',     DATA_DIR, false, true);
+      if (configEntry) zip.extractEntryTo('config.json', DATA_DIR, false, true);
       // Старые бэкапы (до Фазы 7c) не содержат it-assets.sqlite — это
       // нормально, тогда SQL-таблицы просто останутся как были на диске.
-      if (entries.includes('it-assets.sqlite')) {
+      if (sqliteEntry) {
         zip.extractEntryTo('it-assets.sqlite', DATA_DIR, false, true);
         // WAL/SHM-файлы предыдущей сессии больше не соответствуют
         // восстановленному основному файлу — удаляем, чтобы SQLite не
@@ -348,10 +384,16 @@ app.post('/api/backup/restore/:name', requireAdmin, (req, res) => {
       });
     } else {
       // Fallback — только db.json
-      fs.copyFileSync(file, path.join(DATA_DIR, 'db.json'));
-      // Пробуем парный config
+      const raw = fs.readFileSync(file, 'utf8');
+      _validateDbJson(raw);
+
       const cfgBak = file.replace('.json', '.config.json');
-      if (fs.existsSync(cfgBak)) {
+      const hasCfg = fs.existsSync(cfgBak);
+      if (hasCfg) _validateConfigJson(fs.readFileSync(cfgBak, 'utf8'));
+
+      makeBackup('pre-restore');
+      fs.copyFileSync(file, path.join(DATA_DIR, 'db.json'));
+      if (hasCfg) {
         fs.copyFileSync(cfgBak, path.join(DATA_DIR, 'config.json'));
         res.json({ ok: true, restored: name, full: true });
       } else {
@@ -359,7 +401,7 @@ app.post('/api/backup/restore/:name', requireAdmin, (req, res) => {
           warn: 'config.json не восстановлен — бэкап содержит только db.json' });
       }
     }
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(400).json({ error: e.message }); }
 });
 
 // ─── QR CODE ─────────────────────────────────────────────────────────────────

@@ -270,6 +270,83 @@ describe('POST /api/backup/restore/:name', () => {
     // +1 за created, +1 за pre-restore, сделанный самим restore
     expect(after.body.some(b => b.name.startsWith('backup_pre-restore_'))).toBe(true);
   });
+
+  test('SEC-6: битый db.json в zip (не JSON) → 400, живые файлы не тронуты', async () => {
+    const AdmZip = require('adm-zip');
+    const before = fs.readFileSync(path.join(TMP_DATA_DIR, 'db.json'), 'utf-8');
+
+    const zip = new AdmZip();
+    zip.addFile('db.json', Buffer.from('{ этo not valid json'));
+    zip.addFile('config.json', Buffer.from(JSON.stringify({ settings: { company_name: 'X' } })));
+    const badName = 'backup_manual_bad-json_test.zip';
+    fs.mkdirSync(path.join(TMP_DATA_DIR, 'backups'), { recursive: true });
+    zip.writeZip(path.join(TMP_DATA_DIR, 'backups', badName));
+
+    const res = await request(app).post(`/api/backup/restore/${badName}`).set(AUTH);
+    expect(res.status).toBe(400);
+    expect(fs.readFileSync(path.join(TMP_DATA_DIR, 'db.json'), 'utf-8')).toBe(before); // не перезаписано
+  });
+
+  test('SEC-6: db.json без assets[]/history[] (валидный JSON, но не бэкап) → 400', async () => {
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip();
+    zip.addFile('db.json', Buffer.from(JSON.stringify({ hello: 'world' })));
+    zip.addFile('config.json', Buffer.from(JSON.stringify({ settings: { company_name: 'X' } })));
+    const badName = 'backup_manual_wrong-shape_test.zip';
+    fs.mkdirSync(path.join(TMP_DATA_DIR, 'backups'), { recursive: true });
+    zip.writeZip(path.join(TMP_DATA_DIR, 'backups', badName));
+
+    const res = await request(app).post(`/api/backup/restore/${badName}`).set(AUTH);
+    expect(res.status).toBe(400);
+  });
+
+  test('SEC-6: битый config.json (не JSON) → 400', async () => {
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip();
+    zip.addFile('db.json', Buffer.from(JSON.stringify({ assets: [], history: [] })));
+    zip.addFile('config.json', Buffer.from('not { valid json at all'));
+    const badName = 'backup_manual_bad-config_test.zip';
+    fs.mkdirSync(path.join(TMP_DATA_DIR, 'backups'), { recursive: true });
+    zip.writeZip(path.join(TMP_DATA_DIR, 'backups', badName));
+
+    const res = await request(app).post(`/api/backup/restore/${badName}`).set(AUTH);
+    expect(res.status).toBe(400);
+  });
+
+  test('SEC-6: битая сигнатура it-assets.sqlite в zip → 400, sqlite на диске не тронут', async () => {
+    const { DatabaseSync } = require('node:sqlite');
+    const AdmZip = require('adm-zip');
+    const sqlitePath = path.join(TMP_DATA_DIR, 'it-assets.sqlite');
+    const sq = new DatabaseSync(sqlitePath);
+    sq.exec('CREATE TABLE IF NOT EXISTS marker (id TEXT PRIMARY KEY)');
+    sq.prepare('INSERT OR REPLACE INTO marker (id) VALUES (?)').run('untouched');
+    sq.close();
+
+    const zip = new AdmZip();
+    zip.addFile('db.json', Buffer.from(JSON.stringify({ assets: [], history: [] })));
+    zip.addFile('config.json', Buffer.from(JSON.stringify({ settings: { company_name: 'X' } })));
+    zip.addFile('it-assets.sqlite', Buffer.from('NOT-A-REAL-SQLITE-FILE-HEADER'));
+    const badName = 'backup_manual_bad-sqlite_test.zip';
+    fs.mkdirSync(path.join(TMP_DATA_DIR, 'backups'), { recursive: true });
+    zip.writeZip(path.join(TMP_DATA_DIR, 'backups', badName));
+
+    const res = await request(app).post(`/api/backup/restore/${badName}`).set(AUTH);
+    expect(res.status).toBe(400);
+
+    const check = new DatabaseSync(sqlitePath);
+    const row = check.prepare('SELECT * FROM marker WHERE id = ?').get('untouched');
+    check.close();
+    expect(row).toBeTruthy(); // sqlite-файл остался прежним, не перезаписан мусором
+  });
+
+  test('SEC-6: битый db.json в старом формате (не-zip, plain JSON) → 400', async () => {
+    const badName = 'backup_manual_bad-plain_test.json';
+    fs.mkdirSync(path.join(TMP_DATA_DIR, 'backups'), { recursive: true });
+    fs.writeFileSync(path.join(TMP_DATA_DIR, 'backups', badName), 'totally not json');
+
+    const res = await request(app).post(`/api/backup/restore/${badName}`).set(AUTH);
+    expect(res.status).toBe(400);
+  });
 });
 
 describe('pruneBackups — раздельные пулы по типам', () => {
