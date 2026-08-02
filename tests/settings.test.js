@@ -141,6 +141,37 @@ describe('GET /api/accounts', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
   });
+
+  test('SEC-4: оператор без can_view_accounts не получает login/password', async () => {
+    await request(app).post('/api/accounts').set(AUTH)
+      .send({ name: 'Секретный роутер', login: 'root', password: 'topsecret' });
+    const op = mockDb.createUser({ name: 'Acc Op', login: 'accop', role: 'operator', pin: 'accpin12' });
+    const res = await request(app).get('/api/accounts')
+      .set({ 'x-user-id': op.id, 'x-edit-password': 'accpin12' });
+    expect(res.status).toBe(200);
+    const acc = res.body.find(a => a.name === 'Секретный роутер');
+    expect(acc.login).toBeUndefined();
+    expect(acc.password).toBeUndefined();
+    expect(acc.has_login).toBe(true);
+    expect(acc.has_password).toBe(true);
+  });
+
+  test('SEC-4: оператору с can_view_accounts=true логин/пароль видны', async () => {
+    const op = mockDb.createUser({ name: 'Acc Op2', login: 'accop2', role: 'operator', pin: 'accpin34', can_view_accounts: true });
+    const res = await request(app).get('/api/accounts')
+      .set({ 'x-user-id': op.id, 'x-edit-password': 'accpin34' });
+    expect(res.status).toBe(200);
+    const acc = res.body.find(a => a.name === 'Секретный роутер');
+    expect(acc.login).toBe('root');
+    expect(acc.password).toBe('topsecret');
+  });
+
+  test('SEC-4: admin всегда видит login/password независимо от флага', async () => {
+    const res = await request(app).get('/api/accounts').set(AUTH);
+    const acc = res.body.find(a => a.name === 'Секретный роутер');
+    expect(acc.login).toBe('root');
+    expect(acc.password).toBe('topsecret');
+  });
 });
 
 describe('POST /api/accounts', () => {
@@ -182,6 +213,23 @@ describe('PUT /api/accounts/:id', () => {
     const res = await request(app).put('/api/accounts/fake-id').set(AUTH)
       .send({ name: 'X' });
     expect(res.status).toBe(404);
+  });
+
+  test('SEC-4: оператор без доступа не может затереть login/password вслепую', async () => {
+    const secret = await request(app).post('/api/accounts').set(AUTH)
+      .send({ name: 'Не трогать', login: 'keepme', password: 'keeppass' });
+    const op = mockDb.createUser({ name: 'Acc Op3', login: 'accop3', role: 'operator', pin: 'accpin56' });
+    const OPAUTH = { 'x-user-id': op.id, 'x-edit-password': 'accpin56' };
+
+    const upd = await request(app).put(`/api/accounts/${secret.body.id}`).set(OPAUTH)
+      .send({ name: 'Не трогать', login: '', password: '', note: 'правил оператор' });
+    expect(upd.status).toBe(200);
+
+    const checked = await request(app).get('/api/accounts').set(AUTH);
+    const acc = checked.body.find(a => a.id === secret.body.id);
+    expect(acc.login).toBe('keepme');       // не затёрлось
+    expect(acc.password).toBe('keeppass');  // не затёрлось
+    expect(acc.note).toBe('правил оператор'); // остальное поменять можно
   });
 });
 

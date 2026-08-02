@@ -128,6 +128,17 @@ sqlite.exec(`
   );
 `);
 
+// SEC-4: разрешение оператору видеть логины/пароли в разделе «Учётные
+// записи» (по умолчанию выключено — включает админ точечно, пользователю).
+// Старые базы созданы до этого поля — CREATE TABLE IF NOT EXISTS их не
+// тронет, поэтому колонку добавляем отдельно, только если её ещё нет.
+try {
+  const userCols = sqlite.prepare(`PRAGMA table_info(users)`).all();
+  if (!userCols.some(c => c.name === 'can_view_accounts')) {
+    sqlite.exec(`ALTER TABLE users ADD COLUMN can_view_accounts INTEGER NOT NULL DEFAULT 0`);
+  }
+} catch (e) { logger.error('DB', 'add can_view_accounts column failed', e.message); }
+
 // ─── Схема: employees (Фаза 7c-6) ─────────────────────────────────────────
 // filial — свободный текст (legacy-поле, не FK на filials.id — так было и
 // в оригинале, не только сейчас при переезде).

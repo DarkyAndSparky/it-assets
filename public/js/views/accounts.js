@@ -79,20 +79,22 @@ async function renderAccounts() {
               ${esc(a.login)}
               <button class="btn-icon" style="font-size:11px;padding:1px 4px" title="Копировать логин"
                 data-action="copyToClipboard" data-args='${JSON.stringify([a.login, "Логин скопирован"])}'>⎘</button>
-            </span>` : '—'}
+            </span>` : (a.has_login ? '<span title="Нет доступа" style="color:var(--muted)">🔒</span>' : '—')}
           </td>
           <td>
             <span style="display:inline-flex;align-items:center;gap:4px">
+              ${a.password !== undefined ? `
               <span class="pw-mask mono" title="Нажмите для показа"
                 data-action="_togglePasswordReveal"
                 data-v="${esc(a.password)}">${a.password?'••••••':'—'}</span>
               ${a.password ? `<button class="btn-icon" style="font-size:11px;padding:1px 4px" title="Копировать пароль"
                 data-action="copyToClipboard" data-args='${JSON.stringify([a.password, "Пароль скопирован"])}'>⎘</button>` : ''}
+              ` : (a.has_password ? '<span title="Нет доступа" style="color:var(--muted)">🔒</span>' : '—')}
             </span>
           </td>
           <td style="color:var(--muted);font-size:12px">${esc(a.note)}</td>
           <td style="white-space:nowrap">
-            <button class="btn-icon" data-action="showEditAccount" data-args='${JSON.stringify([a.id, esc(a.name), esc(a.login), esc(a.password), esc(a.note), esc(a.category||"")])}' title="Изменить">✏️</button>
+            <button class="btn-icon" data-action="showEditAccount" data-args='${JSON.stringify([a.id, esc(a.name), esc(a.login||""), esc(a.password!==undefined?a.password:""), esc(a.note), esc(a.category||""), a.password===undefined])}' title="Изменить">✏️</button>
             <button class="btn-icon" data-action="deleteAccount" data-args='${JSON.stringify([a.id])}' title="Удалить">🗑</button>
           </td></tr>`).join('')}
         </tbody></table></div>
@@ -134,14 +136,15 @@ async function doAddAccount() {
   if (r.ok){closeModal();toast('Добавлено','success');renderAccounts();}
   else toast('Ошибка','error');
 }
-function showEditAccount(id,name,login,pwd,note,category) {
+function showEditAccount(id,name,login,pwd,note,category,noAccess) {
   showModal(`<h2>✏️ Изменить учётку</h2>
     <div class="form-row"><label>Тип</label>${_accCategorySelect(category)}</div>
     <div class="form-row"><label>Название</label><input id="ae-name" value="${name}"/></div>
     <div class="two-col">
-      <div class="form-row"><label>Логин</label><input id="ae-login" value="${login}"/></div>
-      <div class="form-row"><label>Пароль</label><input id="ae-pwd" type="text" value="${pwd}"/></div>
+      <div class="form-row"><label>Логин</label><input id="ae-login" value="${login}" ${noAccess?'disabled placeholder="🔒 нет доступа"':''}/></div>
+      <div class="form-row"><label>Пароль</label><input id="ae-pwd" type="text" value="${pwd}" ${noAccess?'disabled placeholder="🔒 нет доступа"':''}/></div>
     </div>
+    ${noAccess ? '<div style="font-size:11px;color:var(--muted);margin:-6px 0 8px">У вас нет прав на просмотр/изменение логина и пароля — можно менять только тип, название и примечание.</div>' : ''}
     <div class="form-row"><label>Примечание</label><input id="ae-note" value="${note}"/></div>
     <div class="modal-actions">
       <button class="btn btn-primary" data-action="doEditAccount" data-args='${JSON.stringify([id])}'>Сохранить</button>

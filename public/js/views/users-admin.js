@@ -26,8 +26,9 @@ async function _renderUsersPanel() {
       <td><b>${esc(u.name)}</b></td>
       <td><span class="badge-s ${ROLE_BADGE[u.role]||'s-off'}">${ROLE_LABEL[u.role]||u.role}</span></td>
       <td><span class="badge-s ${u.active!==false?'s-used':'s-off'}">${u.active!==false?'активен':'откл.'}</span></td>
+      <td>${u.role!=='admin' ? (u.can_view_accounts?'<span class="badge-s s-used" title="Видит пароли в Учётных записях">🔑 да</span>':'<span class="badge-s s-off">🔑 нет</span>') : '<span style="color:var(--muted);font-size:11px">всегда</span>'}</td>
       <td style="white-space:nowrap">
-        <button class="btn-icon" title="Изменить" data-action="showEditUserModal" data-args='${JSON.stringify([u.id, esc(u.name), u.role, esc(u.login||u.name)])}'>✏️</button>
+        <button class="btn-icon" title="Изменить" data-action="showEditUserModal" data-args='${JSON.stringify([u.id, esc(u.name), u.role, esc(u.login||u.name), !!u.can_view_accounts])}'>✏️</button>
         ${u.id!=='sys-user-admin'?`
         <button class="btn-icon" title="${u.active!==false?'Деактивировать':'Активировать'}"
           data-action="toggleUserActive" data-args='${JSON.stringify([u.id, u.active===false])}'>${u.active!==false?'🔒':'🔓'}</button>
@@ -47,8 +48,8 @@ async function _renderUsersPanel() {
       </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Имя</th><th>Роль</th><th>Статус</th><th></th></tr></thead>
-          <tbody>${rows||'<tr><td colspan="4" style="color:var(--muted);text-align:center">Нет пользователей</td></tr>'}</tbody>
+          <thead><tr><th>Имя</th><th>Роль</th><th>Статус</th><th>Пароли аккаунтов</th><th></th></tr></thead>
+          <tbody>${rows||'<tr><td colspan="5" style="color:var(--muted);text-align:center">Нет пользователей</td></tr>'}</tbody>
         </table>
       </div>
     </div>`;
@@ -70,6 +71,12 @@ function showCreateUserModal() {
     <div class="form-row"><label>Пароль</label>
       <input type="password" id="cu-pin" placeholder="Минимум 4 символа"/>
     </div>
+    <div class="form-row">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="cu-cva"/> 🔑 Видит пароли в «Учётных записях»
+      </label>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">Не действует для администратора — он видит их всегда</div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-primary" data-action="doCreateUser">Создать</button>
       <button class="btn btn-secondary" data-action="closeModal">Отмена</button>
@@ -81,11 +88,12 @@ async function doCreateUser() {
   const login = document.getElementById('cu-login')?.value.trim();
   const role  = document.getElementById('cu-role')?.value;
   const pin   = document.getElementById('cu-pin')?.value.trim();
+  const can_view_accounts = !!document.getElementById('cu-cva')?.checked;
   if (!name)  return toast('Введите имя', 'error');
   if (!login) return toast('Введите логин', 'error');
   if (!pin || pin.length < 4) return toast('Пароль — минимум 4 символа', 'error');
   const r = await fetch(`${API}/api/users`, {
-    method:'POST', headers:ah(), body:JSON.stringify({name, login, role, pin})
+    method:'POST', headers:ah(), body:JSON.stringify({name, login, role, pin, can_view_accounts})
   });
   const d = await r.json();
   if (r.ok) {
@@ -95,7 +103,7 @@ async function doCreateUser() {
   } else toast(d.error||'Ошибка', 'error');
 }
 
-function showEditUserModal(id, name, role, login) {
+function showEditUserModal(id, name, role, login, canViewAccounts) {
   showModal(`<h2>✏️ Изменить пользователя</h2>
     <div class="form-row"><label>Имя</label>
       <input id="eu-name" value="${esc(name)}"/></div>
@@ -110,6 +118,12 @@ function showEditUserModal(id, name, role, login) {
     </div>
     <div class="form-row"><label>Новый пароль</label>
       <input type="password" id="eu-pin" placeholder="Оставьте пустым чтобы не менять"/></div>
+    <div class="form-row">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="eu-cva" ${canViewAccounts?'checked':''}/> 🔑 Видит пароли в «Учётных записях»
+      </label>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">Не действует для администратора — он видит их всегда</div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-primary" data-action="doUpdateUser" data-args='${JSON.stringify([id])}'>Сохранить</button>
       <button class="btn btn-secondary" data-action="closeModal">Отмена</button>
@@ -121,8 +135,9 @@ async function doUpdateUser(id) {
   const login = document.getElementById('eu-login')?.value.trim();
   const role  = document.getElementById('eu-role')?.value;
   const pin   = document.getElementById('eu-pin')?.value.trim();
+  const can_view_accounts = !!document.getElementById('eu-cva')?.checked;
   if (!login) return toast('Логин не может быть пустым', 'error');
-  const body = {name, login, role};
+  const body = {name, login, role, can_view_accounts};
   if (pin) { if (pin.length < 4) return toast('Пароль — минимум 4 символа', 'error'); body.pin = pin; }
   const r = await fetch(`${API}/api/users/${id}`, {
     method:'PUT', headers:ah(), body:JSON.stringify(body)

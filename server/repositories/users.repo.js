@@ -17,13 +17,13 @@ const stmts = {
   selectActive: sqlite.prepare('SELECT * FROM users WHERE active = 1'),
   selectAll:    sqlite.prepare('SELECT * FROM users'),
   selectOne:    sqlite.prepare('SELECT * FROM users WHERE id = ?'),
-  insert:       sqlite.prepare('INSERT INTO users (id, name, login, role, pin, email, active, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)'),
-  update:       sqlite.prepare('UPDATE users SET name = ?, login = ?, role = ?, pin = ?, email = ?, active = ? WHERE id = ?'),
+  insert:       sqlite.prepare('INSERT INTO users (id, name, login, role, pin, email, active, can_view_accounts, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)'),
+  update:       sqlite.prepare('UPDATE users SET name = ?, login = ?, role = ?, pin = ?, email = ?, active = ?, can_view_accounts = ? WHERE id = ?'),
   del:          sqlite.prepare('DELETE FROM users WHERE id = ?'),
 };
 
 function toBool(row) {
-  return row && { ...row, active: !!row.active };
+  return row && { ...row, active: !!row.active, can_view_accounts: !!row.can_view_accounts };
 }
 
 function getUsers(activeOnly = true) {
@@ -51,7 +51,7 @@ function authByLogin(login, password) {
   return user;
 }
 
-function createUser({ name, login = '', role = 'operator', pin = '', email = '' }) {
+function createUser({ name, login = '', role = 'operator', pin = '', email = '', can_view_accounts = false }) {
   if (!name) throw new Error('name обязателен');
   const users = getUsers(false);
   if (login && users.find(u => u.login && u.login.toLowerCase() === login.trim().toLowerCase()))
@@ -61,7 +61,7 @@ function createUser({ name, login = '', role = 'operator', pin = '', email = '' 
   const loginTrimmed = String(login || '').trim();
   const emailNorm = String(email || '').trim().toLowerCase();
   const pinHash = hashPin(pin);
-  stmts.insert.run(id, name, loginTrimmed, role, pinHash, emailNorm, created_at);
+  stmts.insert.run(id, name, loginTrimmed, role, pinHash, emailNorm, can_view_accounts ? 1 : 0, created_at);
   return getUser(id);
 }
 
@@ -78,7 +78,7 @@ function updateUser(id, fields) {
       throw new Error('Нельзя деактивировать системного администратора');
     allowed = ['name', 'login', 'pin', 'email'];
   } else {
-    allowed = ['name', 'login', 'role', 'pin', 'email', 'active'];
+    allowed = ['name', 'login', 'role', 'pin', 'email', 'active', 'can_view_accounts'];
   }
 
   const next = { ...user };
@@ -87,6 +87,7 @@ function updateUser(id, fields) {
   stmts.update.run(
     next.name, next.login, next.role, next.pin, next.email,
     (next.active !== false && next.active !== 0) ? 1 : 0,
+    next.can_view_accounts ? 1 : 0,
     id
   );
   return getUser(id);

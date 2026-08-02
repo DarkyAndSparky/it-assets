@@ -26,7 +26,7 @@ router.get('/', (req, res) => {
   // Список пользователей (без PIN) — доступен всем залогиненным
   const userId = req.headers['x-user-id'];
   if (!db.getUser(userId)?.active) return res.status(401).json({ error: 'Unauthorized' });
-  res.json(db.getUsers().map(u => ({ id:u.id, name:u.name, role:u.role, active:u.active })));
+  res.json(db.getUsers().map(u => ({ id:u.id, name:u.name, role:u.role, active:u.active, can_view_accounts:u.can_view_accounts })));
 });
 
 router.get('/list', (req, res) => {

@@ -104,7 +104,7 @@ app.use('/api/accounts', require('./routes/accounts.routes'));
 app.use('/api', require('./routes/csv.routes'));
 
 // ─── DB DIAGNOSTICS ──────────────────────────────────────────────────────────
-app.get('/api/diag', (req, res) => {
+app.get('/api/diag', requireAdmin, (req, res) => {
   const fs2 = require('fs');
   const dbPath = require('./db/store').DB_PATH;
   let writable = false, fileSize = 0, lastWrite = null;
