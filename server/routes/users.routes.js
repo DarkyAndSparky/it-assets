@@ -19,6 +19,8 @@ function mustChangePin(user) {
 }
 const { requireAdmin } = require('../middleware/auth');
 const { rateLimitLogin } = require('../middleware/rateLimit');
+const { validate } = require('../middleware/validate');
+const { createUserSchema, updateUserSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
@@ -62,12 +64,12 @@ router.post('/login', rateLimitLogin, (req, res) => {
   });
 });
 
-router.post('/', requireAdmin, (req, res) => {
+router.post('/', requireAdmin, validate(createUserSchema), (req, res) => {
   try { res.json(db.createUser(req.body)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
 
-router.put('/:id', requireAdmin, (req, res) => {
+router.put('/:id', requireAdmin, validate(updateUserSchema), (req, res) => {
   try { res.json(db.updateUser(req.params.id, req.body)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
