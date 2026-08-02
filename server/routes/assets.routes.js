@@ -9,6 +9,9 @@
 const express = require('express');
 const assetsRepo = require('../repositories/assets.repo');
 const { requireAuth, changedBy } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { createAssetSchema, updateAssetSchema, moveAssetSchema,
+        bulkMoveAssetsSchema, bulkAssignInvSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
@@ -27,12 +30,12 @@ router.get('/:id', (req, res) => {
   res.json(asset);
 });
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, validate(createAssetSchema), (req, res) => {
   try { res.json(assetsRepo.createAsset(req.body, changedBy(req))); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
 
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, validate(updateAssetSchema), (req, res) => {
   try { res.json(assetsRepo.updateAsset(req.params.id, req.body, changedBy(req))); }
   catch(e) { res.status(e.notFound ? 404 : 400).json({ error: e.message }); }
 });
@@ -42,17 +45,17 @@ router.delete('/:id', requireAuth, (req, res) => {
   catch(e) { res.status(e.notFound ? 404 : 400).json({ error: e.message }); }
 });
 
-router.post('/:id/move', requireAuth, (req, res) => {
+router.post('/:id/move', requireAuth, validate(moveAssetSchema), (req, res) => {
   try { res.json(assetsRepo.moveAsset(req.params.id, req.body, changedBy(req))); }
   catch(e) { res.status(e.notFound ? 404 : 400).json({ error: e.message }); }
 });
 
-router.post('/bulk-move', requireAuth, (req, res) => {
+router.post('/bulk-move', requireAuth, validate(bulkMoveAssetsSchema), (req, res) => {
   try { res.json(assetsRepo.bulkMoveAssets(req.body, changedBy(req))); }
   catch(e) { res.status(e.badRequest ? 400 : 500).json({ error: e.message }); }
 });
 
-router.post('/bulk-assign-inv', requireAuth, (req, res) => {
+router.post('/bulk-assign-inv', requireAuth, validate(bulkAssignInvSchema), (req, res) => {
   try { res.json(assetsRepo.bulkAssignInv(req.body, changedBy(req))); }
   catch(e) { res.status(e.badRequest ? 400 : 400).json({ error: e.message }); }
 });

@@ -48,7 +48,88 @@ const updateUserSchema = z.object({
   can_view_accounts: z.coerce.boolean().optional(),
 });
 
+// ─── Активы ─────────────────────────────────────────────────────────────
+
+const ASSET_TABS   = ['os', 'small', 'infra'];
+const ASSET_STATUS = ['используется', 'резерв', 'ремонт', 'списан'];
+
+// Свободный текст (адрес, примечание и т.п.) — просто ограничиваем длину,
+// не диктуем формат: это поля, которые заполняют руками, слишком строгая
+// схема тут только мешала бы, а не защищала.
+const freeText = (max, msg) => z.string().trim().max(max, msg).default('');
+const freeTextOpt = (max, msg) => z.string().trim().max(max, msg).optional();
+
+const createAssetSchema = z.object({
+  tab:         z.enum(ASSET_TABS, { message: 'tab должен быть os, small или infra' }).default('os'),
+  category:    freeText(100, 'Слишком длинная категория'),
+  filial:      freeText(200, 'Слишком длинное название филиала'),
+  address:     freeText(300, 'Слишком длинный адрес'),
+  location:    freeText(200, 'Слишком длинное название локации'),
+  responsible: freeText(200, 'Слишком длинное имя ответственного'),
+  type:        freeText(100, 'Слишком длинный тип'),
+  model:       z.preprocess(v => v ?? '', z.string().trim().min(1, 'Model required').max(300, 'Слишком длинное название модели')),
+  serial:      freeText(200, 'Слишком длинный серийный номер'),
+  status:      z.enum(ASSET_STATUS, { message: 'Недопустимый статус' }).default('используется'),
+  org:         freeText(200, 'Слишком длинное название организации'),
+  note:        freeText(2000, 'Слишком длинное примечание'),
+  inv:         freeText(100, 'Слишком длинный инв. номер'),
+  meta:        z.record(z.string(), z.any()).default({}),
+});
+
+const updateAssetSchema = z.object({
+  tab:            z.enum(ASSET_TABS, { message: 'tab должен быть os, small или infra' }).optional(),
+  category:       freeTextOpt(100, 'Слишком длинная категория'),
+  filial:         freeTextOpt(200, 'Слишком длинное название филиала'),
+  address:        freeTextOpt(300, 'Слишком длинный адрес'),
+  location:       freeTextOpt(200, 'Слишком длинное название локации'),
+  responsible:    freeTextOpt(200, 'Слишком длинное имя ответственного'),
+  type:           freeTextOpt(100, 'Слишком длинный тип'),
+  model:          z.string().trim().min(1, 'Model не может быть пустым').max(300, 'Слишком длинное название модели').optional(),
+  serial:         freeTextOpt(200, 'Слишком длинный серийный номер'),
+  status:         z.enum(ASSET_STATUS, { message: 'Недопустимый статус' }).optional(),
+  org:            freeTextOpt(200, 'Слишком длинное название организации'),
+  note:           freeTextOpt(2000, 'Слишком длинное примечание'),
+  inv:            freeTextOpt(100, 'Слишком длинный инв. номер'),
+  inv_prev:       freeTextOpt(100, 'Слишком длинный предыдущий инв. номер'),
+  org_id:         freeTextOpt(100, 'Некорректный org_id'),
+  filial_id:      freeTextOpt(100, 'Некорректный filial_id'),
+  location_id:    freeTextOpt(100, 'Некорректный location_id'),
+  responsible_id: freeTextOpt(100, 'Некорректный responsible_id'),
+  meta:           z.record(z.string(), z.any()).optional(),
+});
+
+const moveAssetSchema = z.object({
+  newResponsible: freeTextOpt(200, 'Слишком длинное имя ответственного'),
+  newOrg:         freeTextOpt(200, 'Слишком длинное название организации'),
+  newFilial:      freeTextOpt(200, 'Слишком длинное название филиала'),
+  newAddress:     freeTextOpt(300, 'Слишком длинный адрес'),
+  newLocation:    freeTextOpt(200, 'Слишком длинное название локации'),
+  reason:         freeTextOpt(500, 'Слишком длинная причина'),
+});
+
+const idsArray = z.array(z.string().trim().min(1)).min(1, 'ids[] required').max(1000, 'Слишком много ID за один запрос (максимум 1000)');
+
+const bulkMoveAssetsSchema = z.object({
+  ids:            idsArray,
+  newResponsible: freeTextOpt(200, 'Слишком длинное имя ответственного'),
+  newFilial:      freeTextOpt(200, 'Слишком длинное название филиала'),
+  newAddress:     freeTextOpt(300, 'Слишком длинный адрес'),
+  newLocation:    freeTextOpt(200, 'Слишком длинное название локации'),
+  reason:         freeTextOpt(500, 'Слишком длинная причина'),
+});
+
+const bulkAssignInvSchema = z.object({
+  ids:       idsArray,
+  org_id:    z.string().trim().min(1, 'org_id и type_code обязательны'),
+  type_code: z.string().trim().min(1, 'org_id и type_code обязательны').max(20, 'Слишком длинный код типа'),
+});
+
 module.exports = {
   createUserSchema,
   updateUserSchema,
+  createAssetSchema,
+  updateAssetSchema,
+  moveAssetSchema,
+  bulkMoveAssetsSchema,
+  bulkAssignInvSchema,
 };
