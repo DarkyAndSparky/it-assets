@@ -9,6 +9,8 @@
 const express = require('express');
 const db = require('../database');
 const { requireAuth } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { reserveInvSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
@@ -30,9 +32,8 @@ router.get('/next', (req, res) => {
   catch(e) { res.status(400).json({ error: e.message }); }
 });
 
-router.post('/reserve', requireAuth, (req, res) => {
-  const { org_id, org, type } = req.body || {};
-  if (!type) return res.status(400).json({ error: 'type required' });
+router.post('/reserve', requireAuth, validate(reserveInvSchema), (req, res) => {
+  const { org_id, org, type } = req.body;
   let orgId = org_id;
   if (!orgId && org) {
     const found = db.config.getOrgs().find(o => o.short_code === (org||'').toUpperCase());

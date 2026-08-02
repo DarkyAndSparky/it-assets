@@ -168,6 +168,107 @@ const reassignAssetsSchema = z.object({
   to_employee_id: freeTextOpt(100, 'Некорректный to_employee_id'),
 });
 
+// ─── Оргструктура: организации, филиалы, локации, категории, коды типов ──
+
+const invRuleFormat = z.string().trim().max(200, 'Слишком длинный формат').default('{org}-{type}-{N:05}');
+
+const invRuleSchema = z.object({
+  type_code: z.string().trim().min(1, 'type_code обязателен').max(20, 'Слишком длинный код типа'),
+  type_name: freeText(200, 'Слишком длинное название типа'),
+  format:    invRuleFormat,
+});
+
+const createOrgSchema = z.object({
+  name:       z.string().trim().min(1, 'name и short_code обязательны').max(200, 'Слишком длинное название'),
+  short_code: z.string().trim().min(1, 'name и short_code обязательны').max(20, 'Слишком длинный код'),
+  inv_rules:  z.array(invRuleSchema).max(100, 'Слишком много правил').default([]),
+});
+
+const updateOrgSchema = z.object({
+  name:       z.string().trim().min(1, 'Название не может быть пустым').max(200, 'Слишком длинное название').optional(),
+  short_code: z.string().trim().min(1, 'Код не может быть пустым').max(20, 'Слишком длинный код').optional(),
+  status:     freeTextOpt(50, 'Слишком длинный статус'),
+});
+
+const renameOrgSchema = z.object({
+  newName:    z.string().trim().min(1, 'newName required').max(200, 'Слишком длинное название'),
+  changedBy:  freeTextOpt(200, 'Слишком длинное имя'),
+});
+
+const liquidateOrgSchema = z.object({
+  targetOrgId:  z.string().trim().min(1, 'targetOrgId required'),
+  changedBy:    freeTextOpt(200, 'Слишком длинное имя'),
+  renumberInv:  z.coerce.boolean().default(false),
+});
+
+const addInvRuleSchema = z.object({
+  type_code: z.string().trim().min(1, 'type_code обязателен').max(20, 'Слишком длинный код типа'),
+  type_name: freeText(200, 'Слишком длинное название типа'),
+  format:    invRuleFormat,
+});
+
+const toggleInvRuleSchema = z.object({
+  active: z.coerce.boolean().default(false),
+});
+
+const renameInvRuleSchema = z.object({
+  type_name: z.string().trim().min(1, 'type_name обязателен').max(200, 'Слишком длинное название типа'),
+});
+
+const deleteInvRuleForceSchema = z.object({
+  action:        z.enum(['reset', 'transfer'], { message: 'action required (reset|transfer)' }),
+  targetTypeCode: freeTextOpt(20, 'Слишком длинный код типа'),
+});
+
+const createFilialSchema = z.object({
+  name:    z.string().trim().min(1, 'name обязателен').max(200, 'Слишком длинное название'),
+  address: freeText(300, 'Слишком длинный адрес'),
+  org_id:  freeTextOpt(100, 'Некорректный org_id'),
+});
+
+const updateFilialSchema = z.object({
+  name:    z.string().trim().min(1, 'Название не может быть пустым').max(200, 'Слишком длинное название').optional(),
+  address: freeTextOpt(300, 'Слишком длинный адрес'),
+  org_id:  freeTextOpt(100, 'Некорректный org_id'),
+});
+
+const closeFilialSchema = z.object({
+  changedBy: freeTextOpt(200, 'Слишком длинное имя'),
+});
+
+const createLocationSchema = z.object({
+  name:      z.string().trim().min(1, 'name и filial_id обязательны').max(200, 'Слишком длинное название'),
+  filial_id: z.string().trim().min(1, 'name и filial_id обязательны'),
+  type:      freeText(50, 'Слишком длинный тип').default('office'),
+});
+
+const updateLocationSchema = z.object({
+  name:      z.string().trim().min(1, 'Название не может быть пустым').max(200, 'Слишком длинное название').optional(),
+  filial_id: freeTextOpt(100, 'Некорректный filial_id'),
+  type:      freeTextOpt(50, 'Слишком длинный тип'),
+});
+
+const setCategoriesSchema = z.object({
+  categories: z.array(z.string().trim().max(100, 'Слишком длинное название категории'), { message: 'Array expected' })
+    .max(500, 'Слишком много категорий'),
+});
+
+const typeCodeEntrySchema = z.object({
+  code: z.string().trim().min(1, 'Код типа обязателен').max(20, 'Слишком длинный код типа'),
+  name: freeText(200, 'Слишком длинное название типа'),
+  tab:  z.enum(ASSET_TABS, { message: 'tab должен быть os, small или infra' }).default('os'),
+});
+
+const setTypeCodesSchema = z.object({
+  codes: z.array(typeCodeEntrySchema, { message: 'Array expected' }).max(500, 'Слишком много типов'),
+});
+
+const reserveInvSchema = z.object({
+  org_id: freeTextOpt(100, 'Некорректный org_id'),
+  org:    freeTextOpt(20, 'Некорректный org'),
+  type:   z.string().trim().min(1, 'type required').max(20, 'Слишком длинный тип'),
+});
+
 module.exports = {
   createUserSchema,
   updateUserSchema,
@@ -181,4 +282,20 @@ module.exports = {
   createEmployeeSchema,
   updateEmployeeSchema,
   reassignAssetsSchema,
+  createOrgSchema,
+  updateOrgSchema,
+  renameOrgSchema,
+  liquidateOrgSchema,
+  addInvRuleSchema,
+  toggleInvRuleSchema,
+  renameInvRuleSchema,
+  deleteInvRuleForceSchema,
+  createFilialSchema,
+  updateFilialSchema,
+  closeFilialSchema,
+  createLocationSchema,
+  updateLocationSchema,
+  setCategoriesSchema,
+  setTypeCodesSchema,
+  reserveInvSchema,
 };

@@ -10,6 +10,8 @@
 const express = require('express');
 const db = require('../database');
 const { requireAuth } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { setTypeCodesSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
@@ -24,8 +26,7 @@ router.get('/type-mapping', (req, res) => {
   res.json(map);
 });
 
-router.put('/type-codes', requireAuth, (req, res) => {
-  if (!Array.isArray(req.body?.codes)) return res.status(400).json({ error: 'Array expected' });
+router.put('/type-codes', requireAuth, validate(setTypeCodesSchema), (req, res) => {
   db.setTypeCodes(req.body.codes);
   res.json({ ok: true });
 });

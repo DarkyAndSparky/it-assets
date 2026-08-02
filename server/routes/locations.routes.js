@@ -9,17 +9,19 @@
 const express = require('express');
 const db = require('../database');
 const { requireAuth } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { createLocationSchema, updateLocationSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
 router.get('/', (req, res) => {
   res.json(db.config.getLocations(req.query.filial_id||null, req.query.system==='true'));
 });
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, validate(createLocationSchema), (req, res) => {
   try { res.json(db.config.createLocation(req.body)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, validate(updateLocationSchema), (req, res) => {
   try { res.json(db.config.updateLocation(req.params.id, req.body)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });

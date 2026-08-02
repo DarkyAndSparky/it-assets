@@ -10,6 +10,8 @@
 const express = require('express');
 const db = require('../database');
 const { requireAuth } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { setCategoriesSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
@@ -17,11 +19,9 @@ router.get('/', (req, res) => {
   res.json(db.getCategories());
 });
 
-router.put('/:tab', requireAuth, (req, res) => {
+router.put('/:tab', requireAuth, validate(setCategoriesSchema), (req, res) => {
   const { tab } = req.params;
-  const { categories } = req.body || {};
-  if (!Array.isArray(categories)) return res.status(400).json({ error: 'Array expected' });
-  db.setCategories(tab, categories);
+  db.setCategories(tab, req.body.categories);
   res.json({ ok: true });
 });
 

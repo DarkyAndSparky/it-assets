@@ -9,22 +9,24 @@
 const express = require('express');
 const db = require('../database');
 const { requireAuth } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { createFilialSchema, updateFilialSchema, closeFilialSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
 router.get('/', (req, res) => {
   res.json(db.config.getFilials(req.query.system === 'true'));
 });
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, validate(createFilialSchema), (req, res) => {
   try { res.json(db.config.createFilial(req.body)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, validate(updateFilialSchema), (req, res) => {
   try { res.json(db.config.updateFilial(req.params.id, req.body)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
-router.post('/:id/close', requireAuth, (req, res) => {
-  try { res.json(db.config.closeFilial(req.params.id, req.body?.changedBy||'admin')); }
+router.post('/:id/close', requireAuth, validate(closeFilialSchema), (req, res) => {
+  try { res.json(db.config.closeFilial(req.params.id, req.body.changedBy||'admin')); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
 

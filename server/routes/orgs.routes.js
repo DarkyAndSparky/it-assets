@@ -10,6 +10,10 @@
 const express = require('express');
 const db = require('../database');
 const { requireAuth } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { createOrgSchema, updateOrgSchema, renameOrgSchema, liquidateOrgSchema,
+        addInvRuleSchema, toggleInvRuleSchema, renameInvRuleSchema,
+        deleteInvRuleForceSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
@@ -21,23 +25,21 @@ router.get('/:id', (req, res) => {
   if (!org) return res.status(404).json({ error: 'Не найдено' });
   res.json(org);
 });
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, validate(createOrgSchema), (req, res) => {
   try { res.json(db.config.createOrg(req.body)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, validate(updateOrgSchema), (req, res) => {
   try { res.json(db.config.updateOrg(req.params.id, req.body)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
-router.post('/:id/rename', requireAuth, (req, res) => {
-  const { newName, changedBy } = req.body || {};
-  if (!newName) return res.status(400).json({ error: 'newName required' });
+router.post('/:id/rename', requireAuth, validate(renameOrgSchema), (req, res) => {
+  const { newName, changedBy } = req.body;
   try { res.json(db.config.renameOrg(req.params.id, newName, changedBy||'admin')); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
-router.post('/:id/liquidate', requireAuth, (req, res) => {
-  const { targetOrgId, changedBy, renumberInv } = req.body || {};
-  if (!targetOrgId) return res.status(400).json({ error: 'targetOrgId required' });
+router.post('/:id/liquidate', requireAuth, validate(liquidateOrgSchema), (req, res) => {
+  const { targetOrgId, changedBy, renumberInv } = req.body;
   try { res.json(db.config.liquidateOrg(req.params.id, targetOrgId, changedBy||'admin', !!renumberInv)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
@@ -46,15 +48,15 @@ router.get('/:id/inv-rules', (req, res) => {
   if (!org) return res.status(404).json({ error: 'Не найдено' });
   res.json(org.inv_rules || []);
 });
-router.post('/:id/inv-rules', requireAuth, (req, res) => {
+router.post('/:id/inv-rules', requireAuth, validate(addInvRuleSchema), (req, res) => {
   try { res.json(db.config.addInvRule(req.params.id, req.body)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
-router.patch('/:id/inv-rules/:typeCode', requireAuth, (req, res) => {
-  try { res.json(db.config.toggleInvRule(req.params.id, req.params.typeCode, !!req.body.active)); }
+router.patch('/:id/inv-rules/:typeCode', requireAuth, validate(toggleInvRuleSchema), (req, res) => {
+  try { res.json(db.config.toggleInvRule(req.params.id, req.params.typeCode, req.body.active)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
-router.put('/:id/inv-rules/:typeCode', requireAuth, (req, res) => {
+router.put('/:id/inv-rules/:typeCode', requireAuth, validate(renameInvRuleSchema), (req, res) => {
   try { res.json(db.config.renameInvRule(req.params.id, req.params.typeCode, req.body)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
@@ -62,9 +64,8 @@ router.delete('/:id/inv-rules/:typeCode', requireAuth, (req, res) => {
   try { res.json(db.config.deleteInvRule(req.params.id, req.params.typeCode)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
-router.post('/:id/inv-rules/:typeCode/delete-force', requireAuth, (req, res) => {
-  const { action, targetTypeCode } = req.body || {};
-  if (!action) return res.status(400).json({ error: 'action required (reset|transfer)' });
+router.post('/:id/inv-rules/:typeCode/delete-force', requireAuth, validate(deleteInvRuleForceSchema), (req, res) => {
+  const { action, targetTypeCode } = req.body;
   try { res.json(db.config.deleteInvRuleForce(req.params.id, req.params.typeCode, action, targetTypeCode)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
