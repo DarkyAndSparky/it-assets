@@ -9,6 +9,8 @@
 const express = require('express');
 const db = require('../database');
 const { requireAuth } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { createAccountSchema, updateAccountSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
@@ -26,14 +28,12 @@ router.get('/', requireAuth, (req, res) => {
     return { ...rest, has_login: !!login, has_password: !!password };
   }));
 });
-router.post('/', requireAuth, (req, res) => {
-  const { name='', login='', password='', note='', category='' } = req.body || {};
-  if (!name) return res.status(400).json({ error: 'Name required' });
-  try { res.json(db.config.addAccount({ name, login, password, note, category })); }
+router.post('/', requireAuth, validate(createAccountSchema), (req, res) => {
+  try { res.json(db.config.addAccount(req.body)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
-router.put('/:id', requireAuth, (req, res) => {
-  let { name, login, password, note, category } = req.body || {};
+router.put('/:id', requireAuth, validate(updateAccountSchema), (req, res) => {
+  let { name, login, password, note, category } = req.body;
   if (!canViewSecrets(req.currentUser)) {
     // Без разрешения на просмотр пароль/логин не менять вслепую —
     // иначе можно случайно затереть секрет, которого сам не видел.

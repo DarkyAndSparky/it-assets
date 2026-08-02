@@ -124,6 +124,50 @@ const bulkAssignInvSchema = z.object({
   type_code: z.string().trim().min(1, 'org_id и type_code обязательны').max(20, 'Слишком длинный код типа'),
 });
 
+// ─── Учётные записи («Учётные записи» — хранилище логинов/паролей от
+// оборудования, см. SEC-4) ─────────────────────────────────────────────
+
+const createAccountSchema = z.object({
+  name:     z.string().trim().min(1, 'Name required').max(200, 'Слишком длинное название'),
+  login:    freeText(500, 'Слишком длинный логин'),
+  password: freeText(500, 'Слишком длинный пароль'),
+  note:     freeText(2000, 'Слишком длинное примечание'),
+  category: freeText(100, 'Слишком длинная категория'),
+});
+
+const updateAccountSchema = z.object({
+  name:     z.string().trim().min(1, 'Название не может быть пустым').max(200, 'Слишком длинное название').optional(),
+  login:    freeTextOpt(500, 'Слишком длинный логин'),
+  password: freeTextOpt(500, 'Слишком длинный пароль'),
+  note:     freeTextOpt(2000, 'Слишком длинное примечание'),
+  category: freeTextOpt(100, 'Слишком длинная категория'),
+});
+
+// ─── Сотрудники ─────────────────────────────────────────────────────────
+
+const createEmployeeSchema = z.object({
+  name:   z.preprocess(v => v ?? '', z.string().trim().min(1, 'ФИО обязательно').max(200, 'Слишком длинное ФИО')),
+  dept:   freeText(200, 'Слишком длинное название отдела'),
+  filial: freeText(200, 'Слишком длинное название филиала'),
+  phone:  freeText(50,  'Слишком длинный телефон'),
+  email:  freeText(200, 'Слишком длинный email'),
+  note:   freeText(2000, 'Слишком длинное примечание'),
+});
+
+const updateEmployeeSchema = z.object({
+  name:   z.string().trim().min(1, 'ФИО не может быть пустым').max(200, 'Слишком длинное ФИО').optional(),
+  dept:   freeTextOpt(200, 'Слишком длинное название отдела'),
+  filial: freeTextOpt(200, 'Слишком длинное название филиала'),
+  phone:  freeTextOpt(50,  'Слишком длинный телефон'),
+  email:  freeTextOpt(200, 'Слишком длинный email'),
+  note:   freeTextOpt(2000, 'Слишком длинное примечание'),
+  active: z.coerce.boolean().optional(),
+});
+
+const reassignAssetsSchema = z.object({
+  to_employee_id: freeTextOpt(100, 'Некорректный to_employee_id'),
+});
+
 module.exports = {
   createUserSchema,
   updateUserSchema,
@@ -132,4 +176,9 @@ module.exports = {
   moveAssetSchema,
   bulkMoveAssetsSchema,
   bulkAssignInvSchema,
+  createAccountSchema,
+  updateAccountSchema,
+  createEmployeeSchema,
+  updateEmployeeSchema,
+  reassignAssetsSchema,
 };

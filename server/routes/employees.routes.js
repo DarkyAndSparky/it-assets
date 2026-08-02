@@ -11,6 +11,8 @@ const express = require('express');
 const db = require('../database');
 const assetsRepo = require('../repositories/assets.repo');
 const { requireAuth, changedBy } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { createEmployeeSchema, updateEmployeeSchema, reassignAssetsSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
@@ -30,12 +32,12 @@ router.get('/:id', (req, res) => {
   res.json(emp);
 });
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, validate(createEmployeeSchema), (req, res) => {
   try { res.json(db.createEmployee(req.body)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
 
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, validate(updateEmployeeSchema), (req, res) => {
   try { res.json(db.updateEmployee(req.params.id, req.body)); }
   catch(e) { res.status(e.message.includes('не найден') ? 404 : 400).json({ error: e.message }); }
 });
@@ -45,9 +47,9 @@ router.delete('/:id', requireAuth, (req, res) => {
   catch(e) { res.status(e.message.includes('не найден') ? 404 : 409).json({ error: e.message }); }
 });
 
-router.post('/:id/reassign-assets', requireAuth, (req, res) => {
+router.post('/:id/reassign-assets', requireAuth, validate(reassignAssetsSchema), (req, res) => {
   try {
-    const { to_employee_id } = req.body || {};
+    const { to_employee_id } = req.body;
     res.json(assetsRepo.reassignEmployeeAssets(req.params.id, to_employee_id, changedBy(req)));
   } catch(e) {
     res.status(e.notFound ? 404 : 400).json({ error: e.message });
