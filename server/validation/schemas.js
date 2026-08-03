@@ -269,6 +269,51 @@ const reserveInvSchema = z.object({
   type:   z.string().trim().min(1, 'type required').max(20, 'Слишком длинный тип'),
 });
 
+// ─── Настройки и конфиг ─────────────────────────────────────────────────
+
+const putStylesSchema = z.object({
+  styles: z.record(z.string(), z.any(), { message: 'object expected' }),
+});
+
+const putLogoSvgSchema = z.object({
+  svg: z.string({ message: 'svg string expected' }),
+}).superRefine((data, ctx) => {
+  const val = data.svg.trim();
+  const isSvg    = val.toLowerCase().startsWith('<svg');
+  const isBase64 = val.startsWith('data:image/');
+  const isEmpty  = val === '';
+  if (!isSvg && !isBase64 && !isEmpty) {
+    ctx.addIssue({ code: 'custom', path: ['svg'], message: 'Unsupported logo format. Expected SVG markup or image data URL.' });
+  }
+  if (val.length > 512 * 1024) {
+    ctx.addIssue({ code: 'custom', path: ['svg'], message: 'Logo too large (max 512 KB)' });
+  }
+});
+
+const putCompanyNameSchema = z.object({
+  company_name: z.preprocess(v => v ?? '', z.string().trim().min(1, 'company_name required').max(200, 'Слишком длинное название')),
+});
+
+const putPasswordSchema = z.object({
+  newPassword: z.preprocess(v => v ?? '', z.string().trim().min(4, 'newPassword required (минимум 4 символа)').max(100, 'Слишком длинный пароль')),
+});
+
+const importDiffSchema = z.object({
+  config: z.record(z.string(), z.any(), { message: 'Ожидается { config: {...} }' }),
+}).superRefine((data, ctx) => {
+  const missing = ['organizations', 'filials', 'locations'].filter(k => !Array.isArray(data.config[k]));
+  if (missing.length) {
+    ctx.addIssue({ code: 'custom', path: ['config'], message: 'Отсутствуют поля: ' + missing.join(', ') });
+  }
+});
+
+const importApplySchema = z.object({
+  clean:       z.record(z.string(), z.any(), { message: 'Ожидается { clean, resolutions, incoming }' }),
+  incoming:    z.record(z.string(), z.any(), { message: 'Ожидается { clean, resolutions, incoming }' }),
+  resolutions: z.array(z.any()).default([]),
+  changedBy:   freeTextOpt(200, 'Слишком длинное имя'),
+});
+
 module.exports = {
   createUserSchema,
   updateUserSchema,
@@ -298,4 +343,10 @@ module.exports = {
   setCategoriesSchema,
   setTypeCodesSchema,
   reserveInvSchema,
+  putStylesSchema,
+  putLogoSvgSchema,
+  putCompanyNameSchema,
+  putPasswordSchema,
+  importDiffSchema,
+  importApplySchema,
 };

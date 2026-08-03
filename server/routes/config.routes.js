@@ -9,6 +9,8 @@
 const express = require('express');
 const db = require('../database');
 const { requireAuth } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { importDiffSchema, importApplySchema } = require('../validation/schemas');
 
 const router = express.Router();
 
@@ -18,19 +20,14 @@ router.get('/export', requireAuth, (req, res) => {
   res.send(JSON.stringify(db.config.exportConfig(), null, 2));
 });
 
-router.post('/import/diff', requireAuth, (req, res) => {
-  const incoming = req.body?.config;
-  if (!incoming) return res.status(400).json({ error: 'Ожидается { config: {...} }' });
-  const missing = ['organizations','filials','locations'].filter(k => !Array.isArray(incoming[k]));
-  if (missing.length) return res.status(400).json({ error: 'Отсутствуют поля: ' + missing.join(', ') });
-  try { res.json(db.config.diffConfig(incoming)); }
+router.post('/import/diff', requireAuth, validate(importDiffSchema), (req, res) => {
+  try { res.json(db.config.diffConfig(req.body.config)); }
   catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/import/apply', requireAuth, (req, res) => {
-  const { clean, resolutions, incoming, changedBy } = req.body || {};
-  if (!clean || !incoming) return res.status(400).json({ error: 'Ожидается { clean, resolutions, incoming }' });
-  try { res.json(db.config.applyImport(clean, resolutions||[], incoming, changedBy||'admin')); }
+router.post('/import/apply', requireAuth, validate(importApplySchema), (req, res) => {
+  const { clean, resolutions, incoming, changedBy } = req.body;
+  try { res.json(db.config.applyImport(clean, resolutions, incoming, changedBy||'admin')); }
   catch(e) { res.status(500).json({ error: e.message }); }
 });
 
