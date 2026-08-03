@@ -457,6 +457,60 @@ function migrateAssetsFromLowdb() {
   logger.info('SQLite', `мигрировано ${oldAssets.length} assets из db.json`);
 }
 
+// BUG-1 (repair): раньше миграция v6 (server/migrate.js) стирала поле
+// category из db.json ДО того, как эта функция успевала его прочитать —
+// см. подробный комментарий в migrate.js. Для установок, которые уже
+// прошли эту миграцию раньше (schema_version уже 7, migrateAssetsFromLowdb
+// выше не перезапустится — она разовая), category в SQLite могла остаться
+// пустой навсегда. Этот проход чинит уже смигрированные данные: досчитывает
+// category только там, где она пустая, а type известен — ничего не трогает
+// у ассетов, где category уже заполнена (в т.ч. если её поставили вручную).
+// Безопасно гонять на каждом старте — идемпотентно, при уже исправленных
+// данных просто ничего не находит и почти не тратит времени.
+const TYPE_CAT_MAP = {
+  'коммутатор':'Сетевое оборудование','маршрутизатор':'Сетевое оборудование',
+  'точка доступа':'Wi-Fi','радиомост':'Сетевое оборудование',
+  'poe инжектор':'Сетевое оборудование','poe hub':'Сетевое оборудование',
+  'видеорегистратор':'Видеонаблюдение','камера':'Видеонаблюдение',
+  'вызывная панель':'Видеонаблюдение','видеодомофон':'Видеонаблюдение',
+  'ибп':'ИБП','сервер':'Серверы',
+  'мфу':'Оргтехника','принтер':'Оргтехника',
+  'ноутбук':'Оборудование пользователей','системный блок':'Оборудование пользователей',
+  'монитор':'Оборудование пользователей','телевизор':'Оборудование пользователей',
+  'мини пк':'Мини ПК',
+  'гарнитура':'Гарнитуры','наушники':'Гарнитуры','спикерфон':'Гарнитуры',
+  'колонки':'Колонки','яндекс.станция':'Колонки',
+};
+function repairMissingCategories() {
+  const rows = sqlite.prepare(
+    `SELECT id, tab, type FROM assets WHERE (category IS NULL OR category = '') AND type != ''`
+  ).all();
+  if (!rows.length) return;
+
+  const catsByTab = {};
+  for (const row of sqlite.prepare('SELECT tab, items FROM categories').all()) {
+    try { catsByTab[row.tab] = JSON.parse(row.items) || []; } catch(e) { catsByTab[row.tab] = []; }
+  }
+
+  const update = sqlite.prepare('UPDATE assets SET category = ? WHERE id = ?');
+  let fixed = 0;
+  sqlite.exec('BEGIN');
+  try {
+    for (const a of rows) {
+      const key = (a.type || '').trim().toLowerCase();
+      const mapped = TYPE_CAT_MAP[key];
+      const tabCats = catsByTab[a.tab] || [];
+      const category = (mapped && tabCats.includes(mapped)) ? mapped : (tabCats[0] || '');
+      if (category) { update.run(category, a.id); fixed++; }
+    }
+    sqlite.exec('COMMIT');
+  } catch (e) {
+    sqlite.exec('ROLLBACK');
+    throw e;
+  }
+  if (fixed > 0) logger.info('SQLite', `BUG-1 repair: восстановлена category для ${fixed} ассетов`);
+}
+
 function migrateHistoryFromLowdb() {
   const row = sqlite.prepare('SELECT COUNT(*) AS c FROM history').get();
   if (row.c > 0) return;
@@ -490,6 +544,7 @@ function migrateHistoryFromLowdb() {
 }
 
 migrateAssetsFromLowdb();
+repairMissingCategories();
 migrateHistoryFromLowdb();
 
-module.exports = { sqlite, SQLITE_PATH, META_KEYS };
+module.exports = { sqlite, SQLITE_PATH, META_KEYS, repairMissingCategories };

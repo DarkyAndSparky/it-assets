@@ -174,11 +174,8 @@ describe('db.json — assets', () => {
     expect(bad.map(a => `${a.id}:${a.filial_id}`)).toEqual([]);
   });
 
-  test('нет полей _snapshot, address, org, category (старые)', () => {
-    const bad = db.assets.filter(a =>
-      Object.keys(a).some(k => k.endsWith('_snapshot')) ||
-      'address' in a || 'org' in a || 'category' in a
-    );
+  test('нет полей _snapshot (устаревшее; BUG-1: address/org/category теперь НАМЕРЕННО остаются в db.json — их читает миграция в SQLite)', () => {
+    const bad = db.assets.filter(a => Object.keys(a).some(k => k.endsWith('_snapshot')));
     expect(bad.map(a => a.id)).toEqual([]);
   });
 
