@@ -289,13 +289,17 @@ function bulkMoveAssets(body, changedByStr) {
 
   const now = new Date().toISOString();
   const pick = (newVal, old) => (newVal !== undefined && newVal !== null && newVal !== '') ? newVal : old;
-  const results = { ok: 0, failed: [] };
+  // BUG-2: помимо счётчика ok/failed[] (старые поля, фронт их уже читает —
+  // не трогаем), добавляем ids_assigned/ids_failed — точный список ID,
+  // а не только количество, чтобы вызывающая сторона могла разобрать,
+  // какие конкретно ассеты не обработались, а не только сколько их было.
+  const results = { ok: 0, failed: [], ids_assigned: [], ids_failed: [] };
 
   sqlite.exec('BEGIN');
   try {
     ids.forEach(id => {
       const asset = stmts.selectOne.get(id);
-      if (!asset) { results.failed.push(id); return; }
+      if (!asset) { results.failed.push(id); results.ids_failed.push({ id, reason: 'Ассет не найден' }); return; }
 
       const nextResponsible = pick(newResponsible, asset.responsible);
       const nextFilial      = pick(newFilial,      asset.filial);
@@ -318,6 +322,7 @@ function bulkMoveAssets(body, changedByStr) {
         `${asset.type} ${asset.model}`, asset.model, asset.type, asset.serial,
         histReason, changedByStr);
       results.ok++;
+      results.ids_assigned.push(id);
     });
     sqlite.exec('COMMIT');
   } catch (e) {
@@ -334,32 +339,55 @@ function bulkAssignInv(body, changedByStr) {
 
   const now = new Date().toISOString();
   let assigned = 0, skipped = 0;
+  const idsAssigned = [];
+  const idsFailed = []; // [{ id, reason }]
   const org = db.config.getOrg(org_id);
 
-  // nextInv/db.config.nextInv сам пишет в SQL (org_inv_rules.counter) —
-  // не в транзакции с ассетом ниже, но каждый вызов атомарен сам по себе,
-  // и повторный вызов при ошибке просто выдаст следующий номер (тот же
-  // риск, что был и в оригинале на lowdb — не хуже).
-  for (const id of ids) {
-    const asset = stmts.selectOne.get(id);
-    if (!asset) { skipped++; continue; }
-    if (asset.inv && asset.inv.trim()) { skipped++; continue; }
+  // BUG-2: раньше цикл не был обёрнут в транзакцию — если nextInv() падал
+  // на середине пачки (например, для этого типа не настроено правило),
+  // уже обработанные ассеты оставались обновлёнными в SQL, а необработанные
+  // (после точки сбоя) — нет, и вызывающая сторона получала голый 500
+  // без единого слова о том, что вообще успело примениться. Теперь весь
+  // батч — одна транзакция: ожидаемые «мягкие» причины пропуска (ассет не
+  // найден, уже есть инв. номер, для типа не настроено правило) не рушат
+  // остальную пачку — просто попадают в ids_failed с причиной; а по-
+  // настоящему неожиданная ошибка (например, сбой самой БД) откатывает
+  // всё целиком, а не оставляет пачку в частично применённом состоянии.
+  sqlite.exec('BEGIN');
+  try {
+    for (const id of ids) {
+      const asset = stmts.selectOne.get(id);
+      if (!asset) { skipped++; idsFailed.push({ id, reason: 'Ассет не найден' }); continue; }
+      if (asset.inv && asset.inv.trim()) { skipped++; idsFailed.push({ id, reason: 'Уже есть инв. номер' }); continue; }
 
-    const result = db.config.nextInv(org_id, type_code.toUpperCase());
-    const inv = result.inv;
+      let inv;
+      try {
+        inv = db.config.nextInv(org_id, type_code.toUpperCase()).inv;
+      } catch (e) {
+        // Ожидаемая причина (например, "Тип X не настроен для Y") —
+        // пропускаем этот конкретный ассет, не рушим всю пачку.
+        skipped++; idsFailed.push({ id, reason: e.message });
+        continue;
+      }
 
-    sqlite.prepare('UPDATE assets SET inv=?, org_id=?, org=?, updated_at=? WHERE id=?')
-      .run(inv, org_id, (org && org.name) || asset.org || '', now, id);
+      sqlite.prepare('UPDATE assets SET inv=?, org_id=?, org=?, updated_at=? WHERE id=?')
+        .run(inv, org_id, (org && org.name) || asset.org || '', now, id);
 
-    stmts.historyInsert.run(uuidv7(), id, 'inv_assigned', now,
-      '', asset.responsible || '',
-      asset.filial || '', asset.location || '',
-      `${asset.type} ${asset.model}`, asset.model, asset.type, asset.serial,
-      `Присвоен инв. номер: ${inv}`, changedByStr);
-    assigned++;
+      stmts.historyInsert.run(uuidv7(), id, 'inv_assigned', now,
+        '', asset.responsible || '',
+        asset.filial || '', asset.location || '',
+        `${asset.type} ${asset.model}`, asset.model, asset.type, asset.serial,
+        `Присвоен инв. номер: ${inv}`, changedByStr);
+      assigned++;
+      idsAssigned.push(id);
+    }
+    sqlite.exec('COMMIT');
+  } catch (e) {
+    sqlite.exec('ROLLBACK');
+    throw e;
   }
 
-  return { ok: true, assigned, skipped };
+  return { ok: true, assigned, skipped, ids_assigned: idsAssigned, ids_failed: idsFailed };
 }
 
 function reassignEmployeeAssets(employeeId, toEmployeeId, changedByStr) {

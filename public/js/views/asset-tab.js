@@ -388,7 +388,16 @@ async function doBulkAssignInv(tab) {
   const d = await r.json();
   if (r.ok) {
     closeModal();
-    toast(`Присвоено: ${d.assigned}, пропущено (уже есть): ${d.skipped}`, 'success');
+    // BUG-2: теперь сервер отдаёт причину пропуска по каждому ID —
+    // показываем не просто число, а за что конкретно (если пропуски есть).
+    let msg = `Присвоено: ${d.assigned}`;
+    if (d.skipped > 0) {
+      const reasons = {};
+      (d.ids_failed || []).forEach(f => { reasons[f.reason] = (reasons[f.reason]||0) + 1; });
+      const detail = Object.entries(reasons).map(([r,n]) => `${r}: ${n}`).join(', ');
+      msg += `, пропущено: ${d.skipped}${detail ? ` (${detail})` : ''}`;
+    }
+    toast(msg, 'success');
     selectedIds.clear();
     renderAssetTab(tab);
   } else toast(d.error || 'Ошибка', 'error');
