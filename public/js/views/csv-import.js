@@ -18,6 +18,7 @@ function detectImportType() {
   document.getElementById('import-type-hint').style.display = 'none';
   document.getElementById('import-result').innerHTML = '';
   document.getElementById('import-progress').style.display = 'none';
+  document.getElementById('import-csv-options').style.display = 'none';
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -34,6 +35,10 @@ function detectImportType() {
       _importType = 'assets';
       hint.innerHTML = '💻 <b>Оборудование</b> — будет загружено в реестр';
       hint.style.color = '#059669';
+      // BUG-3: раньше create_orgs/create_employees всегда молча были
+      // включены (сервер трактует "не передано" как "создавать") — теперь
+      // пользователь явно видит и может выключить это перед импортом.
+      document.getElementById('import-csv-options').style.display = 'block';
     } else {
       hint.innerHTML = '⚠️ Не удалось определить тип файла. Ожидается CSV с заголовками';
       hint.style.color = '#dc2626';
@@ -195,7 +200,11 @@ async function importCSV() {
   const anim=setInterval(()=>{
     if(animPct<85){animPct+=0.5;document.getElementById('import-progress-bar').style.width=animPct+'%';}
   },80);
-  const r=await fetch(`${API}/api/import/csv`,{method:'POST',headers:ah(),body:JSON.stringify({rows})});
+  const r=await fetch(`${API}/api/import/csv`,{method:'POST',headers:ah(),body:JSON.stringify({
+    rows,
+    create_orgs: document.getElementById('import-create-orgs')?.checked !== false,
+    create_employees: document.getElementById('import-create-employees')?.checked !== false,
+  })});
   clearInterval(anim);
   const d=await r.json();
   btn.disabled=false;

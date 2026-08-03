@@ -103,6 +103,14 @@ function _renderGeneralPanel(isAdmin, db_company_name='', db_logo_svg='', db_ver
       <input type="file" id="csv-file" accept=".csv" style="margin-bottom:8px;font-size:13px;width:100%"
         data-onchange-action="detectImportType"/>
       <div id="import-type-hint" style="font-size:12px;color:var(--muted);margin-bottom:8px;display:none"></div>
+      <div id="import-csv-options" style="display:none;margin-bottom:10px;font-size:12px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:4px">
+          <input type="checkbox" id="import-create-orgs" checked/> Создавать новые организации, которых ещё нет в системе
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="import-create-employees" checked/> Создавать новых сотрудников, которых ещё нет в справочнике
+        </label>
+      </div>
       <button class="btn btn-success" id="import-btn" data-action="importAuto" disabled>⬆ Импортировать</button>
       <div id="import-progress" style="display:none;margin-top:10px">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px" id="import-progress-label">Подготовка...</div>
