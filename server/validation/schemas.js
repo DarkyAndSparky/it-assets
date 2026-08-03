@@ -314,6 +314,33 @@ const importApplySchema = z.object({
   changedBy:   freeTextOpt(200, 'Слишком длинное имя'),
 });
 
+// ─── CSV-импорт (см. также лимит в 5000 строк, SEC-8) ────────────────────
+// Каждая строка — объект с произвольными колонками (заголовки CSV на
+// стороне клиента заранее не фиксированы), поэтому схема не диктует набор
+// полей внутри строки — только что это МАССИВ ОБЪЕКТОВ, не пусто и не
+// содержит null/примитивы (иначе на строке вида null сервер падал бы с
+// TypeError вместо аккуратного 400).
+const importRowsSchema = z.array(z.record(z.string(), z.any()), { message: 'rows: ожидается массив объектов' })
+  .min(1, 'No data')
+  .max(5000, 'Слишком много строк за один импорт (максимум 5000). Разбейте файл на части.');
+
+const importHistorySchema = z.object({
+  rows: z.preprocess(v => v ?? [], importRowsSchema),
+});
+
+const importCsvPreviewSchema = z.object({
+  rows: z.preprocess(v => v ?? [], importRowsSchema),
+});
+
+const importCsvSchema = z.object({
+  rows: z.preprocess(v => v ?? [], importRowsSchema),
+  // Без .default() — важно: репозиторий трактует "не передано" как
+  // "создавать" (options.create_orgs !== false), а .default(false) в
+  // схеме молча ломал это поведение, превращая undefined в явный false.
+  create_orgs:      z.coerce.boolean().optional(),
+  create_employees: z.coerce.boolean().optional(),
+});
+
 module.exports = {
   createUserSchema,
   updateUserSchema,
@@ -349,4 +376,7 @@ module.exports = {
   putPasswordSchema,
   importDiffSchema,
   importApplySchema,
+  importHistorySchema,
+  importCsvPreviewSchema,
+  importCsvSchema,
 };
