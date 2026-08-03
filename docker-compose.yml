@@ -1,0 +1,22 @@
+services:
+  it-assets:
+    build: .
+    container_name: it-assets
+    restart: unless-stopped
+    ports:
+      - "3000:3000"   # HTTP — редиректит на HTTPS
+      - "3443:3443"   # HTTPS — основной, самоподписанный сертификат
+    volumes:
+      # Все данные (db.json, config.json, it-assets.sqlite, backups/,
+      # cert.pem/key.pem) — в одном каталоге, переживают пересборку
+      # и обновление образа.
+      - it-assets-data:/data
+    environment:
+      # Можно переопределить порты/лимит бэкапов без пересборки образа:
+      # - PORT=3000
+      # - HTTPS_PORT=3443
+      # - IT_ASSETS_BACKUP_MAX_MB=2048
+      NODE_ENV: production
+
+volumes:
+  it-assets-data:
