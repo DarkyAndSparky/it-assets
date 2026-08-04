@@ -142,6 +142,38 @@ const I18N = {
     hist_inv_assigned: 'Присвоен инв. №',
     hist_status_changed: 'Изменён статус',
     hist_restored: 'Восстановлен из бэкапа',
+    // LOC-1: auth.js — форма входа, форма принудительной смены пароля,
+    // сообщения об ошибках/успехе. Не путать field_login (подпись поля)
+    // с msg_enter_login (placeholder) — разный текст в оригинале.
+    modal_login_title: '🔐 Вход в систему',
+    field_password: 'Пароль',
+    msg_enter_login: 'Введите логин',
+    msg_enter_password: 'Введите пароль',
+    btn_login_submit: 'Войти',
+    msg_logged_out: 'Вышли из системы',
+    msg_welcome: 'Добро пожаловать, {name}!',
+    msg_invalid_credentials: 'Неверный логин или пароль',
+    msg_connection_error: 'Ошибка соединения с сервером',
+    loc_forced_pin_title: '⚠️ Нужно сменить пароль',
+    loc_forced_pin_body: 'Вы вошли под стандартным паролем <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">admn0000</code>.\n        Это пароль по умолчанию из документации — он известен всем в сети.<br><br>\n        Пока вы его не смените, все действия в системе будут заблокированы — доступна только эта форма.',
+    lbl_new_password: 'Новый пароль',
+    lbl_repeat_password: 'Повторите пароль',
+    msg_min_4_chars: 'Минимум 4 символа',
+    btn_change_pin_continue: '🔒 Сменить пароль и продолжить',
+    msg_pw_too_short: 'Пароль должен быть не короче 4 символов',
+    msg_pw_mismatch: 'Пароли не совпадают',
+    msg_pw_cannot_be_default: 'Нельзя оставить пароль по умолчанию',
+    msg_pw_changed: 'Пароль успешно изменён ✅',
+    msg_pw_change_error: 'Ошибка смены пароля',
+    msg_connection_error_short: 'Ошибка соединения',
+    // LOC-1: ui-utils.js
+    msg_copied: 'Скопировано',
+    msg_copy_failed: 'Не удалось скопировать',
+    msg_download_error: 'Ошибка скачивания',
+    msg_download_connection_error: 'Ошибка соединения при скачивании',
+    // LOC-1: index.html — статичные подсказки (title="...")
+    tooltip_dashboard: 'Перейти на дашборд',
+    tooltip_theme: 'Переключить тему',
   },
   en: {
     // Nav
@@ -268,13 +300,47 @@ const I18N = {
     hist_inv_assigned: 'Inv. # Assigned',
     hist_status_changed: 'Status Changed',
     hist_restored: 'Restored from Backup',
+    // LOC-1: auth.js
+    modal_login_title: '🔐 Sign In',
+    field_password: 'Password',
+    msg_enter_login: 'Enter your login',
+    msg_enter_password: 'Enter your password',
+    btn_login_submit: 'Sign In',
+    msg_logged_out: 'Signed out',
+    msg_welcome: 'Welcome, {name}!',
+    msg_invalid_credentials: 'Invalid login or password',
+    msg_connection_error: 'Server connection error',
+    loc_forced_pin_title: '⚠️ Password change required',
+    loc_forced_pin_body: 'You signed in with the default password <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">admn0000</code>.\n        This is the documented default password — it is known to anyone on the network.<br><br>\n        Until you change it, all actions in the system are blocked — only this form is available.',
+    lbl_new_password: 'New password',
+    lbl_repeat_password: 'Repeat password',
+    msg_min_4_chars: 'Minimum 4 characters',
+    btn_change_pin_continue: '🔒 Change password and continue',
+    msg_pw_too_short: 'Password must be at least 4 characters',
+    msg_pw_mismatch: 'Passwords do not match',
+    msg_pw_cannot_be_default: 'Cannot keep the default password',
+    msg_pw_changed: 'Password changed successfully ✅',
+    msg_pw_change_error: 'Error changing password',
+    msg_connection_error_short: 'Connection error',
+    // LOC-1: ui-utils.js
+    msg_copied: 'Copied',
+    msg_copy_failed: 'Failed to copy',
+    msg_download_error: 'Download error',
+    msg_download_connection_error: 'Connection error while downloading',
+    // LOC-1: index.html
+    tooltip_dashboard: 'Go to dashboard',
+    tooltip_theme: 'Switch theme',
   }
 };
 
 let _lang = localStorage.getItem('itassets_lang') || 'ru';
 
-function t(key) {
-  return (I18N[_lang] && I18N[_lang][key]) || (I18N['ru'] && I18N['ru'][key]) || key;
+function t(key, params) {
+  let str = (I18N[_lang] && I18N[_lang][key]) || (I18N['ru'] && I18N['ru'][key]) || key;
+  if (params) {
+    for (const k in params) str = str.split(`{${k}}`).join(params[k]);
+  }
+  return str;
 }
 
 function toggleLang() {
@@ -332,6 +398,12 @@ function applyLang() {
   // Table headers with data-i18n
   document.querySelectorAll('th[data-i18n]').forEach(th => {
     th.textContent = t(th.getAttribute('data-i18n'));
+  });
+
+  // LOC-1: статичные подсказки (title="...") — не textContent, отдельный
+  // атрибут, поэтому отдельный проход, не смешиваем с [data-i18n] выше.
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = t(el.getAttribute('data-i18n-title'));
   });
 }
 

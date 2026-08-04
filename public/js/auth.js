@@ -23,25 +23,25 @@ function toggleAuth() {
     authPassword = null;
     currentUser  = null;
     _updateAuthUI();
-    toast('Вышли из системы');
+    toast(t('msg_logged_out'));
     render(); return;
   }
   _showLoginModal();
 }
 
 async function _showLoginModal() {
-  showModal(`<h2>🔐 Вход в систему</h2>
+  showModal(`<h2>${t('modal_login_title')}</h2>
     <div class="form-row">
-      <label>Логин</label>
-      <input type="text" id="m-login" autofocus placeholder="Введите логин" autocomplete="username"/>
+      <label>${t('field_login')}</label>
+      <input type="text" id="m-login" autofocus placeholder="${t('msg_enter_login')}" autocomplete="username"/>
     </div>
     <div class="form-row">
-      <label>Пароль</label>
-      <input type="password" id="m-pwd" placeholder="Введите пароль" autocomplete="current-password"/>
+      <label>${t('field_password')}</label>
+      <input type="password" id="m-pwd" placeholder="${t('msg_enter_password')}" autocomplete="current-password"/>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-primary" data-action="doLogin">Войти</button>
-      <button class="btn btn-secondary" data-action="closeModal">Отмена</button>
+      <button class="btn btn-primary" data-action="doLogin">${t('btn_login_submit')}</button>
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
   setTimeout(()=>document.getElementById('m-login')?.focus(), 80);
 }
@@ -50,7 +50,7 @@ async function doLogin() {
   try {
     const login = document.getElementById('m-login')?.value.trim() || '';
     const pwd   = document.getElementById('m-pwd')?.value || '';
-    if (!login) return toast('Введите логин', 'error');
+    if (!login) return toast(t('msg_enter_login'), 'error');
 
     const r = await fetch(`${API}/api/users/login`, {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -61,7 +61,7 @@ async function doLogin() {
       currentUser  = d.user;
       authPassword = pwd;
       _updateAuthUI();
-      toast(`Добро пожаловать, ${currentUser.name}!`, 'success');
+      toast(t('msg_welcome', { name: currentUser.name }), 'success');
       render();
       // Обязательная смена дефолтного пароля — блокирует остальной интерфейс,
       // сервер всё равно откажет во всех действиях, кроме смены своего пароля
@@ -71,33 +71,31 @@ async function doLogin() {
       } else {
         closeModal();
       }
-    } else toast(d.error || 'Неверный логин или пароль', 'error');
-  } catch(e) { toast('Ошибка соединения с сервером', 'error'); }
+    } else toast(d.error || t('msg_invalid_credentials'), 'error');
+  } catch(e) { toast(t('msg_connection_error'), 'error'); }
 }
 
 function _showForcedPinChange() {
   window._forcePinChangeMode = true;
   const html = `
     <div style="padding:24px;max-width:420px">
-      <div style="font-size:22px;margin-bottom:12px">⚠️ Нужно сменить пароль</div>
+      <div style="font-size:22px;margin-bottom:12px">${t('loc_forced_pin_title')}</div>
       <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:18px">
-        Вы вошли под стандартным паролем <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">admn0000</code>.
-        Это пароль по умолчанию из документации — он известен всем в сети.<br><br>
-        Пока вы его не смените, все действия в системе будут заблокированы — доступна только эта форма.
+        ${t('loc_forced_pin_body')}
       </div>
       <div style="margin-bottom:12px">
-        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Новый пароль</label>
-        <input id="new-pin-inp" type="password" placeholder="Минимум 4 символа" autofocus
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">${t('lbl_new_password')}</label>
+        <input id="new-pin-inp" type="password" placeholder="${t('msg_min_4_chars')}" autofocus
           style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface1);color:var(--text);font-size:14px;box-sizing:border-box"/>
       </div>
       <div style="margin-bottom:18px">
-        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Повторите пароль</label>
-        <input id="new-pin-inp2" type="password" placeholder="Повторите пароль"
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">${t('lbl_repeat_password')}</label>
+        <input id="new-pin-inp2" type="password" placeholder="${t('lbl_repeat_password')}"
           style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface1);color:var(--text);font-size:14px;box-sizing:border-box"/>
       </div>
       <div id="forced-pin-error" style="display:none;color:var(--danger,#e5484d);font-size:12px;margin-bottom:12px"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-primary" style="flex:1" data-action="doChangeDefaultPin">🔒 Сменить пароль и продолжить</button>
+        <button class="btn btn-primary" style="flex:1" data-action="doChangeDefaultPin">${t('btn_change_pin_continue')}</button>
       </div>
     </div>`;
   showModal(html);
@@ -109,9 +107,9 @@ async function doChangeDefaultPin() {
   const p2 = document.getElementById('new-pin-inp2')?.value || '';
   const errEl = document.getElementById('forced-pin-error');
   const showErr = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } else toast(msg, 'error'); };
-  if (p1.length < 4) return showErr('Пароль должен быть не короче 4 символов');
-  if (p1 !== p2)     return showErr('Пароли не совпадают');
-  if (p1 === 'admn0000') return showErr('Нельзя оставить пароль по умолчанию');
+  if (p1.length < 4) return showErr(t('msg_pw_too_short'));
+  if (p1 !== p2)     return showErr(t('msg_pw_mismatch'));
+  if (p1 === 'admn0000') return showErr(t('msg_pw_cannot_be_default'));
   try {
     const r = await fetch(`${API}/api/settings/password`, {
       method:'PUT', headers:{'Content-Type':'application/json','x-user-id':currentUser?.id,'x-edit-password':authPassword},
@@ -122,9 +120,9 @@ async function doChangeDefaultPin() {
       authPassword = p1;
       window._forcePinChangeMode = false;
       closeModal();
-      toast('Пароль успешно изменён ✅', 'success');
-    } else showErr(d.error || 'Ошибка смены пароля');
-  } catch(e) { showErr('Ошибка соединения'); }
+      toast(t('msg_pw_changed'), 'success');
+    } else showErr(d.error || t('msg_pw_change_error'));
+  } catch(e) { showErr(t('msg_connection_error_short')); }
 }
 
 // Подстраховка: если 428 (must_change_pin) прилетит с любого другого запроса
@@ -152,8 +150,8 @@ function _updateAuthUI() {
   document.body.classList.toggle('body-auth', authed);
 
   if (!authed) {
-    if (btn)    btn.textContent     = '🔐 Войти';
-    if (status) status.textContent  = '👁 Просмотр';
+    if (btn)    btn.textContent     = t('btn_login');
+    if (status) status.textContent  = t('lbl_viewer');
     // Если были на закрытой вкладке — возвращаем на дашборд
     const protectedTabs = ['os','small','infra','history','accounts','alerts','settings'];
     if (protectedTabs.includes(currentTab)) {
@@ -164,9 +162,9 @@ function _updateAuthUI() {
     return;
   }
 
-  const roleLabel = currentUser?.role === 'admin' ? 'Администратор'
-                  : currentUser?.role === 'viewer' ? 'Просмотр' : 'Оператор';
-  if (btn)    btn.textContent  = '🚪 Выйти';
+  const roleLabel = currentUser?.role === 'admin' ? t('lbl_admin')
+                  : currentUser?.role === 'viewer' ? t('lbl_viewer') : t('lbl_operator');
+  if (btn)    btn.textContent  = t('btn_logout');
   if (status) status.textContent = `${currentUser.name} · ${roleLabel}`;
 }
 

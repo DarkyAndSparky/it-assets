@@ -42,4 +42,7 @@ window.addEventListener('unhandledrejection', e => {
 
 _initThemeBtn();
 _updateAuthUI();
+applyLang(); // LOC-1: раньше вызывался только по клику на переключатель —
+             // сохранённый в localStorage язык при обычной перезагрузке
+             // страницы не применялся к шапке/статичным подсказкам.
 render();

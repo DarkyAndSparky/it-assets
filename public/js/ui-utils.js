@@ -23,7 +23,8 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function fd(d){if(!d)return'—';try{return d.slice(0,10).split('-').reverse().join('.');}catch{return d;}}
 
 // ─── Буфер обмена ───────────────────────────────────────────────────────────────
-function copyToClipboard(text, successMsg='Скопировано') {
+function copyToClipboard(text, successMsg) {
+  successMsg = successMsg ?? t('msg_copied');
   if (!text) return;
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(text)
@@ -40,7 +41,7 @@ function _copyFallback(text, successMsg) {
   document.body.appendChild(el);
   el.select();
   try { document.execCommand('copy'); toast(successMsg, 'success'); }
-  catch(e) { toast('Не удалось скопировать', 'error'); }
+  catch(e) { toast(t('msg_copy_failed'), 'error'); }
   document.body.removeChild(el);
 }
 
@@ -74,7 +75,7 @@ async function downloadWithAuth(url, filename) {
   try {
     const r = await fetch(url, { headers: ah() });
     if (!r.ok) {
-      let msg = 'Ошибка скачивания';
+      let msg = t('msg_download_error');
       try { msg = (await r.json()).error || msg; } catch(e) {}
       return toast(msg, 'error');
     }
@@ -84,7 +85,7 @@ async function downloadWithAuth(url, filename) {
     a.href = objUrl; a.download = filename;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
-  } catch(e) { toast('Ошибка соединения при скачивании', 'error'); }
+  } catch(e) { toast(t('msg_download_connection_error'), 'error'); }
 }
 
 function toast(msg,type=''){
