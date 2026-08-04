@@ -15,9 +15,7 @@
  */
 const { test, expect } = require('@playwright/test');
 const path = require('path');
-
-const ADMIN_LOGIN = 'admin';
-const ADMIN_PIN   = 'admn0000';
+const { ADMIN_LOGIN, ADMIN_PIN } = require('./e2e-credentials');
 
 async function login(page) {
   await page.goto('/');
@@ -27,12 +25,8 @@ async function login(page) {
   await page.fill('#m-pwd', ADMIN_PIN);
   await page.click('button[data-action="doLogin"]');
   await expect(page.locator('[data-tab="os"]')).toBeVisible({ timeout: 5000 });
-
-  const dismissBtn = page.locator('button:has-text("Напомнить позже")');
-  try {
-    await dismissBtn.waitFor({ state: 'visible', timeout: 1500 });
-    await dismissBtn.click();
-  } catch (e) { /* модалка не появилась — и ладно */ }
+  // SEC-1: пароль уже сменён в global-setup.js до старта тестов — форма
+  // принудительной смены дефолтного пароля здесь не появляется.
 }
 
 // Открывает вкладку Настройки (по умолчанию рендерится подвкладка "Общие",
@@ -85,21 +79,28 @@ test.describe('Настройки → Общие: бэкапы', () => {
     await expect.poll(() => dialogMessage).toContain('Восстановить базу из');
   });
 
-  test('ссылки экспорта CSV присутствуют с корректными href (Всё/ОС/Мелочи/Инфра)', async ({ page }) => {
+  test('кнопки экспорта CSV присутствуют и указывают на корректный URL (Всё/ОС/Мелочи/Инфра)', async ({ page }) => {
     await login(page);
     await openSettingsGeneral(page);
-    await expect(page.locator('a:has-text("Всё")')).toHaveAttribute('href', /\/api\/export\/csv$/);
-    await expect(page.locator('a:has-text("ОС")')).toHaveAttribute('href', /tab=os/);
-    await expect(page.locator('a:has-text("Мелочи")')).toHaveAttribute('href', /tab=small/);
-    await expect(page.locator('a:has-text("Инфра")')).toHaveAttribute('href', /tab=infra/);
+    // SEC-8: экспорт теперь требует авторизацию, а обычная <a href> не может
+    // передать наши заголовки (x-user-id/x-edit-password) — поэтому кнопки,
+    // не ссылки; URL зашит в data-args для downloadWithAuth().
+    const getArgs = async (text) => {
+      const raw = await page.locator(`button:has-text("${text}")`).getAttribute('data-args');
+      return JSON.parse(raw);
+    };
+    expect((await getArgs('Всё'))[0]).toMatch(/\/api\/export\/csv$/);
+    expect((await getArgs('ОС'))[0]).toMatch(/tab=os/);
+    expect((await getArgs('Мелочи'))[0]).toMatch(/tab=small/);
+    expect((await getArgs('Инфра'))[0]).toMatch(/tab=infra/);
   });
 
-  test('клик по ссылке экспорта реально скачивает CSV-файл', async ({ page }) => {
+  test('клик по кнопке экспорта реально скачивает CSV-файл', async ({ page }) => {
     await login(page);
     await openSettingsGeneral(page);
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 5000 }),
-      page.click('a:has-text("Всё")'),
+      page.click('button:has-text("Всё")'),
     ]);
     expect(download.suggestedFilename()).toMatch(/\.csv$/);
   });

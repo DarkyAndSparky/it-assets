@@ -15,9 +15,7 @@
  * поднимается свежий admin/admn0000 при каждом запуске.
  */
 const { test, expect } = require('@playwright/test');
-
-const ADMIN_LOGIN = 'admin';
-const ADMIN_PIN   = 'admn0000';
+const { ADMIN_LOGIN, ADMIN_PIN } = require('./e2e-credentials');
 
 async function login(page) {
   await page.goto('/');
@@ -32,17 +30,9 @@ async function login(page) {
   // После логина auth-кнопка меняет текст/состояние, вкладки .nav-auth становятся видимыми
   await expect(page.locator('[data-tab="os"]')).toBeVisible({ timeout: 5000 });
 
-  // Т.к. логинимся под ДЕЙСТВИТЕЛЬНО дефолтным паролем (admn0000), система
-  // через 600мс сама показывает nag-модалку "Смените пароль администратора"
-  // (_showDefaultPinWarning). Если её не закрыть, она перехватывает все
-  // последующие клики (modal-overlay блокирует pointer events). Ждём и
-  // закрываем, если появилась — но не падаем, если её нет (вдруг пароль
-  // уже сменили в этой e2e-БД в прошлом прогоне).
-  const dismissBtn = page.locator('button:has-text("Напомнить позже")');
-  try {
-    await dismissBtn.waitFor({ state: 'visible', timeout: 1500 });
-    await dismissBtn.click();
-  } catch (e) { /* модалка не появилась — и ладно */ }
+  // SEC-1: форма принудительной смены дефолтного пароля здесь не появится —
+  // global-setup.js меняет пароль admin ОДИН РАЗ до старта тестов (см. этот
+  // файл), так что логин здесь всегда идёт уже НЕ дефолтным паролем.
 }
 
 test.describe('Смоук: базовая работоспособность UI', () => {

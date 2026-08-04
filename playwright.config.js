@@ -12,6 +12,7 @@ module.exports = defineConfig({
   workers: 1,
   retries: 0,
   reporter: [['list']],
+  globalSetup: require.resolve('./tests-e2e/global-setup.js'),
   use: {
     baseURL: `https://localhost:${HTTPS_PORT}`,
     ignoreHTTPSErrors: true, // самоподписанный сертификат

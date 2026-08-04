@@ -15,6 +15,7 @@
  */
 
 const { test, expect } = require('@playwright/test');
+const { ADMIN_LOGIN, ADMIN_PIN } = require('./e2e-credentials');
 
 // ── Хелперы ──────────────────────────────────────────────────────────────────
 
@@ -22,16 +23,12 @@ async function login(page) {
   await page.goto('/');
   await page.click('#auth-btn');
   await page.waitForSelector('#m-login', { timeout: 5000 });
-  await page.fill('#m-login', 'admin');
-  await page.fill('#m-pwd', 'admn0000');
+  await page.fill('#m-login', ADMIN_LOGIN);
+  await page.fill('#m-pwd', ADMIN_PIN);
   await page.click('button[data-action="doLogin"]'); // Фаза 6: onclick → addEventListener
   await expect(page.locator('[data-tab="os"]')).toBeVisible({ timeout: 5000 });
-  // Закрываем nag-модалку если появилась
-  const dismissBtn = page.locator('button:has-text("Напомнить позже")');
-  try {
-    await dismissBtn.waitFor({ state: 'visible', timeout: 1500 });
-    await dismissBtn.click();
-  } catch (e) {}
+  // SEC-1: пароль уже сменён в global-setup.js до старта тестов — форма
+  // принудительной смены дефолтного пароля здесь не появляется.
 }
 
 /** Возвращает вычисленное CSS-значение свойства для селектора */
