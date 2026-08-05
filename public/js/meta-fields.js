@@ -16,10 +16,13 @@ const META_FIELDS={
   'Серверы':['ip','mac','login','password'],
   '_default':['ip','mac','subnet','note2'],
 };
-const META_LABELS={ip:'IP адрес',mac:'MAC адрес',subnet:'Подсеть',winbox:'WinBox/URL',
-  login:'Логин',password:'Пароль',cabinet:'Шкаф/стойка',controller:'Контроллер',
-  inv:'ИНВ номер',network:'Имя сети',hostname:'Hostname',cartridge:'Картриджи',
-  firmware:'Прошивка',note2:'Доп. описание'};
+// LOC-2: было статичным объектом META_LABELS={...} — значения замораживались
+// на языке, который был активен в момент загрузки скрипта, и не менялись
+// при переключении языка. Теперь функция — резолвит подпись каждый раз
+// заново через t(), всегда на актуальном языке.
+function metaLabel(k) {
+  return t('meta_' + k) || k;
+}
 
 function getMetaFields(category) {
   return META_FIELDS[category] || META_FIELDS['_default'];

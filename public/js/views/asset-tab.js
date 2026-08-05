@@ -60,7 +60,7 @@ async function renderAssetTab(tab) {
   const totalAssets = _resp.total ?? assets.length;
   const totalPages  = _resp.pages ?? 1;
   assetsCache=assets;
-  document.getElementById('total-badge').textContent=totalAssets+' единиц';
+  document.getElementById('total-badge').textContent=totalAssets+' '+t('unit_items');
   // Словарь org_id → name для отображения в таблице
   const _orgMap = Object.fromEntries((_orgsCache||[]).map(o=>[o.id, o.name]));
   // Орг — из справочника (не из отфильтрованных ассетов!) чтобы dropdown не урезался
@@ -94,52 +94,52 @@ async function renderAssetTab(tab) {
 
   app.innerHTML=`
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-    <div style="font-size:16px;font-weight:700">${TAB_LABELS[tab]||tab}
+    <div style="font-size:16px;font-weight:700">${tabLabel(tab)}
       <span style="color:var(--muted);font-weight:400;font-size:13px">(${assets.length})</span>
     </div>
     <div style="display:flex;gap:6px">
-      ${canEdit()?`<button class="btn btn-secondary btn-sm" data-action="showCatEditor" data-args='${JSON.stringify([tab])}' title="Категории для группировки оборудования">📂 Категории</button>`:''}
+      ${canEdit()?`<button class="btn btn-secondary btn-sm" data-action="showCatEditor" data-args='${JSON.stringify([tab])}' title="${t('tooltip_categories')}">📂 ${t('btn_categories')}</button>`:''}
       <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=${tab}`, `IT_assets_${tab}.csv`])}'>⬇ CSV</button>
-      ${canEdit()?`<button class="btn btn-primary btn-sm" data-action="showAddModal" data-args='${JSON.stringify([tab])}'>＋ Добавить</button>`:''}
+      ${canEdit()?`<button class="btn btn-primary btn-sm" data-action="showAddModal" data-args='${JSON.stringify([tab])}'>${t('btn_add')}</button>`:''}
     </div>
   </div>
   <div class="cat-tabs">
-    ${['Все',...cats].map(c=>{const val=c==='Все'?'':c;return `<div class="cat-tab ${(currentCat||'Все')===c?'active':''}" data-action="_selectCategory" data-args='${JSON.stringify([tab, val])}'>${c}</div>`;}).join('')}
+    ${['Все',...cats].map(c=>{const val=c==='Все'?'':c;return `<div class="cat-tab ${(currentCat||'Все')===c?'active':''}" data-action="_selectCategory" data-args='${JSON.stringify([tab, val])}'>${c==='Все'?t('lbl_all'):c}</div>`;}).join('')}
   </div>
   ${canEdit() && selectedIds.size > 0 ? `
   <div style="display:flex;align-items:center;gap:8px;padding:9px 14px;
     background:var(--accent-dim,var(--surface2));border:1px solid var(--accent);
     border-radius:10px;margin-bottom:10px;flex-wrap:wrap">
-    <span style="font-size:13px;font-weight:700;color:var(--accent)">☑ Выбрано: ${selectedIds.size}</span>
-    <button class="btn btn-primary btn-sm" data-action="showBulkMoveModal" data-args='${JSON.stringify([tab])}'>→ Переместить</button>
-    <button class="btn btn-secondary btn-sm" data-action="showBulkInvModal" data-args='${JSON.stringify([tab])}'>🏷 Инв. №</button>
-    <button class="btn btn-danger btn-sm" data-action="showBulkRetireModal" data-args='${JSON.stringify([tab])}'>🗑 Списать</button>
-    <button class="btn btn-ghost btn-sm" data-action="clearSelection" data-args='${JSON.stringify([tab])}'>✕ Снять</button>
+    <span style="font-size:13px;font-weight:700;color:var(--accent)">☑ ${t('lbl_selected')}: ${selectedIds.size}</span>
+    <button class="btn btn-primary btn-sm" data-action="showBulkMoveModal" data-args='${JSON.stringify([tab])}'>→ ${t('btn_move')}</button>
+    <button class="btn btn-secondary btn-sm" data-action="showBulkInvModal" data-args='${JSON.stringify([tab])}'>🏷 ${t('field_inv')}</button>
+    <button class="btn btn-danger btn-sm" data-action="showBulkRetireModal" data-args='${JSON.stringify([tab])}'>🗑 ${t('btn_retire')}</button>
+    <button class="btn btn-ghost btn-sm" data-action="clearSelection" data-args='${JSON.stringify([tab])}'>✕ ${t('btn_clear_selection')}</button>
   </div>` : ''}
   <div class="card" style="margin-bottom:0">
     <div class="filters">
-      <input class="search-inp" type="text" placeholder="🔍 Поиск..." value="${esc(searchVal)}"
+      <input class="search-inp" type="text" placeholder="🔍 ${t('msg_search')}" value="${esc(searchVal)}"
         data-oninput-action="_onAssetSearchInput" data-oninput-args='${JSON.stringify([tab])}'/>
       <select data-onchange-action="_onOrgFilterChange" data-onchange-args='${JSON.stringify([tab])}'>
-        ${_allOrgs.map(o=>`<option ${fOrg===o?'selected':''}>${esc(o)}</option>`).join('')}
+        ${_allOrgs.map(o=>`<option ${fOrg===o?'selected':''}>${o==='Все'?t('lbl_all'):esc(o)}</option>`).join('')}
       </select>
       <select data-onchange-action="_onFilialFilterChange" data-onchange-args='${JSON.stringify([tab])}'>
-        ${filials.map(f=>`<option ${fFilial===f?'selected':''}>${esc(f)}</option>`).join('')}
+        ${filials.map(f=>`<option ${fFilial===f?'selected':''}>${f==='Все'?t('lbl_all'):esc(f)}</option>`).join('')}
       </select>
       <select data-onchange-action="_onStatusFilterChange" data-onchange-args='${JSON.stringify([tab])}'>
-        ${['Все','используется','резерв'].map(s=>`<option ${fStatus===s?'selected':''}>${s}</option>`).join('')}
+        ${['Все','используется','резерв'].map(s=>`<option ${fStatus===s?'selected':''}>${s==='Все'?t('lbl_all'):s}</option>`).join('')}
       </select>
       ${(searchVal||fOrg!=='Все'||fFilial!=='Все'||fStatus!=='Все')?
-        `<button class="btn btn-ghost btn-sm" data-action="_resetAssetFilters" data-args='${JSON.stringify([tab])}'>✕ Сброс</button>`:''}
+        `<button class="btn btn-ghost btn-sm" data-action="_resetAssetFilters" data-args='${JSON.stringify([tab])}'>✕ ${t('btn_reset')}</button>`:''}
     </div>
     <div class="tbl-wrap"><table>
       <thead><tr>
-        ${canEdit()?`<th style="width:32px"><input type="checkbox" id="sel-all" title="Выбрать все / снять все"
+        ${canEdit()?`<th style="width:32px"><input type="checkbox" id="sel-all" title="${t('tooltip_select_all')}"
           data-onchange-action="_onSelectAllChange" data-onchange-args='${JSON.stringify([tab])}'/></th>`:''}
-        ${thSort('inv','Инв. №')}${thSort('type','Тип')}${thSort('model','Модель')}${thSort('serial','Серийный №')}
+        ${thSort('inv',t('field_inv'))}${thSort('type',t('field_type'))}${thSort('model',t('field_model'))}${thSort('serial',t('field_serial'))}
         ${showMeta?'<th>IP</th><th>MAC</th>':''}
-        ${thSort('responsible','Ответственный')}${thSort('filial','Филиал / Место')}${thSort('org','Орг.')}
-        <th>Коллекция</th>${thSort('status','Статус')}
+        ${thSort('responsible',t('field_responsible'))}${thSort('filial',t('lbl_filial_place'))}${thSort('org',t('lbl_org_short'))}
+        <th>${t('field_collection')}</th>${thSort('status',t('field_status'))}
         ${canEdit()?'<th></th>':''}
       </tr></thead>
       <tbody>${assets.map(a=>`
@@ -152,14 +152,14 @@ async function renderAssetTab(tab) {
           ${showMeta?`<td><span class="badge-meta">${esc(a.meta?.ip)||'—'}</span></td>
             <td class="mono" style="font-size:11px">${esc(a.meta?.mac)||'—'}</td>`:''}
           <td>${(!a.responsible||a.responsible==='?'||a.responsible==='—')
-            ?'<span class="no-resp">Не назначен</span>':esc(a.responsible)}</td>
+            ?`<span class="no-resp">${t('lbl_not_assigned')}</span>`:esc(a.responsible)}</td>
           <td><b>${esc(a.filial)}</b>${a.location?` <span style="color:var(--muted)">· ${esc(a.location)}</span>`:''}</td>
           <td style="font-size:11px;color:var(--muted);white-space:nowrap">${esc(_orgMap[a.org_id]||a.org||'—')}</td>
           <td><span class="badge-cat">${esc(a.category)}</span></td>
           <td><span class="badge-s ${sc(a.status)}">${a.status}</span></td>
           ${canEdit()?`<td data-action="_noop" style="white-space:nowrap">
             <button class="btn btn-secondary btn-sm" data-action="showMoveModal" data-args='${JSON.stringify([a.id])}'>→</button>
-            <button class="btn-icon" data-action="showEditModal" data-args='${JSON.stringify([a.id])}' title="Изменить">✏️</button>
+            <button class="btn-icon" data-action="showEditModal" data-args='${JSON.stringify([a.id])}' title="${t('btn_edit')}">✏️</button>
           </td>`:''}
         </tr>`).join('')}
       </tbody></table></div>
@@ -182,10 +182,10 @@ async function renderAssetTab(tab) {
 // ─── CATEGORY EDITOR ─────────────────────────────────────────────────────────
 function showCatEditor(tab) {
   const cats = catsCache[tab]||[];
-  showModal(`<h2>📂 Категории — ${TAB_LABELS[tab]||tab}</h2>
+  showModal(`<h2>📂 ${t('modal_categories_title', { tab: tabLabel(tab) })}</h2>
     <div style="font-size:13px;color:var(--muted);margin-bottom:12px">
-      Категории используются для группировки оборудования на вкладке.<br>
-      При удалении категории — оборудование из неё <b>не удаляется</b>, только снимается метка.
+      ${t('msg_categories_used_for_grouping')}<br>
+      ${t('msg_category_delete_note')}
     </div>
     <div id="tag-container" class="tag-list">${cats.map(c=>`
       <div class="tag" id="tag-${btoa(c)}">
@@ -194,13 +194,13 @@ function showCatEditor(tab) {
       </div>`).join('')}
     </div>
     <div style="display:flex;gap:7px;margin-top:14px">
-      <input id="new-cat-inp" style="flex:1" placeholder="Новая коллекция..." 
+      <input id="new-cat-inp" style="flex:1" placeholder="${t('msg_new_collection_placeholder')}" 
         data-onkeydown-action="_onNewCatKeydown" data-onkeydown-args='${JSON.stringify([tab])}'/>
-      <button class="btn btn-success" data-action="addTag" data-args='${JSON.stringify([tab])}'>Добавить</button>
+      <button class="btn btn-success" data-action="addTag" data-args='${JSON.stringify([tab])}'>${t('btn_add')}</button>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-primary" data-action="saveCats" data-args='${JSON.stringify([tab])}'>Сохранить</button>
-      <button class="btn btn-secondary" data-action="closeModal">Отмена</button>
+      <button class="btn btn-primary" data-action="saveCats" data-args='${JSON.stringify([tab])}'>${t('btn_save')}</button>
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
 }
 let editingCats = [];
@@ -226,8 +226,8 @@ async function saveCats(tab) {
   const r = await fetch(`${API}/api/categories/${tab}`,{method:'PUT',headers:ah(),body:JSON.stringify({categories:tags})});
   if (r.ok) {
     catsCache[tab] = tags;
-    closeModal(); toast('Коллекции сохранены','success'); render();
-  } else toast('Ошибка','error');
+    closeModal(); toast(t('msg_collections_saved'),'success'); render();
+  } else toast(t('msg_error'),'error');
 }
 
 function thSort(col, label) {
@@ -282,7 +282,7 @@ function renderPaginator(totalPages, totalAssets) {
   let btns = '';
   const prevDis = currentPage <= 1 ? ' disabled' : '';
   const nextDis = currentPage >= totalPages ? ' disabled' : '';
-  btns += `<button class="btn btn-ghost btn-sm"${prevDis} data-action="gotoPage" data-args='${JSON.stringify([currentPage-1])}'>← Пред</button>`;
+  btns += `<button class="btn btn-ghost btn-sm"${prevDis} data-action="gotoPage" data-args='${JSON.stringify([currentPage-1])}'>← ${t('btn_prev')}</button>`;
   let lastWasDots = false;
   for (let p = 1; p <= totalPages; p++) {
     const near = Math.abs(p - currentPage) <= 2 || p === 1 || p === totalPages;
@@ -295,8 +295,8 @@ function renderPaginator(totalPages, totalAssets) {
       lastWasDots = true;
     }
   }
-  btns += `<button class="btn btn-ghost btn-sm"${nextDis} data-action="gotoPage" data-args='${JSON.stringify([currentPage+1])}'>След →</button>`;
-  btns += `<span style="font-size:12px;color:var(--muted);margin-left:8px">${from}–${to} из ${totalAssets}</span>`;
+  btns += `<button class="btn btn-ghost btn-sm"${nextDis} data-action="gotoPage" data-args='${JSON.stringify([currentPage+1])}'>${t('btn_next')} →</button>`;
+  btns += `<span style="font-size:12px;color:var(--muted);margin-left:8px">${from}–${to} ${t('lbl_of')} ${totalAssets}</span>`;
   return `<div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:14px;flex-wrap:wrap">${btns}</div>`;
 }
 
@@ -307,7 +307,7 @@ function gotoPage(page) {
 
 // ─── Bulk-модалки (присвоить инв.№, списать, переместить) — шаг 16 ─────────
 async function showBulkInvModal(tab) {
-  if (!selectedIds.size) return toast('Ничего не выбрано', 'error');
+  if (!selectedIds.size) return toast(t('msg_nothing_selected'), 'error');
 
   // Загружаем организации с правилами инв. номеров
   let orgsWithRules = [];
@@ -317,7 +317,7 @@ async function showBulkInvModal(tab) {
   } catch(e) {}
 
   if (!orgsWithRules.length) {
-    return toast('Нет организаций с настроенными правилами инв. номеров', 'error');
+    return toast(t('msg_no_orgs_with_inv_rules'), 'error');
   }
 
   // Собираем список выбранных ассетов (из DOM)
@@ -327,27 +327,26 @@ async function showBulkInvModal(tab) {
     `<option value="${o.id}">${esc(o.name)} (${o.short_code})</option>`
   ).join('');
 
-  showModal(`<h2>🏷 Присвоить инв. номера</h2>
+  showModal(`<h2>${t('modal_bulk_inv_title')}</h2>
     <div style="background:var(--surface2);border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px;border:1px solid var(--border)">
-      Выбрано устройств: <b>${selectedArr.length}</b><br>
-      <span style="font-size:11px;color:var(--muted)">Устройствам с уже присвоенным номером номер не переназначается.</span>
+      ${t('lbl_selected_devices')}: <b>${selectedArr.length}</b><br>
+      <span style="font-size:11px;color:var(--muted)">${t('msg_devices_without_inv_note')}</span>
     </div>
-    <div class="form-row"><label>Организация</label>
+    <div class="form-row"><label>${t('field_org')}</label>
       <select id="bi-org" data-onchange-action="_onBulkInvOrgChange" data-onchange-args='${JSON.stringify([orgsWithRules])}'>
         ${orgOpts}
       </select>
     </div>
-    <div class="form-row"><label>Тип устройства (правило)</label>
+    <div class="form-row"><label>${t('field_device_type_rule')}</label>
       <select id="bi-type"></select>
     </div>
     <div id="bi-preview" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">
-      ⚠ Номера присваиваются только устройствам <b>без инв. номера</b> в выборке.
-      Номера резервируются последовательно согласно счётчику организации.
+      ${t('msg_inv_only_without_number_note')}
     </div>
     <div class="modal-actions">
-      <button class="btn btn-primary" data-action="doBulkAssignInv" data-args='${JSON.stringify([tab])}'>Присвоить</button>
-      <button class="btn btn-secondary" data-action="closeModal">Отмена</button>
+      <button class="btn btn-primary" data-action="doBulkAssignInv" data-args='${JSON.stringify([tab])}'>${t('btn_assign')}</button>
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
 
   // Инициализируем типы для первой организации
@@ -372,13 +371,13 @@ function _updateInvPreview(org) {
   if (!tc || !org) return;
   const rule = (org.inv_rules||[]).find(r=>r.type_code===tc);
   const next = (rule?.counter||0) + 1;
-  preview.textContent = `Следующий номер: ${org.short_code}-${tc}-${String(next).padStart(5,'0')}`;
+  preview.textContent = `${t('msg_next_number')}: ${org.short_code}-${tc}-${String(next).padStart(5,'0')}`;
 }
 
 async function doBulkAssignInv(tab) {
   const orgId   = document.getElementById('bi-org')?.value;
   const typeCode = document.getElementById('bi-type')?.value;
-  if (!orgId || !typeCode) return toast('Выберите организацию и тип', 'error');
+  if (!orgId || !typeCode) return toast(t('msg_select_org_and_type'), 'error');
 
   const ids = [...selectedIds];
   const r = await fetch(`${API}/api/assets/bulk-assign-inv`, {
@@ -390,36 +389,36 @@ async function doBulkAssignInv(tab) {
     closeModal();
     // BUG-2: теперь сервер отдаёт причину пропуска по каждому ID —
     // показываем не просто число, а за что конкретно (если пропуски есть).
-    let msg = `Присвоено: ${d.assigned}`;
+    let msg = `${t('msg_bulk_assigned_prefix')}: ${d.assigned}`;
     if (d.skipped > 0) {
       const reasons = {};
       (d.ids_failed || []).forEach(f => { reasons[f.reason] = (reasons[f.reason]||0) + 1; });
       const detail = Object.entries(reasons).map(([r,n]) => `${r}: ${n}`).join(', ');
-      msg += `, пропущено: ${d.skipped}${detail ? ` (${detail})` : ''}`;
+      msg += `, ${t('msg_bulk_skipped_prefix')}: ${d.skipped}${detail ? ` (${detail})` : ''}`;
     }
     toast(msg, 'success');
     selectedIds.clear();
     renderAssetTab(tab);
-  } else toast(d.error || 'Ошибка', 'error');
+  } else toast(d.error || t('msg_error'), 'error');
 }
 
 function showBulkRetireModal(tab) {
-  if (!selectedIds.size) return toast('Ничего не выбрано', 'error');
-  showModal(`<h2>🗑 Массовое списание</h2>
+  if (!selectedIds.size) return toast(t('msg_nothing_selected'), 'error');
+  showModal(`<h2>${t('modal_bulk_retire_title')}</h2>
     <div style="background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px;color:var(--danger-text)">
-      Будет списано: <b>${selectedIds.size}</b> единиц оборудования.<br>
-      Это действие необратимо — оборудование помечается как списанное.
+      ${t('msg_will_be_retired_count')}: <b>${selectedIds.size}</b> ${t('msg_units_of_equipment')}.<br>
+      ${t('msg_retire_irreversible')}
     </div>
-    <div class="form-row"><label>Причина списания</label>
-      <input id="br-reason" placeholder="Моральный износ, поломка..." autofocus/></div>
+    <div class="form-row"><label>${t('field_retire_reason')}</label>
+      <input id="br-reason" placeholder="${t('msg_retire_reason_placeholder')}" autofocus/></div>
     <div class="modal-actions">
-      <button class="btn btn-danger" data-action="doBulkRetire" data-args='${JSON.stringify([tab])}'>Списать ${selectedIds.size} ед.</button>
-      <button class="btn btn-secondary" data-action="closeModal">Отмена</button>
+      <button class="btn btn-danger" data-action="doBulkRetire" data-args='${JSON.stringify([tab])}'>${t('btn_retire_count', { n: selectedIds.size })}</button>
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
 }
 
 async function doBulkRetire(tab) {
-  const reason = document.getElementById('br-reason')?.value.trim() || 'Массовое списание';
+  const reason = document.getElementById('br-reason')?.value.trim() || t('msg_bulk_retire_default_reason');
   const ids = [...selectedIds];
   closeModal();
   let ok = 0, fail = 0;
@@ -432,31 +431,31 @@ async function doBulkRetire(tab) {
     if (r.ok) ok++; else fail++;
   }
   selectedIds.clear();
-  if (ok)   toast(`Списано: ${ok} ед.`, 'success');
-  if (fail) toast(`Ошибок: ${fail}`, 'error');
+  if (ok)   toast(`${t('msg_retired_count_prefix')}: ${ok} ${t('msg_units_short')}`, 'success');
+  if (fail) toast(`${t('msg_errors_count_prefix')}: ${fail}`, 'error');
   renderAssetTab(tab);
 }
 
 function showBulkMoveModal(tab) {
-  if (!selectedIds.size) return toast('Ничего не выбрано', 'error');
+  if (!selectedIds.size) return toast(t('msg_nothing_selected'), 'error');
   const filOpts = _filialsCache.map(f=>`<option value="${f.name}">${esc(f.name)}</option>`).join('');
   const locOpts = _locsCache.map(l=>`<option value="${l.name}">${esc(l.name)}</option>`).join('');
-  showModal(`<h2>→ Массовое перемещение</h2>
+  showModal(`<h2>${t('modal_bulk_move_title')}</h2>
     <div style="background:#eff6ff;border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px">
-      Ассетов: <b>${selectedIds.size}</b> &nbsp;·&nbsp;
-      <span style="font-size:12px;color:var(--muted)">Пустое поле не изменится</span>
+      ${t('lbl_assets_count')}: <b>${selectedIds.size}</b> &nbsp;·&nbsp;
+      <span style="font-size:12px;color:var(--muted)">${t('msg_empty_field_note')}</span>
     </div>
-    <div class="form-row"><label>Ответственный</label>
-      <input id="bm-resp" placeholder="Иванов Иван Иванович"/></div>
-    <div class="form-row"><label>Филиал</label>
-      <select id="bm-filial"><option value="">— не менять —</option>${filOpts}</select></div>
-    <div class="form-row"><label>Расположение</label>
-      <select id="bm-loc"><option value="">— не менять —</option>${locOpts}</select></div>
-    <div class="form-row"><label>Причина</label>
-      <input id="bm-reason" placeholder="Причина перемещения"/></div>
+    <div class="form-row"><label>${t('field_responsible')}</label>
+      <input id="bm-resp" placeholder="${t('msg_full_name_example')}"/></div>
+    <div class="form-row"><label>${t('field_filial')}</label>
+      <select id="bm-filial"><option value="">${t('opt_no_change')}</option>${filOpts}</select></div>
+    <div class="form-row"><label>${t('field_location')}</label>
+      <select id="bm-loc"><option value="">${t('opt_no_change')}</option>${locOpts}</select></div>
+    <div class="form-row"><label>${t('field_reason')}</label>
+      <input id="bm-reason" placeholder="${t('msg_move_reason_placeholder')}"/></div>
     <div class="modal-actions">
-      <button class="btn btn-primary" data-action="doBulkMove" data-args='${JSON.stringify([tab])}'>Переместить</button>
-      <button class="btn btn-secondary" data-action="closeModal">Отмена</button>
+      <button class="btn btn-primary" data-action="doBulkMove" data-args='${JSON.stringify([tab])}'>${t('btn_move')}</button>
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
 }
 
@@ -466,7 +465,7 @@ async function doBulkMove(tab) {
   const newLocation    = document.getElementById('bm-loc')?.value;
   const reason         = document.getElementById('bm-reason')?.value.trim();
   if (!newResponsible && !newFilial && !newLocation)
-    return toast('Заполните хотя бы одно поле', 'error');
+    return toast(t('msg_fill_at_least_one_field'), 'error');
   const r = await fetch(`${API}/api/assets/bulk-move`, {
     method:'POST', headers:ah(),
     body:JSON.stringify({ ids:[...selectedIds], newResponsible, newFilial, newLocation, reason })
@@ -474,8 +473,8 @@ async function doBulkMove(tab) {
   const d = await r.json();
   if (r.ok) {
     closeModal();
-    toast(`Перемещено: ${d.ok}${d.failed?.length?' | Ошибок: '+d.failed.length:''}`, 'success');
+    toast(`${t('msg_moved_count_prefix')}: ${d.ok}${d.failed?.length?' | '+t('msg_errors_count_prefix')+': '+d.failed.length:''}`, 'success');
     selectedIds.clear();
     renderAssetTab(tab);
-  } else toast(d.error||'Ошибка', 'error');
+  } else toast(d.error||t('msg_error'), 'error');
 }

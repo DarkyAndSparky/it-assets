@@ -49,7 +49,7 @@ async function showDetail(id) {
   }
   const mf=getMetaFields(a.category);
   const metaRows=mf.filter(k=>a.meta?.[k]).map(k=>`
-    <div><div class="detail-lbl">${META_LABELS[k]||k}</div>
+    <div><div class="detail-lbl">${metaLabel(k)}</div>
     <div class="detail-val ${k==='password'?'pw-mask mono':'mono'}" ${k==='password'?`data-action="_revealMaskedValue" data-args='${JSON.stringify([esc(a.meta[k] || '')])}'`:''}>
       ${k==='password'?(a.meta[k]?'••••••':'—'):esc(a.meta[k])}</div></div>`).join('');
 
@@ -66,17 +66,17 @@ async function showDetail(id) {
       </div>
     </div>
     <div class="two-col">
-      ${[['Инв. номер',a.inv,'mono'],['Серийный №',a.serial,'mono'],['Ответственный',a.responsible,''],
-         ['Филиал',a.filial,''],['Расположение',a.location,''],
-         ['Организация',a.org,''],['Примечание',a.note,'']
+      ${[[t('field_inv'),a.inv,'mono'],[t('field_serial'),a.serial,'mono'],[t('field_responsible'),a.responsible,''],
+         [t('field_filial'),a.filial,''],[t('field_location'),a.location,''],
+         [t('field_org'),a.org,''],[t('field_note'),a.note,'']
         ].filter(([,v])=>v&&v!=='—').map(([l,v,cls])=>`
         <div><div class="detail-lbl">${l}</div><div class="detail-val ${cls}">${esc(v)}</div></div>`).join('')}
     </div>
-    ${metaRows?`<hr class="sep"/><div class="section-title">🔧 Мета-данные</div>
+    ${metaRows?`<hr class="sep"/><div class="section-title">${t('section_meta')}</div>
       <div class="meta-grid">${metaRows}</div>`:''}
     ${hist.length?`<hr class="sep"/>
     <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:10px;letter-spacing:.5px">
-      ИСТОРИЯ ПЕРЕМЕЩЕНИЙ (${hist.length})
+      ${t('section_history_count', { n: hist.length })}
     </div>
     <div style="position:relative;padding-left:20px">
       <div style="position:absolute;left:7px;top:0;bottom:0;width:2px;background:var(--border);border-radius:2px"></div>
@@ -110,14 +110,14 @@ async function showDetail(id) {
     <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0">
       <div id="detail-qr-${id}" style="line-height:0;border-radius:8px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.12)"></div>
       <div style="font-size:11px;color:var(--muted);text-align:center;max-width:200px;line-height:1.4">${buildQrText(a).replace(/\n/g, ' · ')}</div>
-      <button class="btn btn-secondary btn-sm" data-action="printAsset" data-args='${JSON.stringify([a])}'>🖨 Печать карточки</button>
+      <button class="btn btn-secondary btn-sm" data-action="printAsset" data-args='${JSON.stringify([a])}'>${t('btn_print_card')}</button>
     </div>
     <div class="modal-actions">
       ${canEdit()?`
-        <button class="btn btn-primary" data-action="_closeThenShowMove" data-args='${JSON.stringify([id])}'>→ Переместить</button>
-        <button class="btn btn-secondary" data-action="_closeThenShowEdit" data-args='${JSON.stringify([id])}'>✏️ Изменить</button>
-        <button class="btn btn-danger btn-sm" data-action="confirmDelete" data-args='${JSON.stringify([id])}'>🗑 Списать</button>`:''}
-      <button class="btn btn-secondary" data-action="closeModal">Закрыть</button>
+        <button class="btn btn-primary" data-action="_closeThenShowMove" data-args='${JSON.stringify([id])}'>→ ${t('btn_move')}</button>
+        <button class="btn btn-secondary" data-action="_closeThenShowEdit" data-args='${JSON.stringify([id])}'>✏️ ${t('btn_edit')}</button>
+        <button class="btn btn-danger btn-sm" data-action="confirmDelete" data-args='${JSON.stringify([id])}'>${t('btn_retire')}</button>`:''}
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_close')}</button>
     </div>`);
   currentDetailAsset = a;
   requestAnimationFrame(() => renderQrInto('detail-qr-' + id, buildQrText(a)));
@@ -133,28 +133,28 @@ async function showMoveModal(id) {
   const orgOpts = _buildOrgOpts(a.org||'');
   const filialOpts = _filialsCache.filter(f=>f.status==='active')
     .map(f=>`<option value="${esc(f.name)}" ${a.filial===f.name?'selected':''}>${esc(f.name)}</option>`).join('');
-  showModal(`<h2>🔄 Переместить / переназначить</h2>
+  showModal(`<h2>${t('modal_move_title')}</h2>
     <div style="background:#f8fafc;border-radius:8px;padding:11px;margin-bottom:14px;font-size:13px">
       ${ic(a.type||'')} <b>${esc(a.type||'')} · ${esc(a.model||'')}</b><br>
       <span style="color:var(--muted)">SN: ${esc(a.serial)||'—'}</span>
     </div>
-    <div class="form-row"><label>Текущий ответственный</label>
+    <div class="form-row"><label>${t('lbl_current_responsible')}</label>
       <div style="font-size:13px;color:var(--muted);padding:5px 0">${esc(a.responsible)||'—'}</div></div>
-    <div class="form-row"><label>Новый ответственный</label>
-      <input id="m-resp" value="${esc((!a.responsible||a.responsible==='?')?'':a.responsible)}" placeholder="ФИО"/></div>
+    <div class="form-row"><label>${t('lbl_new_responsible')}</label>
+      <input id="m-resp" value="${esc((!a.responsible||a.responsible==='?')?'':a.responsible)}" placeholder="${t('msg_full_name_placeholder')}"/></div>
     <div class="two-col">
-      <div class="form-row"><label>Организация *</label>
+      <div class="form-row"><label>${t('field_org')} *</label>
         <select id="m-org">${orgOpts}</select></div>
-      <div class="form-row"><label>Филиал *</label>
+      <div class="form-row"><label>${t('field_filial')} *</label>
         <select id="m-filial" data-onchange-action="_onFilialSelectChange" data-onchange-args='["m-loc"]'>${filialOpts}</select></div>
     </div>
-    <div class="form-row"><label>Расположение</label>
+    <div class="form-row"><label>${t('field_location')}</label>
       <select id="m-loc">${locOpts}</select></div>
-    <div class="form-row"><label>Причина</label>
+    <div class="form-row"><label>${t('field_reason')}</label>
       <select id="m-reason">${['Перемещение','Увольнение сотрудника','Трудоустройство сотрудника','Замена оборудования','Заявка на оборудование','Ремонт','Другое'].map(r=>`<option>${r}</option>`).join('')}</select></div>
     <div class="modal-actions">
-      <button class="btn btn-primary" data-action="doMove" data-args='${JSON.stringify([id])}'>Сохранить</button>
-      <button class="btn btn-secondary" data-action="closeModal">Отмена</button>
+      <button class="btn btn-primary" data-action="doMove" data-args='${JSON.stringify([id])}'>${t('btn_save')}</button>
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
   setTimeout(() => initEmployeeAutocomplete('m-resp'), 80);
 }
@@ -166,24 +166,24 @@ async function doMove(id) {
   const newFilial   = document.getElementById('m-filial').value.trim();
   const newLocation = document.getElementById('m-loc').value.trim();
   const reason      = document.getElementById('m-reason').value.trim();
-  if (!newResponsible) return toast('Укажите ответственного','error');
-  if (!newOrg)    return toast('Выберите организацию','error');
-  if (!newFilial) return toast('Выберите филиал','error');
+  if (!newResponsible) return toast(t('msg_specify_responsible'),'error');
+  if (!newOrg)    return toast(t('msg_select_org'),'error');
+  if (!newFilial) return toast(t('msg_select_filial'),'error');
   const filialObj = _filialsCache.find(f=>f.name===newFilial);
   const r=await fetch(`${API}/api/assets/${id}/move`,{method:'POST',headers:ah(),
     body:JSON.stringify({newResponsible, newOrg, newFilial,
       newAddress: filialObj?.address||'', newLocation, reason})});
-  if (r.ok){closeModal();toast('Перемещено','success');render();}
-  else {const e=await r.json();toast(e.error||'Ошибка','error');}
+  if (r.ok){closeModal();toast(t('msg_moved'),'success');render();}
+  else {const e=await r.json();toast(e.error||t('msg_error'),'error');}
 
-  } catch(e) { toast('Ошибка соединения с сервером','error'); }
+  } catch(e) { toast(t('msg_connection_error'),'error'); }
 }
 
 // ─── ADD/EDIT MODAL ───────────────────────────────────────────────────────────
 function metaFormRows(category, existing={}) {
   const fields=getMetaFields(category);
-  return fields.map(k=>`<div class="form-row"><label>${META_LABELS[k]||k}</label>
-    <input id="meta-${k}" value="${esc(existing[k]||'')}" placeholder="${META_LABELS[k]||k}"
+  return fields.map(k=>`<div class="form-row"><label>${metaLabel(k)}</label>
+    <input id="meta-${k}" value="${esc(existing[k]||'')}" placeholder="${metaLabel(k)}"
       type="${k==='password'?'text':'text'}"/></div>`).join('');
 }
 function collectMeta(category) {
@@ -215,7 +215,7 @@ function _buildLocOpts(filialId, selected='') {
   ).join('');
   if (!hasSelected && selected)
     opts = `<option value="${esc(selected)}" selected>${esc(selected)}</option>` + opts;
-  if (!opts) opts = `<option value="">— нет локаций —</option>`;
+  if (!opts) opts = `<option value="">${t('msg_no_locations')}</option>`;
   return opts;
 }
 
@@ -237,37 +237,37 @@ async function showAddModal(tab) {
   const firstFilial = _filialsCache.find(f=>f.status==='active');
   const locOpts = _buildLocOpts(firstFilial?.id||'');
   const orgOpts = _buildOrgOpts('');
-  showModal(`<h2>➕ Добавить оборудование</h2>
+  showModal(`<h2>${t('modal_add_asset_title')}</h2>
     <div class="two-col">
-      <div class="form-row"><label>Организация</label>
+      <div class="form-row"><label>${t('field_org')}</label>
         <select id="a-org">${orgOpts}</select></div>
-      <div class="form-row"><label>Коллекция</label>
+      <div class="form-row"><label>${t('field_collection')}</label>
         <select id="a-cat" data-onchange-action="_onCategorySelectChange" data-onchange-args='${JSON.stringify([tab, "a-meta"])}'>${cats.map(c=>`<option>${c}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Тип</label>
-        <select id="a-type">${types.map(t=>`<option>${t}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Модель *</label><input id="a-model" placeholder="Модель"/></div>
-      <div class="form-row"><label>Серийный №</label><input id="a-serial" placeholder="SN"/></div>
-      <div class="form-row"><label>Инвентарный номер</label>
+      <div class="form-row"><label>${t('field_type')}</label>
+        <select id="a-type">${types.map(typ=>`<option>${typ}</option>`).join('')}</select></div>
+      <div class="form-row"><label>${t('field_model')} *</label><input id="a-model" placeholder="${t('field_model')}"/></div>
+      <div class="form-row"><label>${t('field_serial')}</label><input id="a-serial" placeholder="SN"/></div>
+      <div class="form-row"><label>${t('field_inv')}</label>
         <div style="display:flex;gap:5px">
-          <input id="a-inv" placeholder="Например: LDV-NB-00001" style="flex:1"/>
-          <button type="button" class="btn btn-secondary btn-sm" data-action="openInvGenerator" data-args='["a-inv","a-org","a-type"]' title="Генератор">🏷</button>
+          <input id="a-inv" placeholder="${t('msg_inv_example')}" style="flex:1"/>
+          <button type="button" class="btn btn-secondary btn-sm" data-action="openInvGenerator" data-args='["a-inv","a-org","a-type"]' title="${t('tooltip_generator')}">🏷</button>
         </div>
       </div>
-      <div class="form-row"><label>Ответственный</label><input id="a-resp" placeholder="ФИО"/></div>
-      <div class="form-row"><label>Филиал</label>
+      <div class="form-row"><label>${t('field_responsible')}</label><input id="a-resp" placeholder="${t('msg_full_name_placeholder')}"/></div>
+      <div class="form-row"><label>${t('field_filial')}</label>
         <select id="a-filial" data-onchange-action="_onFilialSelectChange" data-onchange-args='["a-loc"]'>${filialOpts}</select></div>
-      <div class="form-row"><label>Расположение</label>
+      <div class="form-row"><label>${t('field_location')}</label>
         <select id="a-loc">${locOpts}</select></div>
-      <div class="form-row"><label>Статус</label>
+      <div class="form-row"><label>${t('field_status')}</label>
         <select id="a-status"><option>используется</option><option>резерв</option></select></div>
     </div>
-    <div class="form-row"><label>Примечание</label><textarea id="a-note"></textarea></div>
+    <div class="form-row"><label>${t('field_note')}</label><textarea id="a-note"></textarea></div>
     <hr class="sep"/>
-    <div class="section-title" style="margin-bottom:8px">🔧 Мета-данные</div>
+    <div class="section-title" style="margin-bottom:8px">${t('section_meta')}</div>
     <div id="a-meta" class="two-col">${metaFormRows(firstCat)}</div>
     <div class="modal-actions">
-      <button class="btn btn-primary" data-action="doAdd" data-args='${JSON.stringify([tab])}'>Сохранить</button>
-      <button class="btn btn-secondary" data-action="closeModal">Отмена</button>
+      <button class="btn btn-primary" data-action="doAdd" data-args='${JSON.stringify([tab])}'>${t('btn_save')}</button>
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
 }
 function updateMetaForm(tab, category, containerId) {
@@ -290,12 +290,12 @@ async function doAdd(tab) {
     org:document.getElementById('a-org').value.trim(),
     note:document.getElementById('a-note').value.trim(),
     meta:collectMeta(category)};
-  if (!data.model) return toast('Заполните модель','error');
+  if (!data.model) return toast(t('msg_fill_model'),'error');
   const r=await fetch(`${API}/api/assets`,{method:'POST',headers:ah(),body:JSON.stringify(data)});
-  if (r.ok){closeModal();toast('Добавлено','success');render();}
-  else{const e=await r.json();toast(e.error||'Ошибка','error');}
+  if (r.ok){closeModal();toast(t('msg_added'),'success');render();}
+  else{const e=await r.json();toast(e.error||t('msg_error'),'error');}
 
-  } catch(e) { toast('Ошибка соединения с сервером','error'); }
+  } catch(e) { toast(t('msg_connection_error'),'error'); }
 }
 
 async function showEditModal(id) {
@@ -305,39 +305,39 @@ async function showEditModal(id) {
   const types=['Ноутбук','Системный Блок','Монитор','МФУ','Планшет','Телевизор','ИБП',
     'Точка доступа','Мини ПК','Мышь','Клавиатура','Гарнитура','Колонки','Камера',
     'Коммутатор','Маршрутизатор','Радиомост','Сервер','POE HUB','Другое'];
-  showModal(`<h2>✏️ Редактировать</h2>
+  showModal(`<h2>${t('modal_edit_title')}</h2>
     <div class="two-col">
-      <div class="form-row"><label>Тип</label>
-        <select id="e-type">${types.map(t=>`<option ${a.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Модель</label><input id="e-model" value="${esc(a.model)}"/></div>
-      <div class="form-row"><label>Серийный №</label><input id="e-serial" value="${esc(a.serial)}"/></div>
-      <div class="form-row"><label>Инвентарный номер</label>
+      <div class="form-row"><label>${t('field_type')}</label>
+        <select id="e-type">${types.map(typ=>`<option ${a.type===typ?'selected':''}>${typ}</option>`).join('')}</select></div>
+      <div class="form-row"><label>${t('field_model')}</label><input id="e-model" value="${esc(a.model)}"/></div>
+      <div class="form-row"><label>${t('field_serial')}</label><input id="e-serial" value="${esc(a.serial)}"/></div>
+      <div class="form-row"><label>${t('field_inv')}</label>
         <div style="display:flex;gap:5px">
           <input id="e-inv" value="${esc(a.inv||'')}" placeholder="LDV-NB-00001" style="flex:1"/>
-          <button type="button" class="btn btn-secondary btn-sm" data-action="openInvGenerator" data-args='["e-inv","e-org","e-type"]' title="Генератор">🏷</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-action="openInvGenerator" data-args='["e-inv","e-org","e-type"]' title="${t('tooltip_generator')}">🏷</button>
         </div>
       </div>
-      <div class="form-row"><label>Ответственный</label><input id="e-resp" value="${esc(a.responsible)}"/></div>
-      <div class="form-row"><label>Филиал</label>
+      <div class="form-row"><label>${t('field_responsible')}</label><input id="e-resp" value="${esc(a.responsible)}"/></div>
+      <div class="form-row"><label>${t('field_filial')}</label>
         <select id="e-filial" data-onchange-action="_onFilialSelectChange" data-onchange-args='["e-loc"]'>${_filialsCache.filter(f=>f.status==='active').map(f=>`<option value="${esc(f.name)}" ${a.filial===f.name?'selected':''}>${esc(f.name)}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Расположение</label>
+      <div class="form-row"><label>${t('field_location')}</label>
         <select id="e-loc">${_buildLocOpts(_filialsCache.find(f=>f.name===a.filial)?.id||'', a.location)}</select></div>
-      <div class="form-row"><label>Коллекция</label>
+      <div class="form-row"><label>${t('field_collection')}</label>
         <select id="e-cat" data-onchange-action="_onCategorySelectChange" data-onchange-args='[null,"e-meta"]'>${allCats.map(c=>`<option ${a.category===c?'selected':''}>${c}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Вкладка</label>
-        <select id="e-tab">${['os','small','infra'].map(t=>`<option ${a.tab===t?'selected':''}>${t}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Организация</label>
+      <div class="form-row"><label>${t('field_tab')}</label>
+        <select id="e-tab">${['os','small','infra'].map(tb=>`<option ${a.tab===tb?'selected':''}>${tb}</option>`).join('')}</select></div>
+      <div class="form-row"><label>${t('field_org')}</label>
         <select id="e-org">${_buildOrgOpts(a.org)}</select></div>
-      <div class="form-row"><label>Статус</label>
+      <div class="form-row"><label>${t('field_status')}</label>
         <select id="e-status">${['используется','резерв'].map(s=>`<option ${a.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
     </div>
-    <div class="form-row"><label>Примечание</label><textarea id="e-note">${esc(a.note)}</textarea></div>
+    <div class="form-row"><label>${t('field_note')}</label><textarea id="e-note">${esc(a.note)}</textarea></div>
     <hr class="sep"/>
-    <div class="section-title" style="margin-bottom:8px">🔧 Мета-данные</div>
+    <div class="section-title" style="margin-bottom:8px">${t('section_meta')}</div>
     <div id="e-meta" class="two-col">${metaFormRows(a.category, a.meta||{})}</div>
     <div class="modal-actions">
-      <button class="btn btn-primary" data-action="doEdit" data-args='${JSON.stringify([id])}'>Сохранить</button>
-      <button class="btn btn-secondary" data-action="closeModal">Отмена</button>
+      <button class="btn btn-primary" data-action="doEdit" data-args='${JSON.stringify([id])}'>${t('btn_save')}</button>
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
   setTimeout(() => initEmployeeAutocomplete('e-resp'), 80);
 }
@@ -362,24 +362,23 @@ async function doEdit(id) {
     note:document.getElementById('e-note').value.trim(),
     meta:collectMeta(category)};
   const r=await fetch(`${API}/api/assets/${id}`,{method:'PUT',headers:ah(),body:JSON.stringify(data)});
-  if (r.ok){closeModal();toast('Сохранено','success');render();}
-  else toast('Ошибка','error');
+  if (r.ok){closeModal();toast(t('msg_saved'),'success');render();}
+  else toast(t('msg_error'),'error');
 
-  } catch(e) { toast('Ошибка соединения с сервером','error'); }
+  } catch(e) { toast(t('msg_connection_error'),'error'); }
 }
 
 function confirmDelete(id) {
   const a=assetsCache.find(x=>x.id===id)||{};
-  showModal(`<h2>🗑 Списать?</h2>
+  showModal(`<h2>${t('modal_retire_confirm_title')}</h2>
     <p style="color:var(--muted);margin-bottom:18px;font-size:13px">
-      ${ic(a.type)} <b>${esc(a.model)}</b> будет помечено как «списано».<br>
-      Данные сохранятся в истории.</p>
+      ${ic(a.type)} <b>${esc(a.model)}</b> ${t('msg_retire_confirm_suffix')}</p>
     <div class="modal-actions">
-      <button class="btn btn-danger" data-action="doDelete" data-args='${JSON.stringify([id])}'>Да, списать</button>
-      <button class="btn btn-secondary" data-action="closeModal">Отмена</button>
+      <button class="btn btn-danger" data-action="doDelete" data-args='${JSON.stringify([id])}'>${t('btn_confirm_retire')}</button>
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
 }
 async function doDelete(id) {
   const r=await fetch(`${API}/api/assets/${id}`,{method:'DELETE',headers:ah()});
-  if (r.ok){closeModal();toast('Списано');render();}else toast('Ошибка','error');
+  if (r.ok){closeModal();toast(t('msg_retired'));render();}else toast(t('msg_error'),'error');
 }
