@@ -29,18 +29,18 @@ function detectImportType() {
     hint.style.display = 'block';
     if (headers.includes('от кого') || headers.includes('from_who') || headers.includes('тип события')) {
       _importType = 'history';
-      hint.innerHTML = '📥 <b>История перемещений</b> — будет загружена в журнал событий';
+      hint.innerHTML = t('msg_hint_history');
       hint.style.color = '#6366f1';
     } else if (headers.includes('модель') || headers.includes('model') || headers.includes('вкладка') || headers.includes('тип')) {
       _importType = 'assets';
-      hint.innerHTML = '💻 <b>Оборудование</b> — будет загружено в реестр';
+      hint.innerHTML = t('msg_hint_assets');
       hint.style.color = '#059669';
       // BUG-3: раньше create_orgs/create_employees всегда молча были
       // включены (сервер трактует "не передано" как "создавать") — теперь
       // пользователь явно видит и может выключить это перед импортом.
       document.getElementById('import-csv-options').style.display = 'block';
     } else {
-      hint.innerHTML = '⚠️ Не удалось определить тип файла. Ожидается CSV с заголовками';
+      hint.innerHTML = t('msg_hint_unknown_type');
       hint.style.color = '#dc2626';
       return;
     }
@@ -52,12 +52,12 @@ function detectImportType() {
 async function importAuto() {
   if (_importType === 'history') await importHistory();
   else if (_importType === 'assets') await importCSV();
-  else toast('Выберите файл', 'error');
+  else toast(t('msg_choose_file'), 'error');
 }
 
 async function importCSV() {
   const file=document.getElementById('csv-file').files[0];
-  if (!file) return toast('Выберите файл','error');
+  if (!file) return toast(t('msg_choose_file'),'error');
   const setProgress=(pct,label)=>{
     document.getElementById('import-progress').style.display='block';
     document.getElementById('import-progress-bar').style.width=pct+'%';
@@ -66,11 +66,11 @@ async function importCSV() {
   const btn=document.getElementById('import-btn');
   btn.disabled=true;
   document.getElementById('import-result').innerHTML='';
-  setProgress(5,'Читаю файл...');
+  setProgress(5,t('msg_reading_file'));
   const text=await file.text();
   const lines=text.replace(/^\uFEFF/,'').split('\n').filter(l=>l.trim());
-  if (lines.length<2){btn.disabled=false;document.getElementById('import-progress').style.display='none';return toast('Файл пустой','error');}
-  setProgress(20,'Разбираю строки...');
+  if (lines.length<2){btn.disabled=false;document.getElementById('import-progress').style.display='none';return toast(t('msg_empty_file'),'error');}
+  setProgress(20,t('msg_parsing_rows'));
   const sep=lines[0].includes(';')?';':',';
   function parseRow(line){const res=[];let cur='',inQ=false;
     for(let i=0;i<line.length;i++){const c=line[i];
@@ -169,11 +169,10 @@ async function importCSV() {
     row.tab  = _autoTab(row);
     row.type = _normType(row.type || '');
     return row;}).filter(Boolean);
-  if (!rows.length){btn.disabled=false;document.getElementById('import-progress').style.display='none';return toast('Нет данных','error');}
+  if (!rows.length){btn.disabled=false;document.getElementById('import-progress').style.display='none';return toast(t('msg_no_data'),'error');}
   // Сводка по коллекциям
   const tabCount = rows.reduce((a,r)=>{a[r.tab]=(a[r.tab]||0)+1;return a;},{});
-  const TAB_NAMES = {os:'💻 ОС',small:'🖱 Мелочи',infra:'🌐 Инфра'};
-  const tabSummary = Object.entries(tabCount).map(([t,n])=>`${TAB_NAMES[t]||t}: <b>${n}</b>`).join(' &nbsp;·&nbsp; ');
+  const tabSummary = Object.entries(tabCount).map(([tb,n])=>`${tabLabel(tb)}: <b>${n}</b>`).join(' &nbsp;·&nbsp; ');
 
   // Ищем типы не найденные в справочнике — предупреждение
   const unknownTypes = {};
@@ -188,13 +187,12 @@ async function importCSV() {
   const resultEl = document.getElementById('import-result');
   if (unknownList.length) {
     resultEl.innerHTML = `<div style="background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:8px">
-      ⚠️ <b>${unknownList.length} типов не найдено в справочнике</b> — попали в ОС по умолчанию.
-      Добавьте их в <b>Настройки → Типы устройств</b>:<br>
-      <span style="color:var(--warn-text)">${unknownList.map(([t,n])=>`${t} (${n})`).join(', ')}</span>
+      ${t('msg_unknown_types_warning', { n: unknownList.length })}
+      <span style="color:var(--warn-text)">${unknownList.map(([tp,n])=>`${tp} (${n})`).join(', ')}</span>
     </div>`;
   }
 
-  setProgress(40,`Найдено ${rows.length} записей — ${tabSummary}...`);
+  setProgress(40,t('msg_found_records', { n: rows.length, summary: tabSummary }));
   // animate bar from 40 to 85 while waiting for server
   let animPct=40;
   const anim=setInterval(()=>{
@@ -209,32 +207,32 @@ async function importCSV() {
   const d=await r.json();
   btn.disabled=false;
   if (r.ok){
-    setProgress(100,`Готово: добавлено ${d.added}, пропущено ${d.skipped}`);
+    setProgress(100,t('msg_import_done', { added: d.added, skipped: d.skipped }));
     document.getElementById('import-progress-bar').style.background='linear-gradient(90deg,#10b981,#059669)';
     const sr = d.skipReasons || {};
     const skipDetail = d.skipped > 0 ? [
-      sr.dupe_serial > 0 ? `дублей по серийному: ${sr.dupe_serial}` : '',
-      sr.dupe_key    > 0 ? `дублей без серийного: ${sr.dupe_key}` : '',
-      sr.no_model    > 0 ? `без модели: ${sr.no_model}` : '',
+      sr.dupe_serial > 0 ? `${t('msg_dupe_serial')}: ${sr.dupe_serial}` : '',
+      sr.dupe_key    > 0 ? `${t('msg_dupe_key')}: ${sr.dupe_key}` : '',
+      sr.no_model    > 0 ? `${t('msg_no_model')}: ${sr.no_model}` : '',
     ].filter(Boolean).join(', ') : '';
     const skipHtml = d.skipped > 0
-      ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">Пропущено ${d.skipped}: ${skipDetail}</div>`
+      ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">${t('msg_skipped_detail', { n: d.skipped, detail: skipDetail })}</div>`
       : '';
     const invHtml = d.inv_assigned > 0
-      ? `<div style="font-size:11px;color:#059669;margin-top:4px">🏷 Авто-присвоено инв. номеров: ${d.inv_assigned}</div>`
+      ? `<div style="font-size:11px;color:#059669;margin-top:4px">${t('msg_inv_auto_assigned', { n: d.inv_assigned })}</div>`
       : '';
     const orgsHtml = d.created_orgs && d.created_orgs.length
-      ? `<div style="font-size:11px;color:var(--info-text);margin-top:4px">🏢 Создано организаций: ${d.created_orgs.length} — ${d.created_orgs.join(', ')}</div>`
+      ? `<div style="font-size:11px;color:var(--info-text);margin-top:4px">${t('msg_orgs_created', { n: d.created_orgs.length, list: d.created_orgs.join(', ') })}</div>`
       : '';
     document.getElementById('import-result').innerHTML=`
       <div style="display:flex;align-items:center;gap:6px;color:#065f46;font-weight:600">
-        ✅ Добавлено: ${d.added}
+        ${t('msg_added_count', { n: d.added })}
       </div>${invHtml}${orgsHtml}${skipHtml}`;
-    toast('Импортировано '+d.added,'success');
+    toast(t('msg_imported_count', { n: d.added }),'success');
     setTimeout(()=>{ if(currentTab==='dashboard') renderDashboard(); },800);
   } else {
-    setProgress(100,'Ошибка импорта');
+    setProgress(100,t('msg_import_error'));
     document.getElementById('import-progress-bar').style.background='#ef4444';
-    toast(d.error||'Ошибка','error');
+    toast(d.error||t('msg_error'),'error');
   }
 }
