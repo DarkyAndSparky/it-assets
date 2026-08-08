@@ -58,7 +58,7 @@ async function renderHistory(reset) {
   const {items=[],total=0,stats={},filterOptions={}}=data;
   const totalPages = Math.ceil(total / itemsPerPage);
   const actionIcon={'add':'➕','move':'🔄','retire':'🗑️','import':'📥','reassign':'👤','status_change':'📋'};
-  const actionLabel={'add':'Добавление','move':'Перемещение','retire':'Списание','import':'Импорт','org_transfer':'Смена орг.','reassign':'Перемещение','status_change':'Смена статуса'};
+  const actionLabel={'add':t('action_add'),'move':t('action_move'),'retire':t('action_retire'),'import':t('action_import'),'org_transfer':t('action_org_transfer'),'reassign':t('action_move'),'status_change':t('action_status_change')};
   const actionColor={'add':'#059669','move':'#6366f1','retire':'#dc2626','import':'#0ea5e9','reassign':'#8b5cf6','status_change':'#f59e0b'};
   // Берём из filterOptions (все записи) а не из items (только страница)
   const filials    = filterOptions.filials    || [...new Set(items.map(h=>h.filial).filter(Boolean))].sort();
@@ -68,68 +68,68 @@ async function renderHistory(reset) {
   <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
     <div class="card" style="flex:1;min-width:130px;padding:14px 18px;display:flex;align-items:center;gap:10px">
       <div style="font-size:26px">📋</div>
-      <div><div style="font-size:22px;font-weight:800;color:#6366f1">${stats.total||0}</div><div style="font-size:11px;color:var(--muted)">Всего записей</div></div>
+      <div><div style="font-size:22px;font-weight:800;color:#6366f1">${stats.total||0}</div><div style="font-size:11px;color:var(--muted)">${t('lbl_total_records')}</div></div>
     </div>
     <div class="card" style="flex:1;min-width:130px;padding:14px 18px;display:flex;align-items:center;gap:10px">
       <div style="font-size:26px">📅</div>
-      <div><div style="font-size:22px;font-weight:800;color:#0ea5e9">${stats.today||0}</div><div style="font-size:11px;color:var(--muted)">Сегодня</div></div>
+      <div><div style="font-size:22px;font-weight:800;color:#0ea5e9">${stats.today||0}</div><div style="font-size:11px;color:var(--muted)">${t('lbl_today')}</div></div>
     </div>
     <div class="card" style="flex:1;min-width:130px;padding:14px 18px;display:flex;align-items:center;gap:10px">
       <div style="font-size:26px">➕</div>
-      <div><div style="font-size:22px;font-weight:800;color:#059669">${stats.adds||0}</div><div style="font-size:11px;color:var(--muted)">Добавлено</div></div>
+      <div><div style="font-size:22px;font-weight:800;color:#059669">${stats.adds||0}</div><div style="font-size:11px;color:var(--muted)">${t('lbl_additions')}</div></div>
     </div>
     <div class="card" style="flex:1;min-width:130px;padding:14px 18px;display:flex;align-items:center;gap:10px">
       <div style="font-size:26px">🔄</div>
-      <div><div style="font-size:22px;font-weight:800;color:#6366f1">${stats.moves||0}</div><div style="font-size:11px;color:var(--muted)">Перемещений</div></div>
+      <div><div style="font-size:22px;font-weight:800;color:#6366f1">${stats.moves||0}</div><div style="font-size:11px;color:var(--muted)">${t('lbl_moves')}</div></div>
     </div>
     <div class="card" style="flex:1;min-width:130px;padding:14px 18px;display:flex;align-items:center;gap:10px">
       <div style="font-size:26px">🗑️</div>
-      <div><div style="font-size:22px;font-weight:800;color:var(--noInv-text)">${stats.retires||0}</div><div style="font-size:11px;color:var(--muted)">Списаний</div></div>
+      <div><div style="font-size:22px;font-weight:800;color:var(--noInv-text)">${stats.retires||0}</div><div style="font-size:11px;color:var(--muted)">${t('lbl_retirements')}</div></div>
     </div>
     <div class="card" style="flex:1;min-width:130px;padding:14px 18px;display:flex;align-items:center;gap:10px">
       <div style="font-size:26px">📥</div>
-      <div><div style="font-size:22px;font-weight:800;color:#0ea5e9">${stats.imports||0}</div><div style="font-size:11px;color:var(--muted)">Импортов</div></div>
+      <div><div style="font-size:22px;font-weight:800;color:#0ea5e9">${stats.imports||0}</div><div style="font-size:11px;color:var(--muted)">${t('lbl_imports')}</div></div>
     </div>
   </div>
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <div class="section-title" style="margin:0">🔄 История событий <span style="font-size:12px;color:var(--muted);font-weight:400">(показано ${items.length} из ${total})</span></div>
-      <button class="btn btn-ghost btn-sm" data-action="renderHistory" data-args='[true]'>✕ Сбросить</button>
+      <div class="section-title" style="margin:0">${t('section_history_events')} <span style="font-size:12px;color:var(--muted);font-weight:400">${t('msg_showing_of', { shown: items.length, total })}</span></div>
+      <button class="btn btn-ghost btn-sm" data-action="renderHistory" data-args='[true]'>✕ ${t('btn_reset')}</button>
     </div>
     <div class="filters">
-      <input class="search-inp" style="flex:2;min-width:160px" placeholder="🔍 Поиск по оборудованию, сотруднику, серийнику..." value="${esc(histFilters.search)}"
+      <input class="search-inp" style="flex:2;min-width:160px" placeholder="🔍 ${t('msg_search_history_placeholder')}" value="${esc(histFilters.search)}"
         data-oninput-action="onHistSearchInput"/>
       <select class="filter-sel" data-onchange-action="_setHistFilter" data-onchange-args='["action_type"]'>
-        <option value="">Все события</option>
-        <option value="add" ${histFilters.action_type==='add'?'selected':''}>Добавление</option>
-        <option value="move" ${histFilters.action_type==='move'?'selected':''}>Перемещение</option>
-        <option value="retire" ${histFilters.action_type==='retire'?'selected':''}>Списание</option>
-        <option value="import" ${histFilters.action_type==='import'?'selected':''}>Импорт</option>
-        <option value="status_change" ${histFilters.action_type==='status_change'?'selected':''}>Смена статуса</option>
-        <option value="org_transfer" ${histFilters.action_type==='org_transfer'?'selected':''}>Смена орг.</option>
-        <option value="reassign" ${histFilters.action_type==='reassign'?'selected':''}>Перемещение</option>
+        <option value="">${t('opt_all_events')}</option>
+        <option value="add" ${histFilters.action_type==='add'?'selected':''}>${t('action_add')}</option>
+        <option value="move" ${histFilters.action_type==='move'?'selected':''}>${t('action_move')}</option>
+        <option value="retire" ${histFilters.action_type==='retire'?'selected':''}>${t('action_retire')}</option>
+        <option value="import" ${histFilters.action_type==='import'?'selected':''}>${t('action_import')}</option>
+        <option value="status_change" ${histFilters.action_type==='status_change'?'selected':''}>${t('action_status_change')}</option>
+        <option value="org_transfer" ${histFilters.action_type==='org_transfer'?'selected':''}>${t('action_org_transfer')}</option>
+        <option value="reassign" ${histFilters.action_type==='reassign'?'selected':''}>${t('action_move')}</option>
       </select>
       <select class="filter-sel" data-onchange-action="_setHistFilter" data-onchange-args='["filial"]'>
-        <option value="">Все филиалы</option>
+        <option value="">${t('opt_all_branches')}</option>
         ${filials.map(f=>`<option value="${esc(f)}" ${histFilters.filial===f?'selected':''}>${esc(f)}</option>`).join('')}
       </select>
       <select class="filter-sel" data-onchange-action="_setHistFilter" data-onchange-args='["org"]'>
-        <option value="">Все организации</option>
+        <option value="">${t('opt_all_orgs')}</option>
         ${orgsInHist.map(o=>`<option value="${esc(o)}" ${histFilters.org===o?'selected':''}>${esc(o)}</option>`).join('')}
       </select>
       <select class="filter-sel" style="min-width:140px" data-onchange-action="_setHistFilter" data-onchange-args='["changed_by"]'>
-        <option value="">Все авторы</option>
+        <option value="">${t('opt_all_authors')}</option>
         ${authors.map(a=>`<option value="${esc(a)}" ${histFilters.changed_by===a?'selected':''}>${esc(a)}</option>`).join('')}
       </select>
-      <input type="date" class="filter-date" value="${histFilters.from_date}" title="С даты"
+      <input type="date" class="filter-date" value="${histFilters.from_date}" title="${t('tooltip_date_from')}"
         data-onchange-action="_setHistFilter" data-onchange-args='["from_date"]'/>
-      <input type="date" class="filter-date" value="${histFilters.to_date}" title="По дату"
+      <input type="date" class="filter-date" value="${histFilters.to_date}" title="${t('tooltip_date_to')}"
         data-onchange-action="_setHistFilter" data-onchange-args='["to_date"]'/>
-      ${Object.values(histFilters).some(v=>v) ? `<button class="btn btn-ghost btn-sm" data-action="renderHistory" data-args='[true]'>✕ Сброс</button>` : ''}
+      ${Object.values(histFilters).some(v=>v) ? `<button class="btn btn-ghost btn-sm" data-action="renderHistory" data-args='[true]'>✕ ${t('btn_reset')}</button>` : ''}
     </div>
-    ${items.length===0?`<div style="text-align:center;padding:40px;color:var(--muted)">Нет записей по фильтрам</div>`:`
+    ${items.length===0?`<div style="text-align:center;padding:40px;color:var(--muted)">${t('msg_no_records_for_filters')}</div>`:`
     <div class="tbl-wrap"><table>
-      <thead><tr><th>Дата и время</th><th>Событие</th><th>Оборудование</th><th>Серийный №</th><th>От</th><th>Кому / Где</th><th>Филиал</th><th>Автор</th><th>Причина</th></tr></thead>
+      <thead><tr><th>${t('th_datetime')}</th><th>${t('th_event')}</th><th>${t('th_equipment')}</th><th>${t('field_serial')}</th><th>${t('th_from')}</th><th>${t('th_to')} / ${t('th_where')}</th><th>${t('field_filial')}</th><th>${t('th_author')}</th><th>${t('th_reason')}</th></tr></thead>
       <tbody>${items.map(h=>{
         const dt=h.date?new Date(h.date):null;
         const dateStr=dt?dt.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'}):'—';
@@ -163,12 +163,12 @@ async function renderHistory(reset) {
       <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:14px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" data-action="_gotoHistPage" data-args='[1]' ${histPage===1?'disabled':''}>⏮</button>
         <button class="btn btn-ghost btn-sm" data-action="_gotoHistPage" data-args='${JSON.stringify([Math.max(1,histPage-1)])}' ${histPage===1?'disabled':''}>◀</button>
-        <span style="font-size:12px;color:var(--muted);min-width:100px;text-align:center">Страница ${histPage}/${totalPages}</span>
+        <span style="font-size:12px;color:var(--muted);min-width:100px;text-align:center">${t('lbl_page_of', { page: histPage, count: totalPages })}</span>
         <button class="btn btn-ghost btn-sm" data-action="_gotoHistPage" data-args='${JSON.stringify([Math.min(totalPages,histPage+1)])}' ${histPage===totalPages?'disabled':''}>▶</button>
         <button class="btn btn-ghost btn-sm" data-action="_gotoHistPage" data-args='${JSON.stringify([totalPages])}' ${histPage===totalPages?'disabled':''}>⏭</button>
         <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;margin-left:8px">
           <input type="checkbox" id="hist-show-all" data-onchange-action="_setHistShowAll">
-          Показать все (${total})
+          ${t('lbl_show_all')} (${total})
         </label>
       </div>
     ` : ''}
@@ -187,7 +187,7 @@ function goToAsset(assetId) {
 
 async function importHistory() {
   const file=document.getElementById('csv-file').files[0];
-  if (!file) return toast('Выберите файл истории','error');
+  if (!file) return toast(t('msg_import_history_file'),'error');
   const setP=(pct,label)=>{
     document.getElementById('import-progress').style.display='block';
     document.getElementById('import-progress-bar').style.width=pct+'%';
@@ -196,11 +196,11 @@ async function importHistory() {
   const btn=document.getElementById('import-btn');
   btn.disabled=true;
   document.getElementById('import-result').innerHTML='';
-  setP(5,'Читаю файл...');
+  setP(5,t('msg_reading_file'));
   const text=await file.text();
   const lines=text.replace(/^\uFEFF/,'').split('\n').filter(l=>l.trim());
-  if (lines.length<2){btn.disabled=false;return toast('Файл пустой','error');}
-  setP(20,'Разбираю строки...');
+  if (lines.length<2){btn.disabled=false;return toast(t('msg_empty_file'),'error');}
+  setP(20,t('msg_parsing_rows'));
   const sep=lines[0].includes(';')?';':',';
   function parseRow(line){const res=[];let cur='',inQ=false;
     for(let i=0;i<line.length;i++){const c=line[i];
@@ -214,8 +214,8 @@ async function importHistory() {
     const vals=parseRow(l);const row={};
     headers.forEach((h,i)=>{const k=MAP[h];if(k)row[k]=vals[i]||'';});
     return row;}).filter(r=>r.date||r.equipment);
-  if (!rows.length){btn.disabled=false;return toast('Нет данных','error');}
-  setP(40,`Найдено ${rows.length} записей, отправляю...`);
+  if (!rows.length){btn.disabled=false;return toast(t('msg_no_data'),'error');}
+  setP(40,t('msg_found_records_sending', { n: rows.length }));
   let animPct=40;
   const anim=setInterval(()=>{if(animPct<85){animPct+=0.5;document.getElementById('import-progress-bar').style.width=animPct+'%';}},80);
   const r=await fetch(`${API}/api/import/history`,{method:'POST',headers:ah(),body:JSON.stringify({rows})});
@@ -223,14 +223,14 @@ async function importHistory() {
   const d=await r.json();
   btn.disabled=false;
   if (r.ok){
-    setP(100,`Готово: добавлено ${d.added}`);
+    setP(100,t('msg_history_done_added', { n: d.added }));
     document.getElementById('import-progress-bar').style.background='linear-gradient(90deg,#10b981,#059669)';
-    document.getElementById('import-result').innerHTML=`<span style="color:#065f46">✅ История добавлена: ${d.added} записей</span>`;
-    toast('История импортирована: '+d.added,'success');
+    document.getElementById('import-result').innerHTML=`<span style="color:#065f46">✅ ${t('msg_history_added_count', { n: d.added })}</span>`;
+    toast(t('msg_history_imported_count', { n: d.added }),'success');
     setTimeout(()=>renderHistory(true), 800);
   } else {
-    setP(100,'Ошибка');
+    setP(100,t('msg_error'));
     document.getElementById('import-progress-bar').style.background='#ef4444';
-    toast(d.error||'Ошибка','error');
+    toast(d.error||t('msg_error'),'error');
   }
 }

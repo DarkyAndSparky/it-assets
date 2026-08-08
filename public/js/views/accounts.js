@@ -26,9 +26,9 @@ async function renderAccounts() {
   if (!canEdit()) {
     app.innerHTML=`<div class="card" style="max-width:400px;text-align:center;padding:40px">
       <div style="font-size:40px;margin-bottom:14px">🔑</div>
-      <div style="font-weight:700;font-size:16px;margin-bottom:8px">Раздел защищён</div>
-      <div style="color:var(--muted);margin-bottom:18px;font-size:14px">Войдите в режим редактирования для просмотра учётных записей</div>
-      <button class="btn btn-primary" data-action="toggleAuth">🔐 Войти</button></div>`;
+      <div style="font-weight:700;font-size:16px;margin-bottom:8px">${t('section_protected')}</div>
+      <div style="color:var(--muted);margin-bottom:18px;font-size:14px">${t('msg_login_to_edit')}</div>
+      <button class="btn btn-primary" data-action="toggleAuth">${t('btn_login')}</button></div>`;
     return;
   }
   app.innerHTML='<div class="spinner"></div>';
@@ -52,15 +52,13 @@ async function renderAccounts() {
 
   app.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <div style="font-size:16px;font-weight:700">🔑 Учётные записи (${accs.length})</div>
-      <button class="btn btn-primary btn-sm" data-action="showAddAccount">＋ Добавить</button>
+      <div style="font-size:16px;font-weight:700">${t('modal_accounts_title', { n: accs.length })}</div>
+      <button class="btn btn-primary btn-sm" data-action="showAddAccount">${t('btn_add')}</button>
     </div>
     <div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid #6366f1;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:flex-start">
       <span style="font-size:16px;flex-shrink:0">ℹ️</span>
       <div>
-        Здесь хранятся <b style="color:var(--text)">сервисные пароли от оборудования и систем</b> — роутеров, коммутаторов, принтеров, серверов, облачных сервисов и т.д.
-        Раздел доступен только авторизованным пользователям в режиме редактирования.
-        Пароли передаются по сети в зашифрованном виде только при активном соединении.
+        ${t('msg_accounts_info')}
       </div>
     </div>
     ${sortedGroups.map(cat => `
@@ -71,31 +69,31 @@ async function renderAccounts() {
         <span style="color:var(--muted);font-size:12px">(${groups[cat].length})</span>
       </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Название</th><th>Логин</th><th>Пароль</th><th>Примечание</th><th></th></tr></thead>
+        <thead><tr><th>${t('field_name')}</th><th>${t('field_login')}</th><th>${t('field_password')}</th><th>${t('field_note')}</th><th></th></tr></thead>
         <tbody>${groups[cat].map(a=>`<tr>
           <td><b>${esc(a.name)}</b></td>
           <td class="mono">
             ${a.login ? `<span style="display:inline-flex;align-items:center;gap:4px">
               ${esc(a.login)}
-              <button class="btn-icon" style="font-size:11px;padding:1px 4px" title="Копировать логин"
-                data-action="copyToClipboard" data-args='${JSON.stringify([a.login, "Логин скопирован"])}'>⎘</button>
-            </span>` : (a.has_login ? '<span title="Нет доступа" style="color:var(--muted)">🔒</span>' : '—')}
+              <button class="btn-icon" style="font-size:11px;padding:1px 4px" title="${t('tooltip_copy_login')}"
+                data-action="copyToClipboard" data-args='${JSON.stringify([a.login, t('msg_login_copied')])}'>⎘</button>
+            </span>` : (a.has_login ? `<span title="${t('tooltip_no_access')}" style="color:var(--muted)">🔒</span>` : '—')}
           </td>
           <td>
             <span style="display:inline-flex;align-items:center;gap:4px">
               ${a.password !== undefined ? `
-              <span class="pw-mask mono" title="Нажмите для показа"
+              <span class="pw-mask mono" title="${t('tooltip_click_to_reveal')}"
                 data-action="_togglePasswordReveal"
                 data-v="${esc(a.password)}">${a.password?'••••••':'—'}</span>
-              ${a.password ? `<button class="btn-icon" style="font-size:11px;padding:1px 4px" title="Копировать пароль"
-                data-action="copyToClipboard" data-args='${JSON.stringify([a.password, "Пароль скопирован"])}'>⎘</button>` : ''}
-              ` : (a.has_password ? '<span title="Нет доступа" style="color:var(--muted)">🔒</span>' : '—')}
+              ${a.password ? `<button class="btn-icon" style="font-size:11px;padding:1px 4px" title="${t('tooltip_copy_password')}"
+                data-action="copyToClipboard" data-args='${JSON.stringify([a.password, t('msg_password_copied')])}'>⎘</button>` : ''}
+              ` : (a.has_password ? `<span title="${t('tooltip_no_access')}" style="color:var(--muted)">🔒</span>` : '—')}
             </span>
           </td>
           <td style="color:var(--muted);font-size:12px">${esc(a.note)}</td>
           <td style="white-space:nowrap">
-            <button class="btn-icon" data-action="showEditAccount" data-args='${JSON.stringify([a.id, esc(a.name), esc(a.login||""), esc(a.password!==undefined?a.password:""), esc(a.note), esc(a.category||""), a.password===undefined])}' title="Изменить">✏️</button>
-            <button class="btn-icon" data-action="deleteAccount" data-args='${JSON.stringify([a.id])}' title="Удалить">🗑</button>
+            <button class="btn-icon" data-action="showEditAccount" data-args='${JSON.stringify([a.id, esc(a.name), esc(a.login||""), esc(a.password!==undefined?a.password:""), esc(a.note), esc(a.category||""), a.password===undefined])}' title="${t('btn_edit')}">✏️</button>
+            <button class="btn-icon" data-action="deleteAccount" data-args='${JSON.stringify([a.id])}' title="${t('btn_delete')}">🗑</button>
           </td></tr>`).join('')}
         </tbody></table></div>
     </div>`).join('')}`;
@@ -103,23 +101,23 @@ async function renderAccounts() {
 
 function _accCategorySelect(selected='') {
   return `<select id="ac-cat" style="width:100%">
-    <option value="">— выберите тип —</option>
+    <option value="">${t('opt_select_type')}</option>
     ${ACC_CATEGORIES.map(c=>`<option value="${c}" ${selected===c?'selected':''}>${c}</option>`).join('')}
   </select>`;
 }
 
 function showAddAccount() {
-  showModal(`<h2>➕ Добавить учётку</h2>
-    <div class="form-row"><label>Тип *</label>${_accCategorySelect()}</div>
-    <div class="form-row"><label>Название *</label><input id="ac-name" placeholder="Например: Mikrotik Офис"/></div>
+  showModal(`<h2>${t('modal_add_account_title')}</h2>
+    <div class="form-row"><label>${t('field_type_required')}</label>${_accCategorySelect()}</div>
+    <div class="form-row"><label>${t('field_name_required')}</label><input id="ac-name" placeholder="${t('msg_account_name_placeholder')}"/></div>
     <div class="two-col">
-      <div class="form-row"><label>Логин</label><input id="ac-login"/></div>
-      <div class="form-row"><label>Пароль</label><input id="ac-pwd" type="text"/></div>
+      <div class="form-row"><label>${t('field_login')}</label><input id="ac-login"/></div>
+      <div class="form-row"><label>${t('field_password')}</label><input id="ac-pwd" type="text"/></div>
     </div>
-    <div class="form-row"><label>Примечание</label><input id="ac-note" placeholder="IP, адрес, описание..."/></div>
+    <div class="form-row"><label>${t('field_note')}</label><input id="ac-note" placeholder="${t('msg_account_note_placeholder')}"/></div>
     <div class="modal-actions">
-      <button class="btn btn-primary" data-action="doAddAccount">Сохранить</button>
-      <button class="btn btn-secondary" data-action="closeModal">Отмена</button>
+      <button class="btn btn-primary" data-action="doAddAccount">${t('btn_save')}</button>
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
 }
 async function doAddAccount() {
@@ -130,25 +128,25 @@ async function doAddAccount() {
     password:document.getElementById('ac-pwd').value.trim(),
     note:document.getElementById('ac-note').value.trim()
   };
-  if (!data.category) return toast('Выберите тип','error');
-  if (!data.name) return toast('Введите название','error');
+  if (!data.category) return toast(t('msg_select_type'),'error');
+  if (!data.name) return toast(t('msg_enter_name'),'error');
   const r=await fetch(`${API}/api/accounts`,{method:'POST',headers:ah(),body:JSON.stringify(data)});
-  if (r.ok){closeModal();toast('Добавлено','success');renderAccounts();}
-  else toast('Ошибка','error');
+  if (r.ok){closeModal();toast(t('msg_added'),'success');renderAccounts();}
+  else toast(t('msg_error'),'error');
 }
 function showEditAccount(id,name,login,pwd,note,category,noAccess) {
-  showModal(`<h2>✏️ Изменить учётку</h2>
-    <div class="form-row"><label>Тип</label>${_accCategorySelect(category)}</div>
-    <div class="form-row"><label>Название</label><input id="ae-name" value="${name}"/></div>
+  showModal(`<h2>${t('modal_edit_account_title')}</h2>
+    <div class="form-row"><label>${t('field_type')}</label>${_accCategorySelect(category)}</div>
+    <div class="form-row"><label>${t('field_name')}</label><input id="ae-name" value="${name}"/></div>
     <div class="two-col">
-      <div class="form-row"><label>Логин</label><input id="ae-login" value="${login}" ${noAccess?'disabled placeholder="🔒 нет доступа"':''}/></div>
-      <div class="form-row"><label>Пароль</label><input id="ae-pwd" type="text" value="${pwd}" ${noAccess?'disabled placeholder="🔒 нет доступа"':''}/></div>
+      <div class="form-row"><label>${t('field_login')}</label><input id="ae-login" value="${login}" ${noAccess?`disabled placeholder="${t('msg_no_access_placeholder')}"`:''}/></div>
+      <div class="form-row"><label>${t('field_password')}</label><input id="ae-pwd" type="text" value="${pwd}" ${noAccess?`disabled placeholder="${t('msg_no_access_placeholder')}"`:''}/></div>
     </div>
-    ${noAccess ? '<div style="font-size:11px;color:var(--muted);margin:-6px 0 8px">У вас нет прав на просмотр/изменение логина и пароля — можно менять только тип, название и примечание.</div>' : ''}
-    <div class="form-row"><label>Примечание</label><input id="ae-note" value="${note}"/></div>
+    ${noAccess ? `<div style="font-size:11px;color:var(--muted);margin:-6px 0 8px">${t('msg_no_access_note')}</div>` : ''}
+    <div class="form-row"><label>${t('field_note')}</label><input id="ae-note" value="${note}"/></div>
     <div class="modal-actions">
-      <button class="btn btn-primary" data-action="doEditAccount" data-args='${JSON.stringify([id])}'>Сохранить</button>
-      <button class="btn btn-secondary" data-action="closeModal">Отмена</button>
+      <button class="btn btn-primary" data-action="doEditAccount" data-args='${JSON.stringify([id])}'>${t('btn_save')}</button>
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
 }
 async function doEditAccount(id) {
@@ -160,12 +158,12 @@ async function doEditAccount(id) {
     note:document.getElementById('ae-note').value.trim()
   };
   const r=await fetch(`${API}/api/accounts/${id}`,{method:'PUT',headers:ah(),body:JSON.stringify(data)});
-  if (r.ok){closeModal();toast('Сохранено','success');renderAccounts();}
-  else toast('Ошибка','error');
+  if (r.ok){closeModal();toast(t('msg_saved'),'success');renderAccounts();}
+  else toast(t('msg_error'),'error');
 }
 async function deleteAccount(id) {
-  if (!confirm('Удалить учётку?')) return;
+  if (!confirm(t('msg_confirm_delete_account'))) return;
   const r = await fetch(`${API}/api/accounts/${id}`,{method:'DELETE',headers:ah()});
-  if (r.ok) { toast('Удалено'); renderAccounts(); }
-  else toast('Ошибка при удалении','error');
+  if (r.ok) { toast(t('msg_deleted')); renderAccounts(); }
+  else toast(t('msg_delete_error'),'error');
 }

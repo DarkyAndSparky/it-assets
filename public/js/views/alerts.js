@@ -34,51 +34,51 @@ async function renderAlerts() {
     <span style="font-size:20px">${ic(a.type)}</span>
     <div style="flex:1">
       <div style="font-weight:600;font-size:13px">${esc(a.type)} · ${esc(a.model)}</div>
-      <div style="font-size:12px;color:var(--muted)">${esc(a.filial||'—')} · ${esc(a.location||'—')} · ${esc(a.responsible||'не назначен')}</div>
-      ${a.inv?`<div style="font-size:11px;color:var(--muted)">Инв: ${esc(a.inv)}</div>`:''}
+      <div style="font-size:12px;color:var(--muted)">${esc(a.filial||'—')} · ${esc(a.location||'—')} · ${esc(a.responsible||t('lbl_not_assigned'))}</div>
+      ${a.inv?`<div style="font-size:11px;color:var(--muted)">${t('field_inv')}: ${esc(a.inv)}</div>`:''}
     </div>
     ${btn}
   </div>`;
 
-  const section = (icon, title, color, items, btn='', emptyMsg='Всё в порядке 👍') => {
+  const section = (icon, title, color, items, btn='', emptyMsg='') => {
     const showAll = localStorage.getItem(`alerts-showAll-${title}`) === '1';
     const itemsToShow = showAll ? items : items.slice(0, 50);
     return `
     <div class="card" style="margin-bottom:14px">
       <div class="section-title" style="color:${color};display:flex;justify-content:space-between;align-items:center">
         <span>${icon} ${title} (${items.length})</span>
-        ${items.length>50?`<span style="font-size:11px;font-weight:400;color:var(--muted)">${items.length} записей</span>`:''}
+        ${items.length>50?`<span style="font-size:11px;font-weight:400;color:var(--muted)">${items.length} ${t('lbl_records_short')}</span>`:''}
       </div>
       ${itemsToShow.map(a=>alertRow(a,btn?btn(a):'')).join('')
         || `<div style="color:var(--muted);font-size:13px;padding:6px 0">${emptyMsg}</div>`}
       ${items.length>50?`<div style="padding:10px 0;text-align:center;border-top:1px solid var(--border);margin-top:10px">
         ${showAll ? 
-          `<button class="btn btn-ghost btn-sm" data-action="_toggleAlertsShowAll" data-args='${JSON.stringify([title, false])}'>▲ Скрыть</button>` :
-          `<button class="btn btn-ghost btn-sm" data-action="_toggleAlertsShowAll" data-args='${JSON.stringify([title, true])}'>▼ Показать все (${items.length})</button>`
+          `<button class="btn btn-ghost btn-sm" data-action="_toggleAlertsShowAll" data-args='${JSON.stringify([title, false])}'>${t('btn_collapse')}</button>` :
+          `<button class="btn btn-ghost btn-sm" data-action="_toggleAlertsShowAll" data-args='${JSON.stringify([title, true])}'>▼ ${t('lbl_show_all')} (${items.length})</button>`
         }
       </div>`:''}
     </div>`;
   };
 
   app.innerHTML=`<div style="max-width:900px">
-    <div style="font-size:16px;font-weight:700;margin-bottom:14px">⚠️ Требует внимания</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:14px">${t('page_title_alerts')}</div>
 
-    ${section('❓','Без ответственного','var(--red)', noResp,
-      a => canEdit()?`<button class="btn btn-primary btn-sm" data-action="showMoveModal" data-args='${JSON.stringify([a.id])}' data-stop="1">Назначить →</button>`:'',
-      'Все ассеты имеют ответственных 👍')}
+    ${section('❓',t('lbl_no_responsible'),'var(--red)', noResp,
+      a => canEdit()?`<button class="btn btn-primary btn-sm" data-action="showMoveModal" data-args='${JSON.stringify([a.id])}' data-stop="1">${t('btn_assign_arrow')}</button>`:'',
+      t('msg_all_have_responsible'))}
 
-    ${section('🏷','Без инвентарного номера','#d97706', noInv,
-      a => canEdit()?`<button class="btn btn-secondary btn-sm" data-action="openInvGenerator" data-args='${JSON.stringify([a.id])}' data-stop="1">Присвоить №</button>`:'',
-      'Все ассеты имеют инвентарные номера 👍')}
+    ${section('🏷',t('lbl_no_inv'),'#d97706', noInv,
+      a => canEdit()?`<button class="btn btn-secondary btn-sm" data-action="openInvGenerator" data-args='${JSON.stringify([a.id])}' data-stop="1">${t('btn_assign_inv_short')}</button>`:'',
+      t('msg_all_have_inv'))}
 
-    ${section('🔢','Без серийного номера','#7c3aed', noSerial,
-      a => canEdit()?`<button class="btn btn-secondary btn-sm" data-action="showEditModal" data-args='${JSON.stringify([a.id])}' data-stop="1">Заполнить</button>`:'',
-      'Все ассеты имеют серийные номера 👍')}
+    ${section('🔢',t('lbl_no_serial'),'#7c3aed', noSerial,
+      a => canEdit()?`<button class="btn btn-secondary btn-sm" data-action="showEditModal" data-args='${JSON.stringify([a.id])}' data-stop="1">${t('btn_fill')}</button>`:'',
+      t('msg_all_have_serial'))}
 
-    ${section('🕐','Не обновлялось >6 мес.','#64748b', stale, null,
-      'Все ассеты актуальны 👍')}
+    ${section('🕐',t('lbl_stale'),'#64748b', stale, null,
+      t('msg_all_up_to_date'))}
 
-    ${section('📦','В резерве','var(--amber)', reserved, null,
-      'Резерва нет')}
+    ${section('📦',t('lbl_in_reserve_title'),'var(--amber)', reserved, null,
+      t('msg_no_reserve'))}
   </div>`;
 }

@@ -48,7 +48,7 @@ function _empFilterList(list, q) {
 }
 
 function _empRenderRows(list) {
-  if (!list.length) return '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Нет записей</td></tr>';
+  if (!list.length) return `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">${t('msg_no_records')}</td></tr>`;
   return list.map(e => `
     <tr class="clickable" data-action="showEmployeeDetail" data-args='${JSON.stringify([e.id])}'${e.active===false?' style="opacity:.6"':''}>
       <td style="font-weight:600">${esc(e.name)}</td>
@@ -57,12 +57,12 @@ function _empRenderRows(list) {
       <td style="color:var(--muted)">${esc(e.phone||'—')}</td>
       <td><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;
           background:${e.active!==false?'var(--success-bg)':'var(--surface2)'};
-          color:${e.active!==false?'var(--success-text)':'var(--muted)'}">${e.active!==false?'активен':'уволен'}</span></td>
+          color:${e.active!==false?'var(--success-text)':'var(--muted)'}">${e.active!==false?t('lbl_active'):t('lbl_dismissed')}</span></td>
       <td style="white-space:nowrap" data-action="_noop">
         ${e.active!==false
           ? `<button class="btn-icon" data-action="showEditEmployeeModal" data-args='${JSON.stringify([e.id])}'>✏️</button>
              <button class="btn-icon" data-action="deleteEmployee" data-args='${JSON.stringify([e.id, esc(e.name)])}'>🗑</button>`
-          : `<button class="btn-icon" data-action="showEditEmployeeModal" data-args='${JSON.stringify([e.id])}' title="Просмотр">👁️</button>`}
+          : `<button class="btn-icon" data-action="showEditEmployeeModal" data-args='${JSON.stringify([e.id])}' title="${t('tooltip_view')}">👁️</button>`}
       </td>
     </tr>`).join('');
 }
@@ -78,8 +78,8 @@ function _empRefreshTables() {
   // Обновляем счётчики
   const hA = document.getElementById('emp-head-active');
   const hI = document.getElementById('emp-head-inactive');
-  if (hA) hA.textContent = `✅ Активные (${fActive.length})`;
-  if (hI) hI.textContent = `❌ Уволены (${fInactive.length})`;
+  if (hA) hA.textContent = `${t('lbl_active_section')} (${fActive.length})`;
+  if (hI) hI.textContent = `${t('lbl_dismissed_section')} (${fInactive.length})`;
 
   // Обновляем блоки
   _empRenderSection('active',   fActive,   showAll);
@@ -91,7 +91,7 @@ function _empRefreshTables() {
 
   // Обновить счётчик в заголовке карточки
   const total = document.getElementById('emp-total');
-  if (total) total.textContent = `Сотрудники (${_empData.length})`;
+  if (total) total.textContent = t('lbl_employees_count', { n: _empData.length });
 }
 
 function _empRenderSection(key, list, showAll) {
@@ -114,7 +114,7 @@ function _empRenderSection(key, list, showAll) {
   if (pager) {
     pager.style.display = (pageCount > 1) ? 'flex' : 'none';
     const info = pager.querySelector('.emp-page-info');
-    if (info) info.textContent = `Страница ${page}/${pageCount}`;
+    if (info) info.textContent = t('lbl_page_of', { page, count: pageCount });
     pager.querySelector('.emp-prev2')?.toggleAttribute('disabled', page <= 1);
     pager.querySelector('.emp-prev') ?.toggleAttribute('disabled', page <= 1);
     pager.querySelector('.emp-next') ?.toggleAttribute('disabled', page >= pageCount);
@@ -142,24 +142,24 @@ async function _renderEmployeesPanel() {
 
   return `<div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div class="section-title" style="margin:0" id="emp-total">Сотрудники (${_empData.length})</div>
-      <button class="btn btn-primary btn-sm" data-action="showCreateEmployeeModal">+ Добавить</button>
+      <div class="section-title" style="margin:0" id="emp-total">${t('lbl_employees_count', { n: _empData.length })}</div>
+      <button class="btn btn-primary btn-sm" data-action="showCreateEmployeeModal">${t('btn_add')}</button>
     </div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
-      Используется для автодополнения поля «Ответственный» при добавлении и перемещении оборудования.
+      ${t('msg_used_for_autocomplete_note')}
     </div>
 
     <div style="margin-bottom:15px">
       <input type="text" id="emp-search-input"
-        placeholder="🔍 Поиск по ФИО, отделу, филиалу, телефону..."
+        placeholder="${t('msg_search_employees_placeholder')}"
         style="width:100%;padding:8px 12px;border:1px solid var(--surface2);border-radius:6px;background:var(--surface1);color:var(--text);font-size:13px"
         data-oninput-action="_empRefreshTables">
     </div>
 
-    ${_empSectionHtml('active',   '✅ Активные')}
-    ${_empSectionHtml('inactive', '❌ Уволены')}
+    ${_empSectionHtml('active',   t('lbl_active_section'))}
+    ${_empSectionHtml('inactive', t('lbl_dismissed_section'))}
 
-    <div id="emp-empty" style="display:none;color:var(--muted);text-align:center;padding:20px">Ничего не найдено</div>
+    <div id="emp-empty" style="display:none;color:var(--muted);text-align:center;padding:20px">${t('msg_nothing_found')}</div>
   </div>`;
 }
 
@@ -171,85 +171,85 @@ function _empSectionHtml(key, label) {
       <div class="emp-show-all-wrap" style="display:none">
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
           <input type="checkbox" id="emp-show-all" data-onchange-action="_empRefreshTables">
-          Показать все
+          ${t('lbl_show_all')}
         </label>
       </div>
     </div>
     <div class="emp-pager" style="display:none;gap:5px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
       <button class="btn btn-sm emp-prev2" data-action="_empChangePage" data-args='${JSON.stringify([key, -9999])}'>⏮</button>
       <button class="btn btn-sm emp-prev"  data-action="_empChangePage" data-args='${JSON.stringify([key, -1])}'>◀</button>
-      <span class="emp-page-info" style="font-size:12px;min-width:90px;text-align:center">Страница 1/1</span>
+      <span class="emp-page-info" style="font-size:12px;min-width:90px;text-align:center">${t('lbl_page_of', { page: 1, count: 1 })}</span>
       <button class="btn btn-sm emp-next"  data-action="_empChangePage" data-args='${JSON.stringify([key, 1])}'>▶</button>
       <button class="btn btn-sm emp-next2" data-action="_empChangePage" data-args='${JSON.stringify([key, 9999])}'>⏭</button>
     </div>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>ФИО</th><th>Отдел</th><th>Филиал</th><th>Телефон</th><th>Статус</th><th></th></tr></thead>
+      <thead><tr><th>${t('th_full_name')}</th><th>${t('th_dept')}</th><th>${t('field_filial')}</th><th>${t('field_phone')}</th><th>${t('field_status')}</th><th></th></tr></thead>
       <tbody></tbody>
     </table></div>
   </div>`;
 }
 
 function showCreateEmployeeModal() {
-  showModal(`<h2>🧑‍💼 Новый сотрудник</h2>
-    <div class="form-row"><label>ФИО *</label><input id="em-name" placeholder="Иванов Иван Иванович" autofocus/></div>
-    <div class="form-row"><label>Отдел</label><input id="em-dept" placeholder="Отдел ИТ"/></div>
-    <div class="form-row"><label>Филиал</label><input id="em-filial" placeholder="Малышева"/></div>
-    <div class="form-row"><label>Телефон</label><input id="em-phone" placeholder="+7 900 000-00-00"/></div>
-    <div class="form-row"><label>Email</label><input id="em-email" type="email" placeholder="ivanov@company.ru"/></div>
-    <div class="form-row"><label>Примечание</label><input id="em-note" placeholder=""/></div>
+  showModal(`<h2>${t('modal_new_employee_title')}</h2>
+    <div class="form-row"><label>${t('field_full_name_required')}</label><input id="em-name" placeholder="${t('msg_full_name_example')}" autofocus/></div>
+    <div class="form-row"><label>${t('th_dept')}</label><input id="em-dept" placeholder="${t('msg_dept_placeholder')}"/></div>
+    <div class="form-row"><label>${t('field_filial')}</label><input id="em-filial" placeholder="${t('msg_filial_placeholder')}"/></div>
+    <div class="form-row"><label>${t('field_phone')}</label><input id="em-phone" placeholder="+7 900 000-00-00"/></div>
+    <div class="form-row"><label>${t('field_email')}</label><input id="em-email" type="email" placeholder="ivanov@company.ru"/></div>
+    <div class="form-row"><label>${t('field_note')}</label><input id="em-note" placeholder=""/></div>
     <div class="modal-actions">
-      <button class="btn btn-primary" data-action="doCreateEmployee">Создать</button>
-      <button class="btn btn-secondary" data-action="closeModal">Отмена</button>
+      <button class="btn btn-primary" data-action="doCreateEmployee">${t('btn_create')}</button>
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
 }
 
 async function doCreateEmployee() {
   const f = id => document.getElementById(id)?.value.trim() || '';
-  if (!f('em-name')) return toast('Введите ФИО','error');
+  if (!f('em-name')) return toast(t('msg_enter_full_name'),'error');
   const r = await fetch(`${API}/api/employees`, {method:'POST', headers:ah(),
     body:JSON.stringify({name:f('em-name'),dept:f('em-dept'),filial:f('em-filial'),
       phone:f('em-phone'),email:f('em-email'),note:f('em-note')})});
   const d = await r.json();
-  if (r.ok) { closeModal(); toast('Сотрудник добавлен','success'); _reloadEmployeesPanel(); }
-  else toast(d.error||'Ошибка','error');
+  if (r.ok) { closeModal(); toast(t('msg_employee_added'),'success'); _reloadEmployeesPanel(); }
+  else toast(d.error||t('msg_error'),'error');
 }
 
 async function showEditEmployeeModal(id) {
   let emp;
   try { emp = await fetch(`${API}/api/employees/${id}`,{headers:ah()}).then(r=>r.json()); }
-  catch(e) { return toast('Ошибка загрузки','error'); }
-  showModal(`<h2>✏️ Редактировать сотрудника</h2>
-    <div class="form-row"><label>ФИО *</label><input id="em-name" value="${esc(emp.name||'')}"/></div>
-    <div class="form-row"><label>Отдел</label><input id="em-dept" value="${esc(emp.dept||'')}"/></div>
-    <div class="form-row"><label>Филиал</label><input id="em-filial" value="${esc(emp.filial||'')}"/></div>
-    <div class="form-row"><label>Телефон</label><input id="em-phone" value="${esc(emp.phone||'')}"/></div>
-    <div class="form-row"><label>Email</label><input id="em-email" value="${esc(emp.email||'')}"/></div>
-    <div class="form-row"><label>Примечание</label><input id="em-note" value="${esc(emp.note||'')}"/></div>
-    <div class="form-row"><label>Статус</label>
+  catch(e) { return toast(t('msg_load_error'),'error'); }
+  showModal(`<h2>${t('modal_edit_employee_title')}</h2>
+    <div class="form-row"><label>${t('field_full_name_required')}</label><input id="em-name" value="${esc(emp.name||'')}"/></div>
+    <div class="form-row"><label>${t('th_dept')}</label><input id="em-dept" value="${esc(emp.dept||'')}"/></div>
+    <div class="form-row"><label>${t('field_filial')}</label><input id="em-filial" value="${esc(emp.filial||'')}"/></div>
+    <div class="form-row"><label>${t('field_phone')}</label><input id="em-phone" value="${esc(emp.phone||'')}"/></div>
+    <div class="form-row"><label>${t('field_email')}</label><input id="em-email" value="${esc(emp.email||'')}"/></div>
+    <div class="form-row"><label>${t('field_note')}</label><input id="em-note" value="${esc(emp.note||'')}"/></div>
+    <div class="form-row"><label>${t('field_status')}</label>
       <select id="em-active">
-        <option value="true"  ${emp.active!==false?'selected':''}>Активен</option>
-        <option value="false" ${emp.active===false?'selected':''}>Уволен</option>
+        <option value="true"  ${emp.active!==false?'selected':''}>${t('lbl_active')}</option>
+        <option value="false" ${emp.active===false?'selected':''}>${t('lbl_dismissed')}</option>
       </select></div>
     <div class="modal-actions">
-      <button class="btn btn-primary" data-action="doUpdateEmployee" data-args='${JSON.stringify([id])}'>Сохранить</button>
-      <button class="btn btn-secondary" data-action="closeModal">Отмена</button>
+      <button class="btn btn-primary" data-action="doUpdateEmployee" data-args='${JSON.stringify([id])}'>${t('btn_save')}</button>
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
 }
 
 async function doUpdateEmployee(id) {
   const f = i => document.getElementById(i)?.value.trim() || '';
-  if (!f('em-name')) return toast('Введите ФИО','error');
+  if (!f('em-name')) return toast(t('msg_enter_full_name'),'error');
   const active = document.getElementById('em-active')?.value === 'true';
   const r = await fetch(`${API}/api/employees/${id}`, {method:'PUT', headers:ah(),
     body:JSON.stringify({name:f('em-name'),dept:f('em-dept'),filial:f('em-filial'),
       phone:f('em-phone'),email:f('em-email'),note:f('em-note'),active})});
   const d = await r.json();
-  if (r.ok) { closeModal(); toast('Сохранено','success'); _reloadEmployeesPanel(); }
-  else toast(d.error||'Ошибка','error');
+  if (r.ok) { closeModal(); toast(t('msg_saved'),'success'); _reloadEmployeesPanel(); }
+  else toast(d.error||t('msg_error'),'error');
 }
 
 async function deleteEmployee(id, name) {
-  if (!confirm(`Уволить сотрудника «${name}»?`)) return;
+  if (!confirm(t('msg_confirm_dismiss', { name }))) return;
   const r = await fetch(`${API}/api/employees/${id}`, {method:'DELETE', headers:ah()});
   const d = await r.json();
   if (r.ok) {
@@ -257,11 +257,11 @@ async function deleteEmployee(id, name) {
     if (d.linked_assets && d.linked_assets > 0) {
       showReassignAssetsModal(id, name, d.assets || []);
     } else {
-      toast('Сотрудник деактивирован','success');
+      toast(t('msg_employee_deactivated'),'success');
       _reloadEmployeesPanel();
     }
   } else {
-    toast(d.error||'Ошибка при удалении','error');
+    toast(d.error||t('msg_delete_error'),'error');
   }
 }
 
@@ -272,44 +272,44 @@ async function showReassignAssetsModal(empId, empName, assets) {
   
   const modalContent = `
     <div style="padding:20px;">
-      <h2>Переместить оборудование при увольнении</h2>
+      <h2>${t('modal_move_equipment_dismissal')}</h2>
       <p style="margin-top:10px;opacity:.8">
-        У сотрудника <strong>${esc(empName)}</strong> есть <strong>${assets.length}</strong> единиц оборудования.
+        ${t('msg_employee_has_equipment', { name: esc(empName), n: assets.length })}
       </p>
       <div style="margin:20px 0;max-height:300px;overflow-y:auto;border:1px solid var(--surface2);border-radius:8px;padding:10px;">
         ${assets.map((a,i) => `
           <div style="padding:8px;border-bottom:1px solid var(--surface1)${i === assets.length-1 ? ';border:none' : ''}">
             <div style="font-weight:500">${a.type} ${a.model}</div>
-            <div style="font-size:12px;opacity:.6">Серийный: ${a.serial || '—'} | Инв: ${a.inv || '—'}</div>
+            <div style="font-size:12px;opacity:.6">${t('msg_serial_label')}: ${a.serial || '—'} | ${t('msg_inv_label')}: ${a.inv || '—'}</div>
           </div>
         `).join('')}
       </div>
       
-      <p style="margin-top:20px;margin-bottom:10px;">Выберите, что сделать с оборудованием:</p>
+      <p style="margin-top:20px;margin-bottom:10px;">${t('msg_choose_action')}</p>
       <div style="display:flex;gap:10px;flex-direction:column;">
         <div style="border:1px solid var(--surface2);border-radius:8px;padding:10px;cursor:pointer;transition:.2s" 
           id="leave-unassigned-opt"
           onmouseover="this.style.background='var(--surface1)'" 
           onmouseout="this.style.background=''">
-          <div style="font-weight:600;margin-bottom:5px">📦 Оставить без ответственного</div>
-          <div style="font-size:12px;opacity:.7">Оборудование останется в организации ${empName}, но без ответственного</div>
+          <div style="font-weight:600;margin-bottom:5px">${t('opt_leave_unassigned_title')}</div>
+          <div style="font-size:12px;opacity:.7">${t('msg_will_remain_in_org', { org: empName })}</div>
           <button class="btn btn-primary" style="margin-top:10px;width:100%" 
-            data-action="reassignEmployeeAssets" data-args='${JSON.stringify([empId, null])}'>Оставить без ответственного</button>
+            data-action="reassignEmployeeAssets" data-args='${JSON.stringify([empId, null])}'>${t('btn_leave_unassigned')}</button>
         </div>
         
         ${otherEmps.length > 0 ? `
         <div style="border:1px solid var(--surface2);border-radius:8px;padding:10px;">
-          <div style="font-weight:600;margin-bottom:10px">👤 Переместить на другого сотрудника</div>
+          <div style="font-weight:600;margin-bottom:10px">${t('opt_move_to_other_title')}</div>
           <select id="reassign-to-emp" style="width:100%;padding:8px;border:1px solid var(--surface2);border-radius:4px;background:var(--surface1);color:var(--text);margin-bottom:10px;">
-            <option value="">-- Выберите сотрудника --</option>
+            <option value="">${t('opt_choose_employee')}</option>
             ${otherEmps.map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join('')}
           </select>
           <button class="btn btn-primary" style="width:100%" 
-            data-action="_doReassignToSelected" data-args='${JSON.stringify([empId])}'>Переместить</button>
+            data-action="_doReassignToSelected" data-args='${JSON.stringify([empId])}'>${t('btn_move')}</button>
         </div>
         ` : ''}
         
-        <button class="btn btn-secondary" style="width:100%" data-action="closeModal">Отмена</button>
+        <button class="btn btn-secondary" style="width:100%" data-action="closeModal">${t('btn_cancel')}</button>
       </div>
     </div>
   `;
@@ -327,13 +327,13 @@ async function reassignEmployeeAssets(fromEmpId, toEmpId) {
   if (r.ok) {
     closeModal();
     if (toEmpId) {
-      toast(`Оборудование перемещено: ${d.moved} единиц`, 'success');
+      toast(t('msg_equipment_moved_count', { n: d.moved }), 'success');
     } else {
-      toast(`Оборудование оставлено без ответственного: ${d.left_unassigned} единиц`, 'success');
+      toast(t('msg_equipment_left_unassigned_count', { n: d.left_unassigned }), 'success');
     }
     _reloadEmployeesPanel();
   } else {
-    toast(d.error || 'Ошибка при перемещении', 'error');
+    toast(d.error || t('msg_move_error'), 'error');
   }
 }
 
@@ -352,24 +352,24 @@ async function showEmployeeDetail(id) {
     const myAssets = (assets.items||[]).filter(a => a.responsible === emp.name);
     showModal(`<h2>🧑‍💼 ${esc(emp.name)}</h2>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:14px;font-size:13px">
-        ${emp.dept   ?`<div><div style="font-size:11px;color:var(--muted)">ОТДЕЛ</div><b>${esc(emp.dept)}</b></div>`:''}
-        ${emp.filial ?`<div><div style="font-size:11px;color:var(--muted)">ФИЛИАЛ</div><b>${esc(emp.filial)}</b></div>`:''}
-        ${emp.phone  ?`<div><div style="font-size:11px;color:var(--muted)">ТЕЛЕФОН</div><b>${esc(emp.phone)}</b></div>`:''}
+        ${emp.dept   ?`<div><div style="font-size:11px;color:var(--muted)">${t('lbl_dept_caps')}</div><b>${esc(emp.dept)}</b></div>`:''}
+        ${emp.filial ?`<div><div style="font-size:11px;color:var(--muted)">${t('lbl_filial_caps')}</div><b>${esc(emp.filial)}</b></div>`:''}
+        ${emp.phone  ?`<div><div style="font-size:11px;color:var(--muted)">${t('lbl_phone_caps')}</div><b>${esc(emp.phone)}</b></div>`:''}
         ${emp.email  ?`<div><div style="font-size:11px;color:var(--muted)">EMAIL</div><b>${esc(emp.email)}</b></div>`:''}
       </div>
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px">Оборудование (${myAssets.length})</div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px">${t('lbl_equipment_count', { n: myAssets.length })}</div>
       ${myAssets.length ? `<div style="max-height:200px;overflow-y:auto">
         ${myAssets.map(a=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
           <span style="color:var(--muted)">${esc(a.type||'')}</span>
           <b style="margin:0 6px">${esc(a.model)}</b>
           ${a.inv?`<code style="font-size:11px;color:var(--accent)">${esc(a.inv)}</code>`:''}
         </div>`).join('')}
-      </div>` : `<div style="color:var(--muted);font-size:13px">Нет оборудования</div>`}
+      </div>` : `<div style="color:var(--muted);font-size:13px">${t('msg_no_equipment')}</div>`}
       <div class="modal-actions" style="margin-top:14px">
-        <button class="btn btn-primary btn-sm" data-action="_closeThenShowEditEmployee" data-args='${JSON.stringify([id])}'>✏️ Редактировать</button>
-        <button class="btn btn-secondary" data-action="closeModal">Закрыть</button>
+        <button class="btn btn-primary btn-sm" data-action="_closeThenShowEditEmployee" data-args='${JSON.stringify([id])}'>✏️ ${t('btn_edit')}</button>
+        <button class="btn btn-secondary" data-action="closeModal">${t('btn_close')}</button>
       </div>`);
-  } catch(e) { toast('Ошибка','error'); }
+  } catch(e) { toast(t('msg_error'),'error'); }
 }
 
 // ── Автодополнение сотрудников ────────────────────────────────────────────────
