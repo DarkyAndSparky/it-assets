@@ -10,69 +10,72 @@
  * _updateLogoEl() вызывается из router.js (render()) как внешний глобал —
  * резолвится в момент вызова, порядок подключения не критичен (все
  * синхронные скрипты успевают отработать до первого реального render()).
+ *
+ * LOC-5: локализовано на t()/I18N (см. public/js/i18n.js). Карточка
+ * «О системе» и loadSystemInfo() (INFRA-5) сюда же попали — при их
+ * добавлении файл ещё не был локализован, поэтому переведены заодно.
  */
 
 function _renderGeneralPanel(isAdmin, db_company_name='', db_logo_svg='', db_version='') {
   return `
         <div class="card" style="max-width:520px;margin-bottom:14px">
-      <div class="section-title">🏢 Название и логотип</div>
-      <div class="form-row"><label>Название</label>
+      <div class="section-title">${t('company_name_logo_title')}</div>
+      <div class="form-row"><label>${t('field_company_name')}</label>
         <input id="company-name-inp" placeholder="IT ASSETS"
           value="${db_company_name||''}" ${!isAdmin?'disabled':''}/>
       </div>
       ${isAdmin ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm" data-action="saveCompanyName">Сохранить название</button>
-        <button class="btn btn-ghost btn-sm" data-action="resetCompanyName">Сбросить</button>
+        <button class="btn btn-primary btn-sm" data-action="saveCompanyName">${t('btn_save_name')}</button>
+        <button class="btn btn-ghost btn-sm" data-action="resetCompanyName">${t('btn_reset')}</button>
       </div>` : ''}
       <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
-        <div style="font-size:13px;font-weight:600;margin-bottom:6px">Логотип</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px">${t('lbl_logo')}</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">
-          Отображается в шапке вместо иконки 🖥️.<br>
-          Поддерживаются форматы: SVG, PNG, JPG, WebP. Рекомендуемая высота: 36px.
+          ${t('msg_logo_hint')}
         </div>
         <div id="logo-preview" style="margin-bottom:10px;min-height:50px;background:var(--surface);border:1px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;padding:6px 12px">
-          <span style="font-size:12px;color:var(--muted)">Логотип не установлен</span>
+          <span style="font-size:12px;color:var(--muted)">${t('msg_logo_not_set')}</span>
         </div>
         ${isAdmin ? `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <input type="file" id="logo-svg-file" accept=".svg,.png,.jpg,.jpeg,.webp,image/*" style="font-size:12px;flex:1;min-width:0"/>
-          <button class="btn btn-primary btn-sm" data-action="saveLogoSvg">Загрузить</button>
-          <button class="btn btn-ghost btn-sm" data-action="clearLogoSvg">Убрать</button>
+          <button class="btn btn-primary btn-sm" data-action="saveLogoSvg">${t('btn_upload')}</button>
+          <button class="btn btn-ghost btn-sm" data-action="clearLogoSvg">${t('btn_remove')}</button>
         </div>` : ''}
       </div>
     </div>
 
     ${isAdmin ? `
     <div class="card" style="max-width:520px;margin-bottom:14px">
-      <div class="section-title">🎨 Цвет акцента</div>
+      <div class="section-title">${t('accent_color_title')}</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">
-        Цвет кнопок, активных пунктов меню и текста логотипа. Раздельно для светлой и тёмной темы.
+        ${t('msg_accent_color_hint')}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <!-- Светлая тема -->
         <div>
-          <div style="font-size:12px;font-weight:600;margin-bottom:8px;opacity:.7">☀️ Светлая тема</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:8px;opacity:.7">${t('lbl_light_theme')}</div>
           <div id="preview-light" style="margin-bottom:10px;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.15)"></div>
           <div style="display:flex;align-items:center;gap:8px">
             <input type="color" id="st-accent-light" value="#e94560" style="width:40px;height:32px;padding:2px;border-radius:6px;border:1px solid var(--border);cursor:pointer"
               data-oninput-action="_livePreview"/>
-            <label style="font-size:12px;color:var(--muted)">Акцент</label>
+            <label style="font-size:12px;color:var(--muted)">${t('lbl_accent')}</label>
           </div>
         </div>
         <!-- Тёмная тема -->
         <div>
-          <div style="font-size:12px;font-weight:600;margin-bottom:8px;opacity:.7">🌙 Тёмная тема</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:8px;opacity:.7">${t('lbl_dark_theme')}</div>
           <div id="preview-dark" style="margin-bottom:10px;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>
           <div style="display:flex;align-items:center;gap:8px">
             <input type="color" id="st-accent-dark" value="#e94560" style="width:40px;height:32px;padding:2px;border-radius:6px;border:1px solid var(--border);cursor:pointer"
               data-oninput-action="_livePreview"/>
-            <label style="font-size:12px;color:var(--muted)">Акцент</label>
+            <label style="font-size:12px;color:var(--muted)">${t('lbl_accent')}</label>
           </div>
         </div>
       </div>
       <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm" data-action="saveStyleSettings">💾 Сохранить стиль</button>
-        <button class="btn btn-ghost btn-sm" data-action="_resetStyles">↺ Сброс</button>
-        <span style="font-size:11px;color:var(--muted)">Применяется немедленно</span>
+        <button class="btn btn-primary btn-sm" data-action="saveStyleSettings">${t('btn_save_style')}</button>
+        <button class="btn btn-ghost btn-sm" data-action="_resetStyles">${t('btn_reset_icon')}</button>
+        <span style="font-size:11px;color:var(--muted)">${t('msg_applies_immediately')}</span>
       </div>
     </div>` : ''}
 
@@ -81,23 +84,23 @@ function _renderGeneralPanel(isAdmin, db_company_name='', db_logo_svg='', db_ver
     <div class="card" style="max-width:520px;margin-bottom:14px">
 
     <div class="card" style="max-width:520px;margin-bottom:14px">
-      <div class="section-title">💾 Резервное копирование</div>
+      <div class="section-title">${t('backup_title')}</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">
-        Автобэкап каждый час. До 30 копий в <code>data/backups/</code>.
+        ${t('msg_autobackup_hint')}
       </div>
       ${isAdmin ? `
       <div style="display:flex;gap:8px;margin-bottom:12px">
-        <button class="btn btn-primary btn-sm" data-action="createBackup">💾 Создать бэкап</button>
-        <button class="btn btn-ghost btn-sm" data-action="loadBackupList">🔄 Обновить список</button>
+        <button class="btn btn-primary btn-sm" data-action="createBackup">${t('btn_create_backup')}</button>
+        <button class="btn btn-ghost btn-sm" data-action="loadBackupList">${t('btn_refresh_list')}</button>
       </div>
       <div id="backup-list" style="font-size:12px">
-        <div style="color:var(--muted)">Нажмите «Обновить список» для просмотра</div>
-      </div>` : '<div style="color:var(--muted);font-size:13px">Только для администратора</div>'}
+        <div style="color:var(--muted)">${t('msg_click_refresh_list')}</div>
+      </div>` : `<div style="color:var(--muted);font-size:13px">${t('msg_admin_only')}</div>`}
     </div>
 
-      <div class="section-title">📤 Импорт из CSV</div>
+      <div class="section-title">${t('csv_import_title')}</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.6">
-        Оборудование или история перемещений — система определит автоматически.
+        ${t('msg_csv_import_hint')}
       </div>
       ${isAdmin ? `
       <input type="file" id="csv-file" accept=".csv" style="margin-bottom:8px;font-size:13px;width:100%"
@@ -105,62 +108,98 @@ function _renderGeneralPanel(isAdmin, db_company_name='', db_logo_svg='', db_ver
       <div id="import-type-hint" style="font-size:12px;color:var(--muted);margin-bottom:8px;display:none"></div>
       <div id="import-csv-options" style="display:none;margin-bottom:10px;font-size:12px">
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:4px">
-          <input type="checkbox" id="import-create-orgs" checked/> Создавать новые организации, которых ещё нет в системе
+          <input type="checkbox" id="import-create-orgs" checked/> ${t('lbl_create_new_orgs')}
         </label>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-          <input type="checkbox" id="import-create-employees" checked/> Создавать новых сотрудников, которых ещё нет в справочнике
+          <input type="checkbox" id="import-create-employees" checked/> ${t('lbl_create_new_employees')}
         </label>
       </div>
-      <button class="btn btn-success" id="import-btn" data-action="importAuto" disabled>⬆ Импортировать</button>
+      <button class="btn btn-success" id="import-btn" data-action="importAuto" disabled>${t('btn_import')}</button>
       <div id="import-progress" style="display:none;margin-top:10px">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px" id="import-progress-label">Подготовка...</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px" id="import-progress-label">${t('msg_preparing')}</div>
         <div style="background:var(--border);border-radius:6px;height:8px;overflow:hidden">
           <div id="import-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#3b82f6,#6366f1);border-radius:6px;transition:width 0.2s ease"></div>
         </div>
       </div>
       <div id="import-result" style="margin-top:8px;font-size:13px"></div>`
-      : '<div style="color:var(--muted);font-size:13px">Доступно только в режиме редактирования</div>'}
+      : `<div style="color:var(--muted);font-size:13px">${t('msg_edit_mode_only')}</div>`}
     </div>
 
     <div class="card" style="max-width:520px;margin-bottom:14px">
-      <div class="section-title">📥 Экспорт данных</div>
+      <div class="section-title">${t('export_data_title')}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv`, "IT_assets.csv"])}'>⬇ Всё</button>
-        <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=os`, "IT_assets_os.csv"])}'>⬇ ОС</button>
-        <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=small`, "IT_assets_small.csv"])}'>⬇ Мелочи</button>
-        <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=infra`, "IT_assets_infra.csv"])}'>⬇ Инфра</button>
+        <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv`, "IT_assets.csv"])}'>${t('btn_export_all')}</button>
+        <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=os`, "IT_assets_os.csv"])}'>⬇ ${t('tab_os')}</button>
+        <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=small`, "IT_assets_small.csv"])}'>⬇ ${t('tab_small')}</button>
+        <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=infra`, "IT_assets_infra.csv"])}'>⬇ ${t('tab_infra')}</button>
       </div>
     </div>
 
     <div class="card" style="max-width:520px;margin-bottom:14px">
-      <div class="section-title">🔧 Диагностика БД</div>
+      <div class="section-title">${t('diag_title')}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-ghost btn-sm" data-action="runDiag">🔍 Проверить состояние</button>
-        ${isAdmin ? `<button class="btn btn-secondary btn-sm" data-action="runMigration">⚙️ Пересчитать категории</button>` : ''}
+        <button class="btn btn-ghost btn-sm" data-action="runDiag">${t('btn_check_state')}</button>
+        ${isAdmin ? `<button class="btn btn-secondary btn-sm" data-action="runMigration">${t('btn_recalc_categories')}</button>` : ''}
       </div>
       <div id="diag-result" style="margin-top:10px;font-size:12px;line-height:1.9"></div>
     </div>
 
     <div class="card" style="max-width:520px">
-      <div class="section-title">ℹ️ О системе</div>
+      <div class="section-title">${t('about_system_title')}</div>
       <div style="font-size:12px;color:var(--muted);line-height:2">
-        <div>Версия: <b id="app-version-detail" style="color:var(--text)">${db_version || '…'}</b></div>
-        <div>БД: <code>data/db.json</code> + <code>data/config.json</code></div>
-        <div>Сервер: Node.js + Express + lowdb</div>
-        <div>HTTP: <code>:3000</code> (редирект) · HTTPS: <code>:3443</code></div>
+        <div>${t('lbl_version')}: <b id="app-version-detail" style="color:var(--text)">${db_version || '…'}</b></div>
+        <div>${t('lbl_db')}: <code>data/db.json</code> + <code>data/config.json</code> + <code>data/it-assets.sqlite</code></div>
+        <div>${t('lbl_server')}: Node.js + Express + lowdb + SQLite</div>
+        <div>HTTP: <code>:3000</code> (${t('lbl_redirect')}) · HTTPS: <code>:3443</code></div>
         <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-          Разработано для внутреннего учёта ИТ-оборудования.<br>
-          Автор: <a href="https://github.com/DarkyAndSparky" target="_blank" rel="noopener"
+          ${t('msg_developed_for')}<br>
+          ${t('lbl_author')}: <a href="https://github.com/DarkyAndSparky" target="_blank" rel="noopener"
             style="color:var(--accent)">DarkyAndSparky</a>
         </div>
         <div style="margin-top:8px">
           <a href="https://github.com/DarkyAndSparky/it-assets" target="_blank" rel="noopener"
             style="color:var(--accent);display:inline-flex;align-items:center;gap:4px">
-            GitHub репозиторий
+            ${t('lbl_github_repo')}
           </a>
         </div>
       </div>
+      ${isAdmin ? `
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+        <button class="btn btn-ghost btn-sm" data-action="loadSystemInfo">${t('btn_admin_diag')}</button>
+        <div id="system-info-result" style="margin-top:10px;font-size:12px;line-height:1.9"></div>
+      </div>` : ''}
     </div>`;
+}
+
+// INFRA-5: подробная админ-диагностика — подгружается по клику, а не при
+// каждом открытии настроек (эндпоинт тяжелее обычного /api/settings —
+// резолвит версии всех зависимостей из node_modules).
+async function loadSystemInfo() {
+  const box = document.getElementById('system-info-result');
+  if (!box) return;
+  box.innerHTML = `<span style="color:var(--muted)">${t('msg_loading')}</span>`;
+  try {
+    const s = await fetch(`${API}/api/settings/system-info`, { headers: ah() }).then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+    const fmtBytes = n => n == null ? '?' : (n / 1024).toFixed(1) + ' KB';
+    const fmtDate  = d => d ? new Date(d).toLocaleString(_lang === 'en' ? 'en-US' : 'ru-RU') : '—';
+    const deps = Object.entries(s.dependencies || {})
+      .map(([name, v]) => `<div>${name}: <code>${v.installed}</code> <span style="opacity:.6">(${v.required})</span></div>`)
+      .join('');
+    box.innerHTML = `
+      <div><b>Node.js:</b> ${s.node.version} · ${s.node.platform}/${s.node.arch} · PID ${s.node.pid}</div>
+      <div><b>${t('lbl_uptime')}:</b> ${Math.floor(s.node.uptime_sec / 3600)} ${t('lbl_hours_short')} ${Math.floor((s.node.uptime_sec % 3600) / 60)} ${t('lbl_minutes_short')} · <b>RSS:</b> ${s.node.memory_rss_mb} MB</div>
+      <div style="margin-top:8px"><b>${t('lbl_data')}:</b> db.json ${fmtBytes(s.storage.db_json_bytes)} · config.json ${fmtBytes(s.storage.config_json_bytes)} · sqlite ${fmtBytes(s.storage.sqlite_bytes)}</div>
+      <div><b>${t('lbl_backups')}:</b> ${s.storage.backups.count} ${t('lbl_pcs_last')}: ${s.storage.backups.last ? s.storage.backups.last.file + ' (' + fmtDate(s.storage.backups.last.mtime) + ')' : t('lbl_backups_count_none')}</div>
+      <div><b>${t('lbl_records')}:</b> ${t('lbl_assets_short')} ${s.counts.assets ?? '?'} · ${t('lbl_history_short')} ${s.counts.history ?? '?'} · ${t('lbl_employees_short')} ${s.counts.employees ?? '?'} · ${t('lbl_users_short')} ${s.counts.users ?? '?'}</div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><b>${t('lbl_dependencies')}:</b></div>
+      <div style="max-height:160px;overflow:auto">${deps}</div>
+    `;
+  } catch (e) {
+    box.innerHTML = `<span style="color:var(--danger, #e94560)">${t('msg_load_error', { msg: e.message })}</span>`;
+  }
 }
 
 // ── Вкладка: Организации ──────────────────────────────────────────────────────
@@ -174,43 +213,47 @@ let _showLiquidatedOrgs = false;
 // вынесены в public/js/views/settings-config.js (Фаза 5, шаг 24)
 
 async function runMigration() {
-  if (!confirm('Пересчитать категории и проставить filial_id/org_id для всех ассетов?\n\nОперация безопасна и обратима через бэкап.')) return;
+  if (!confirm(t('msg_confirm_migration'))) return;
   const r = await fetch(`${API}/api/migrate`, {
     method:'POST', headers:ah(),
     body: JSON.stringify({ from_version: 3 }) // перезапустить с v4
   });
   const d = await r.json();
-  if (r.ok) toast(`Миграция выполнена → schema v${d.schema_version}`, 'success');
-  else toast(d.error || 'Ошибка', 'error');
+  if (r.ok) toast(t('msg_migration_done', { v: d.schema_version }), 'success');
+  else toast(d.error || t('msg_error'), 'error');
 }
 
 async function runDiag() {
   const el = document.getElementById('diag-result');
-  el.innerHTML = 'Проверяю...';
+  el.innerHTML = t('msg_checking');
   try {
     const d = await fetch(`${API}/api/diag`).then(r=>r.json());
     const ok = c => `<span style="color:#059669;font-weight:600">${c}</span>`;
     const err = c => `<span style="color:var(--danger-text);font-weight:600">${c}</span>`;
     const mb = (d.fileSize/1024).toFixed(1);
-    const last = d.lastWrite ? new Date(d.lastWrite).toLocaleString('ru-RU') : '—';
+    const last = d.lastWrite ? new Date(d.lastWrite).toLocaleString(_lang === 'en' ? 'en-US' : 'ru-RU') : '—';
     el.innerHTML = `
-      <div>${d.writable ? ok('✅ Файл БД доступен для записи') : err('❌ НЕТ ПРАВ НА ЗАПИСЬ — данные не сохраняются!')}</div>
-      <div>${d.writeOk  ? ok('✅ Тестовая запись прошла успешно') : err('❌ db.write() УПАЛ — проверьте права на папку data/')}</div>
-      <div>📁 Путь: <code style="font-size:11px">${d.dbPath}</code></div>
-      <div>📦 Размер: ${mb} KB | Последнее изменение: ${last}</div>
-      <div>📋 В базе: ${d.assets} устройств, ${d.history} записей истории</div>
+      <div>${d.writable ? ok(t('msg_db_writable')) : err(t('msg_db_not_writable'))}</div>
+      <div>${d.writeOk  ? ok(t('msg_test_write_ok')) : err(t('msg_test_write_fail'))}</div>
+      <div>📁 ${t('lbl_path')}: <code style="font-size:11px">${d.dbPath}</code></div>
+      <div>📦 ${t('lbl_size')}: ${mb} KB | ${t('lbl_last_change')}: ${last}</div>
+      <div>📋 ${t('lbl_in_db')}: ${t('lbl_devices_count', { n: d.assets })}, ${t('lbl_history_records', { n: d.history })}</div>
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
         ${d.backup?.last
-          ? ok(`✅ Последний бэкап: ${d.backup.last.file.replace(/^backup_\w+_/,'').replace(/\.zip|\.json/,'')} · ${Math.round(d.backup.last.size/1024)} KB · ${d.backup.last.full ? 'полный' : 'только БД'}`)
-          : err('⚠️ Бэкапов не найдено — сервер запущен менее 10 секунд или папка data/backups/ недоступна')}
-        <span style="color:var(--muted);font-size:12px"> (всего: ${d.backup?.count ?? 0})</span>
+          ? ok(t('msg_last_backup', {
+              name: d.backup.last.file.replace(/^backup_\w+_/,'').replace(/\.zip|\.json/,''),
+              size: Math.round(d.backup.last.size/1024),
+              full: d.backup.last.full ? t('lbl_backup_full') : t('lbl_backup_db_only')
+            }))
+          : err(t('msg_no_backups_found'))}
+        <span style="color:var(--muted);font-size:12px"> ${t('lbl_total_count', { n: d.backup?.count ?? 0 })}</span>
       </div>
       ${!d.writable||!d.writeOk ? `<div style="margin-top:8px;padding:8px;background:var(--noInv-bg);border-radius:6px;color:var(--danger-text)">
-        ⚠️ Переместите папку <b>it-assets</b> из Downloads на Рабочий стол и перезапустите.
+        ${t('msg_move_folder_warning')}
       </div>` : ''}
     `;
   } catch(e) {
-    document.getElementById('diag-result').innerHTML = `<span style="color:var(--danger-text)">Ошибка: ${e.message}</span>`;
+    document.getElementById('diag-result').innerHTML = `<span style="color:var(--danger-text)">${t('msg_diag_error', { msg: e.message })}</span>`;
   }
 }
 
@@ -261,7 +304,7 @@ function _livePreview() {
 }
 
 function _resetStyles() {
-  if (!confirm('Сбросить стиль к стандартному?')) return;
+  if (!confirm(t('msg_confirm_reset_style'))) return;
   localStorage.removeItem('itassets_styles');
   // Сбрасываем все кастомные CSS переменные
   const vars = ['--accent','--header-bg','--accent-dark','--header-bg-dark'];
@@ -274,7 +317,7 @@ function _resetStyles() {
     if (el) el.value = val;
   });
   fetch(`${API}/api/settings/styles`, { method:'PUT', headers:ah(), body:JSON.stringify({styles:{}}) });
-  toast('Стиль сброшен', 'success');
+  toast(t('msg_style_reset'), 'success');
   setTimeout(() => { _initStyleEditor(); _livePreview(); }, 50);
 }
 
@@ -299,7 +342,7 @@ function _loadLogoPreview(logoData) {
   const preview = document.getElementById('logo-preview');
   if (!preview) return;
   if (!logoData || !logoData.trim()) {
-    preview.innerHTML = '<span style="font-size:12px;color:var(--muted)">Логотип не установлен</span>';
+    preview.innerHTML = `<span style="font-size:12px;color:var(--muted)">${t('msg_logo_not_set')}</span>`;
     return;
   }
   if (logoData.trim().toLowerCase().startsWith('<svg')) {
@@ -311,41 +354,41 @@ function _loadLogoPreview(logoData) {
     // base64 или URL
     preview.innerHTML = `<img src="${logoData}" style="height:36px;width:auto;object-fit:contain" alt="logo"/>`;
   } else {
-    preview.innerHTML = '<span style="font-size:12px;color:var(--muted)">Логотип не установлен</span>';
+    preview.innerHTML = `<span style="font-size:12px;color:var(--muted)">${t('msg_logo_not_set')}</span>`;
   }
 }
 
 async function saveLogoSvg() {
   const file = document.getElementById('logo-svg-file')?.files[0];
-  if (!file) return toast('Выберите файл логотипа', 'error');
+  if (!file) return toast(t('msg_select_logo_file'), 'error');
 
   let logoData;
   if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
     // SVG — читаем как текст
     logoData = await file.text();
     if (!logoData.trim().toLowerCase().includes('<svg'))
-      return toast('Файл не является корректным SVG', 'error');
+      return toast(t('msg_not_valid_svg'), 'error');
   } else {
     // PNG/JPG/WebP — конвертируем в base64 data URL
     logoData = await new Promise((res, rej) => {
       const reader = new FileReader();
       reader.onload = e => res(e.target.result);
-      reader.onerror = () => rej(new Error('Ошибка чтения файла'));
+      reader.onerror = () => rej(new Error(t('msg_file_read_error')));
       reader.readAsDataURL(file);
     });
   }
 
   // Проверяем размер (макс 512 KB)
-  if (logoData.length > 512 * 1024) return toast('Файл слишком большой (макс. 512 KB)', 'error');
+  if (logoData.length > 512 * 1024) return toast(t('msg_file_too_large'), 'error');
 
   const r = await fetch(`${API}/api/settings/logo_svg`, {
     method:'PUT', headers:ah(), body:JSON.stringify({ svg: logoData })
   });
   if (r.ok) {
-    toast('Логотип сохранён', 'success');
+    toast(t('msg_logo_saved'), 'success');
     _updateLogoEl(_companyName || 'IT ASSETS', logoData);
     _loadLogoPreview(logoData);
-  } else { const d = await r.json(); toast(d.error||'Ошибка','error'); }
+  } else { const d = await r.json(); toast(d.error||t('msg_error'),'error'); }
 }
 
 async function clearLogoSvg() {
@@ -353,21 +396,21 @@ async function clearLogoSvg() {
     method:'PUT', headers:ah(), body:JSON.stringify({ svg:'' })
   });
   if (r.ok) {
-    toast('Логотип удалён', 'success');
+    toast(t('msg_logo_removed'), 'success');
     _updateLogoEl(_companyName || 'IT ASSETS', '');
     _loadLogoPreview('');
-  } else toast('Ошибка','error');
+  } else toast(t('msg_error'),'error');
 }
 
 async function saveCompanyName() {
   const name = document.getElementById('company-name-inp')?.value.trim();
-  if (!name) return toast('Введите название', 'error');
+  if (!name) return toast(t('msg_enter_name'), 'error');
   const r = await fetch(`${API}/api/settings/company_name`, {
     method: 'PUT', headers: ah(), body: JSON.stringify({ company_name: name })
   });
   const d = await r.json();
   if (r.ok) {
-    toast('Название сохранено', 'success');
+    toast(t('msg_company_name_saved'), 'success');
     _companyName = name;
     try {
       const s = await fetch(`${API}/api/settings`).then(r=>r.json());
@@ -375,16 +418,16 @@ async function saveCompanyName() {
     } catch(e) {
       _updateLogoEl(name, '');
     }
-  } else toast(d.error || 'Ошибка', 'error');
+  } else toast(d.error || t('msg_error'), 'error');
 }
 
 async function resetCompanyName() {
-  if (!confirm('Сбросить название на "IT ASSETS"?')) return;
+  if (!confirm(t('msg_confirm_reset_name'))) return;
   const r = await fetch(`${API}/api/settings/company_name`, {
     method: 'PUT', headers: ah(), body: JSON.stringify({ company_name: 'IT ASSETS' })
   });
   if (r.ok) {
-    toast('Название сброшено', 'success');
+    toast(t('msg_company_name_reset'), 'success');
     _companyName = 'IT ASSETS';
     const inp = document.getElementById('company-name-inp');
     if (inp) inp.value = 'IT ASSETS';
@@ -394,7 +437,7 @@ async function resetCompanyName() {
     } catch(e) {
       _updateLogoEl('IT ASSETS', '');
     }
-  } else toast('Ошибка', 'error');
+  } else toast(t('msg_error'), 'error');
 }
 
 async function saveStyleSettings() {
@@ -407,8 +450,8 @@ async function saveStyleSettings() {
   const r = await fetch(`${API}/api/settings/styles`, {
     method: 'PUT', headers: ah(), body: JSON.stringify({ styles })
   });
-  if (r.ok) toast('Стили сохранены', 'success');
-  else toast('Ошибка сохранения', 'error');
+  if (r.ok) toast(t('msg_styles_saved'), 'success');
+  else toast(t('msg_save_error'), 'error');
 }
 
 function _previewAccent(inputId, previewId) {
@@ -427,6 +470,8 @@ function _renderStylePreview(isDark, accent) {
   const headerG = isDark
     ? 'linear-gradient(135deg,#0a0b0f,#13141c,#1a1b23)'
     : 'linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)';
+  const navTabs = [t('nav_dashboard').replace(/^\S+\s/, ''), t('tab_os'), t('tab_small'), t('tab_infra')];
+  const contentTabs = [t('nav_os'), t('nav_small'), t('nav_infra')];
   return `
     <div style="width:100%;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.25);font-size:10px;user-select:none">
       <!-- header -->
@@ -439,16 +484,16 @@ function _renderStylePreview(isDark, accent) {
       </div>
       <!-- nav -->
       <div style="background:${navBg};display:flex;gap:0;border-bottom:1px solid ${border};padding:0 8px">
-        ${['Дашборд','ОС','Мелочи','Инфра'].map((t,i) => `
-        <div style="padding:5px 7px;font-size:9px;font-weight:${i===0?700:500};color:${i===0?accent:muted};border-bottom:${i===0?`2px solid ${accent}`:'2px solid transparent'}">${t}</div>`).join('')}
+        ${navTabs.map((tb,i) => `
+        <div style="padding:5px 7px;font-size:9px;font-weight:${i===0?700:500};color:${i===0?accent:muted};border-bottom:${i===0?`2px solid ${accent}`:'2px solid transparent'}">${tb}</div>`).join('')}
       </div>
       <!-- content -->
       <div style="background:${bg};padding:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px">
-        ${['💻 ОС','🖱 Мелочи','🌐 Инфра'].map(t => `
+        ${contentTabs.map(tb => `
         <div style="background:${card};border-radius:6px;padding:6px 8px;box-shadow:0 1px 4px rgba(0,0,0,.1);border-left:3px solid ${accent}">
-          <div style="font-size:10px;font-weight:700;color:${text}">${t}</div>
+          <div style="font-size:10px;font-weight:700;color:${text}">${tb}</div>
           <div style="font-size:14px;font-weight:800;color:${accent};margin-top:2px">—</div>
-          <div style="font-size:8px;color:${muted}">устройств</div>
+          <div style="font-size:8px;color:${muted}">${t('lbl_devices_word')}</div>
         </div>`).join('')}
       </div>
     </div>`;

@@ -10,38 +10,38 @@
  * и CRUD-модалками организаций в оригинале). Забрал оттуда и объединил
  * с downloadConfigExport/startConfigImport/applyConfigImport — теперь
  * весь домен "Конфиг" в одном месте, как и задумывалось.
+ *
+ * LOC-5: локализовано на t()/I18N (см. public/js/i18n.js).
  */
 
 // ── Вкладка: Конфиг ───────────────────────────────────────────────────────────
 function _renderConfigPanel(isAdmin) {
   return `
     <div class="card" style="max-width:600px;margin-bottom:14px">
-      <div class="section-title">📤 Экспорт конфигурации</div>
+      <div class="section-title">${t('cfg_export_title')}</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">
-        Скачать <b>config.json</b> — справочники организаций, филиалов, локаций и аккаунты.
-        Используйте для резервного копирования или переноса на другой сервер.
+        ${t('cfg_export_hint')}
       </div>
-      <button class="btn btn-secondary" data-action="downloadConfigExport">⬇ Скачать config.json</button>
+      <button class="btn btn-secondary" data-action="downloadConfigExport">${t('btn_download_config')}</button>
     </div>
 
     <div class="card" style="max-width:600px">
-      <div class="section-title">📥 Импорт конфигурации</div>
+      <div class="section-title">${t('cfg_import_title')}</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">
-        Загрузите <b>config.json</b> из резервной копии. Если в файле есть конфликты с текущими данными —
-        система покажет каждый конфликт и предложит варианты решения.
+        ${t('cfg_import_hint')}
       </div>
       ${isAdmin ? `
       <input type="file" id="cfg-import-file" accept=".json" style="font-size:13px;width:100%;margin-bottom:8px"/>
-      <button class="btn btn-primary" data-action="startConfigImport">🔍 Проверить и импортировать</button>
+      <button class="btn btn-primary" data-action="startConfigImport">${t('btn_check_and_import')}</button>
       <div id="cfg-import-result" style="margin-top:12px"></div>
-      ` : '<div style="color:var(--muted);font-size:13px">Доступно только в режиме редактирования</div>'}
+      ` : `<div style="color:var(--muted);font-size:13px">${t('msg_edit_mode_only')}</div>`}
     </div>`;
 }
 
 async function downloadConfigExport() {
   try {
     const r = await fetch(`${API}/api/config/export`, { headers: ah() });
-    if (!r.ok) { toast('Ошибка экспорта: ' + r.status, 'error'); return; }
+    if (!r.ok) { toast(t('msg_export_error', { status: r.status }), 'error'); return; }
     const blob = await r.blob();
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -49,7 +49,7 @@ async function downloadConfigExport() {
     a.download = 'config.json';
     a.click();
     URL.revokeObjectURL(url);
-  } catch(e) { toast('Ошибка соединения', 'error'); }
+  } catch(e) { toast(t('msg_connection_error'), 'error'); }
 }
 
 // ── Импорт config.json с разрешением конфликтов ───────────────────────────────
@@ -57,13 +57,13 @@ let _pendingImport = null; // { incoming, clean, conflicts }
 
 async function startConfigImport() {
   const file = document.getElementById('cfg-import-file')?.files[0];
-  if (!file) return toast('Выберите файл','error');
+  if (!file) return toast(t('msg_select_file'),'error');
   const result = document.getElementById('cfg-import-result');
-  result.innerHTML = '<div style="color:var(--muted);font-size:13px">🔍 Анализирую...</div>';
+  result.innerHTML = `<div style="color:var(--muted);font-size:13px">${t('msg_analyzing')}</div>`;
 
   let incoming;
   try { incoming = JSON.parse(await file.text()); }
-  catch(e) { result.innerHTML = `<div style="color:var(--danger-text)">❌ Невалидный JSON: ${e.message}</div>`; return; }
+  catch(e) { result.innerHTML = `<div style="color:var(--danger-text)">${t('msg_invalid_json', { msg: e.message })}</div>`; return; }
 
   const r = await fetch(`${API}/api/config/import/diff`, {
     method:'POST', headers:ah(), body:JSON.stringify({ config: incoming })
@@ -80,9 +80,9 @@ function _renderImportPreview(container, { clean, conflicts }) {
   const conflictCount = conflicts.length;
 
   const conflictsHtml = conflicts.map((c, idx) => {
-    const typeLabel = { same_id_diff_data:'⚠️ Одинаковый ID, разные данные', same_code:'🔤 Совпадает код', same_name:'📝 Совпадает название' }[c.type] || c.type;
+    const typeLabel = { same_id_diff_data:t('conflict_same_id_diff_data'), same_code:t('conflict_same_code'), same_name:t('conflict_same_name') }[c.type] || c.type;
     const optionsBtns = c.options.map(opt => {
-      const labels = { skip:'Пропустить', keep_current:'Оставить текущую', replace:'Заменить текущую', rename:'Переименовать и добавить' };
+      const labels = { skip:t('resolution_skip'), keep_current:t('resolution_keep_current'), replace:t('resolution_replace'), rename:t('resolution_rename') };
       const styles = { skip:'btn-secondary', keep_current:'btn-secondary', replace:'btn-danger', rename:'btn-primary' };
       return `<button class="btn btn-sm ${styles[opt]||'btn-secondary'}" data-action="_selectResolution" data-args='${JSON.stringify([idx, opt])}'
         id="res-btn-${idx}-${opt}">${labels[opt]||opt}</button>`;
@@ -90,7 +90,7 @@ function _renderImportPreview(container, { clean, conflicts }) {
 
     const renameInput = c.options.includes('rename')
       ? `<div id="res-rename-${idx}" style="display:none;margin-top:6px">
-          <input id="res-newname-${idx}" placeholder="Новое уникальное название" style="width:100%;font-size:13px"/>
+          <input id="res-newname-${idx}" placeholder="${t('msg_new_unique_name')}" style="width:100%;font-size:13px"/>
          </div>`
       : '';
 
@@ -101,11 +101,11 @@ function _renderImportPreview(container, { clean, conflicts }) {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;font-size:12px">
         <div style="background:var(--warn-bg);border-radius:6px;padding:8px;color:var(--warn-text)">
-          <div style="color:var(--muted);margin-bottom:3px">Импортируемая</div>
+          <div style="color:var(--muted);margin-bottom:3px">${t('lbl_importing_entry')}</div>
           <b>${esc(c.incoming.name)}</b>${c.incoming.short_code ? ` <code>${esc(c.incoming.short_code)}</code>` : ''}
         </div>
         <div style="background:var(--success-bg);border-radius:6px;padding:8px;color:var(--success-text)">
-          <div style="color:var(--muted);margin-bottom:3px">Текущая</div>
+          <div style="color:var(--muted);margin-bottom:3px">${t('lbl_current_entry')}</div>
           <b>${esc(c.current?.name||'—')}</b>${c.current?.short_code ? ` <code>${esc(c.current.short_code)}</code>` : ''}
         </div>
       </div>
@@ -116,15 +116,15 @@ function _renderImportPreview(container, { clean, conflicts }) {
 
   container.innerHTML = `
     <div style="background:var(--success-bg);border:1px solid var(--success-border);border-radius:8px;padding:11px;margin-bottom:12px;font-size:13px;color:var(--success-text)">
-      ✅ Чистых записей: <b>${cleanCount}</b> &nbsp;|&nbsp; ⚠️ Конфликтов: <b>${conflictCount}</b>
+      ${t('msg_clean_and_conflicts', { clean: cleanCount, conflicts: conflictCount })}
     </div>
-    ${conflictCount ? `<div style="font-size:13px;font-weight:600;margin-bottom:8px">Разрешите конфликты:</div>${conflictsHtml}` : ''}
+    ${conflictCount ? `<div style="font-size:13px;font-weight:600;margin-bottom:8px">${t('msg_resolve_conflicts')}</div>${conflictsHtml}` : ''}
     <div id="import-apply-wrap" style="margin-top:12px">
       <button class="btn btn-primary" data-action="applyConfigImport" ${conflictCount ? 'disabled id="apply-config-btn"' : ''}>
-        ✅ Применить импорт
+        ${t('btn_apply_import')}
       </button>
       <div style="font-size:12px;color:var(--muted);margin-top:6px">
-        ${conflictCount ? 'Разрешите все конфликты чтобы применить' : 'Нет конфликтов — можно применить сразу'}
+        ${conflictCount ? t('msg_resolve_all_to_apply') : t('msg_no_conflicts_apply_now')}
       </div>
     </div>`;
 
@@ -171,12 +171,12 @@ function _checkAllResolved() {
   if (!applyBtn) return;
   applyBtn.disabled = window._unresolvedConflicts.size > 0;
   if (window._unresolvedConflicts.size === 0) {
-    applyBtn.textContent = '✅ Все конфликты разрешены — Применить';
+    applyBtn.textContent = t('btn_all_resolved_apply');
   }
 }
 
 async function applyConfigImport() {
-  if (!_pendingImport) return toast('Нет данных для импорта','error');
+  if (!_pendingImport) return toast(t('msg_no_import_data'),'error');
   const { incoming, clean } = _pendingImport;
   const conflicts = _pendingImport.conflicts || [];
 
@@ -194,10 +194,10 @@ async function applyConfigImport() {
   if (r.ok) {
     const result = document.getElementById('cfg-import-result');
     result.innerHTML = `<div style="background:var(--success-bg);border:1px solid var(--success-border);border-radius:8px;padding:14px;font-size:13px;color:var(--success-text)">
-      ✅ <b>Импорт применён</b><br>
-      Добавлено: ${d.added.length} · Обновлено: ${d.updated.length} · Пропущено: ${d.skipped.length}
+      ${t('msg_import_applied')}<br>
+      ${t('msg_import_stats', { added: d.added.length, updated: d.updated.length, skipped: d.skipped.length })}
     </div>`;
-    toast('Конфиг импортирован','success');
+    toast(t('msg_config_imported'),'success');
     _pendingImport = null;
     try {
       const upd = await fetch(`${API}/api/settings`).then(r=>r.json());
@@ -206,6 +206,6 @@ async function applyConfigImport() {
     } catch(e) {}
     await renderSettings();
   } else {
-    toast(d.error||'Ошибка при применении','error');
+    toast(d.error||t('msg_apply_error'),'error');
   }
 }

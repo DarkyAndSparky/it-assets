@@ -23,11 +23,11 @@ async function renderAlerts() {
 
   const toArr = r => Array.isArray(r) ? r : (r?.items || []);
   const [noResp, reserved, noInv, noSerial, stale] = await Promise.all([
-    fetch(`${API}/api/assets?no_responsible=1&limit=500`).then(r=>r.json()).then(toArr),
-    fetch(`${API}/api/assets?status=резерв&limit=500`).then(r=>r.json()).then(toArr),
-    fetch(`${API}/api/assets?no_inv=1&limit=500`).then(r=>r.json()).then(toArr),
-    fetch(`${API}/api/assets?no_serial=1&limit=500`).then(r=>r.json()).then(toArr),
-    fetch(`${API}/api/assets?stale_days=180&limit=500`).then(r=>r.json()).then(toArr),
+    fetch(`${API}/api/assets?no_responsible=1&limit=500`, { headers: ah() }).then(r=>r.json()).then(toArr),
+    fetch(`${API}/api/assets?status=резерв&limit=500`, { headers: ah() }).then(r=>r.json()).then(toArr),
+    fetch(`${API}/api/assets?no_inv=1&limit=500`, { headers: ah() }).then(r=>r.json()).then(toArr),
+    fetch(`${API}/api/assets?no_serial=1&limit=500`, { headers: ah() }).then(r=>r.json()).then(toArr),
+    fetch(`${API}/api/assets?stale_days=180&limit=500`, { headers: ah() }).then(r=>r.json()).then(toArr),
   ]);
 
   const alertRow = (a, btn='') => `<div class="alert-card" style="cursor:pointer" data-action="showDetail" data-args='${JSON.stringify([a.id])}'>

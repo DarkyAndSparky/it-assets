@@ -27,7 +27,7 @@ function renderQrInto(containerId, text) {
   img.height = 200;
   img.style.cssText = 'display:block;image-rendering:pixelated';
   img.alt    = 'QR';
-  img.onerror = () => { el.textContent = 'QR недоступен'; };
+  img.onerror = () => { el.textContent = t('msg_qr_unavailable'); };
   el.appendChild(img);
 }
 
@@ -40,8 +40,8 @@ function printAsset(assetData) {
   frame.innerHTML = `
     <div class="pf-title">${esc(a.model || '—')}</div>
     <div class="pf-type">${esc(a.type || '')}${a.category ? ' · ' + esc(a.category) : ''}</div>
-    ${a.serial ? `<div class="pf-row"><div class="pf-label">Серийный номер</div><div class="pf-val">${esc(a.serial)}</div></div>` : ''}
-    ${a.inv    ? `<div class="pf-row"><div class="pf-label">Инвентарный номер</div><div class="pf-val">${esc(a.inv)}</div></div>` : ''}
+    ${a.serial ? `<div class="pf-row"><div class="pf-label">${t('lbl_serial_number')}</div><div class="pf-val">${esc(a.serial)}</div></div>` : ''}
+    ${a.inv    ? `<div class="pf-row"><div class="pf-label">${t('lbl_inv_number')}</div><div class="pf-val">${esc(a.inv)}</div></div>` : ''}
     <div class="pf-qr">
       <div id="pf-qr-canvas"></div>
       <div class="pf-hint">${esc(qrText.replace(/\n/g,' · '))}</div>

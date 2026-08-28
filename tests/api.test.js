@@ -69,7 +69,7 @@ describe('GET /api/settings', () => {
 // ── Организации ───────────────────────────────────────────────────────────────
 describe('GET /api/orgs', () => {
   test('возвращает список организаций без системных', async () => {
-    const res = await request(app).get('/api/orgs');
+    const res = await request(app).get('/api/orgs').set(AUTH);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.every(o => !o.system)).toBe(true);
@@ -207,7 +207,7 @@ describe('POST /api/orgs/:id/inv-rules/:typeCode/delete-force', () => {
 // ── Филиалы ───────────────────────────────────────────────────────────────────
 describe('GET /api/filials', () => {
   test('возвращает список филиалов', async () => {
-    const res = await request(app).get('/api/filials');
+    const res = await request(app).get('/api/filials').set(AUTH);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.some(f => f.name === 'Главный')).toBe(true);
@@ -236,7 +236,7 @@ describe('POST /api/filials', () => {
 // ── Ассеты ────────────────────────────────────────────────────────────────────
 describe('GET /api/assets', () => {
   test('возвращает объект с items и total', async () => {
-    const res = await request(app).get('/api/assets');
+    const res = await request(app).get('/api/assets').set(AUTH);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.items)).toBe(true);
     expect(typeof res.body.total).toBe('number');
@@ -259,7 +259,7 @@ describe('GET /api/assets/search', () => {
 
 describe('GET /api/categories', () => {
   test('возвращает объект категорий', async () => {
-    const res = await request(app).get('/api/categories');
+    const res = await request(app).get('/api/categories').set(AUTH);
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('os');
     expect(res.body).toHaveProperty('infra');
@@ -268,7 +268,7 @@ describe('GET /api/categories', () => {
 
 describe('GET /api/type-codes', () => {
   test('возвращает массив type_codes', async () => {
-    const res = await request(app).get('/api/type-codes');
+    const res = await request(app).get('/api/type-codes').set(AUTH);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.some(t => t.code === 'NB')).toBe(true);

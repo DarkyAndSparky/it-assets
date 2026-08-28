@@ -30,6 +30,7 @@
 <script src="/js/views/users-admin.js"></script>
 <script src="/js/views/types-admin.js"></script>
 <script src="/js/error-handler.js"></script>
+<script src="/js/health.js"></script>
 </head>
 <body>
 <div id="header">
@@ -43,11 +44,13 @@
       style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:8px;cursor:pointer;font-size:15px">🌙</button>
     <button id="lang-toggle" data-action="toggleLang" title="Switch language / Переключить язык"
       style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.5px">EN</button>
+    <span id="health-indicator" class="health-dot" style="display:none" data-action="toggleHealthDetails" title="">●</span>
     <span id="total-badge" class="hbadge">...</span>
     <span id="auth-status" style="font-size:12px;opacity:.8">👁 Просмотр</span>
     <button class="auth-btn" id="auth-btn" data-action="toggleAuth">🔐 Войти</button>
   </div>
 </div>
+<div id="health-panel"></div>
 <div id="nav">
   <button class="nav-btn active" data-tab="dashboard" data-action="switchTab" data-args='["dashboard"]'>📊 Дашборд</button>
   <button class="nav-btn nav-auth" data-tab="os"       data-action="switchTab" data-args='["os"]'>💻 ОС</button>

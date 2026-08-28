@@ -32,10 +32,10 @@ window.addEventListener('unhandledrejection', e => {
   const app = document.getElementById('app');
   if (app && app.innerHTML.includes('spinner')) {
     app.innerHTML = `<div class="card" style="max-width:500px">
-      <div style="color:var(--danger-text);font-weight:700;margin-bottom:8px">❌ Ошибка загрузки</div>
+      <div style="color:var(--danger-text);font-weight:700;margin-bottom:8px">${t('msg_load_error_title')}</div>
       <div style="font-size:13px;color:var(--muted);margin-bottom:12px">${String(e.reason)}</div>
-      <div style="font-size:12px;color:var(--muted)">Проверьте консоль браузера (F12) для деталей.</div>
-      <button class="btn btn-primary" style="margin-top:12px" data-action="render">🔄 Попробовать снова</button>
+      <div style="font-size:12px;color:var(--muted)">${t('msg_check_console')}</div>
+      <button class="btn btn-primary" style="margin-top:12px" data-action="render">${t('btn_try_again')}</button>
     </div>`;
   }
 });

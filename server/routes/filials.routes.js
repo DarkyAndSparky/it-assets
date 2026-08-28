@@ -8,13 +8,14 @@
 
 const express = require('express');
 const db = require('../database');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireLogin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { createFilialSchema, updateFilialSchema, closeFilialSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
+// INFRA-7: раньше открыт без авторизации — отдаёт адреса филиалов.
+router.get('/', requireLogin, (req, res) => {
   res.json(db.config.getFilials(req.query.system === 'true'));
 });
 router.post('/', requireAuth, validate(createFilialSchema), (req, res) => {

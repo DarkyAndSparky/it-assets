@@ -83,7 +83,7 @@ describe('GET /api/assets — фильтрация', () => {
   });
 
   test('по умолчанию не возвращает списанные', async () => {
-    const res = await request(app).get('/api/assets');
+    const res = await request(app).get('/api/assets').set(AUTH);
     expect(res.body.items.find(a => a.id === retiredId)).toBeUndefined();
   });
 
@@ -172,7 +172,7 @@ describe('DELETE /api/assets/:id — списание', () => {
   });
 
   test('списанный не возвращается в GET /api/assets', async () => {
-    const res = await request(app).get('/api/assets');
+    const res = await request(app).get('/api/assets').set(AUTH);
     expect(res.body.items.find(a => a.id === assetId)).toBeUndefined();
   });
 

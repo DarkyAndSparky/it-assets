@@ -8,23 +8,28 @@
 
 const express = require('express');
 const assetsRepo = require('../repositories/assets.repo');
-const { requireAuth, changedBy } = require('../middleware/auth');
+const { requireAuth, requireLogin, changedBy } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { createAssetSchema, updateAssetSchema, moveAssetSchema,
         bulkMoveAssetsSchema, bulkAssignInvSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
+// INFRA-7: раньше эти три роута были без requireAuth — активы (включая
+// серийные номера, ответственных, локации) отдавались без авторизации
+// любому, кто достучится до API, хотя фронтенд прячет вкладки os/small/infra
+// за логином (см. router.js, _protected). Тот же класс проблемы, что нашли
+// в procure-it на /system-info: защита была только в UI, не в API.
+router.get('/', requireLogin, (req, res) => {
   res.json(assetsRepo.listAssets(req.query));
 });
 
-router.get('/search', (req, res) => {
+router.get('/search', requireLogin, (req, res) => {
   if (req.query.q === undefined) return res.status(400).json({ error: 'q required' });
   res.json(assetsRepo.searchAssets(req.query.q));
 });
 
-router.get('/:id', (req, res) => {
+router.get('/:id', requireLogin, (req, res) => {
   const asset = assetsRepo.getAssetById(req.params.id);
   if (!asset) return res.status(404).json({ error: 'Not found' });
   res.json(asset);

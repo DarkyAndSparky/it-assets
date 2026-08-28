@@ -9,15 +9,16 @@
 
 const express = require('express');
 const db = require('../database');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireLogin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { setTypeCodesSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
-router.get('/type-codes', (req, res) => res.json(db.getTypeCodes()));
+// INFRA-7: раньше открыты без авторизации.
+router.get('/type-codes', requireLogin, (req, res) => res.json(db.getTypeCodes()));
 
-router.get('/type-mapping', (req, res) => {
+router.get('/type-mapping', requireLogin, (req, res) => {
   // Возвращает {name_lower: tab} для быстрого поиска в парсере CSV
   const map = {};
   for (const t of db.getTypeCodes()) {

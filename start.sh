@@ -44,10 +44,20 @@ if [ "$NODE_MAJOR" -lt 16 ]; then
     exit 1
 fi
 
-# Автоустановка зависимостей при первом запуске
-if [ ! -d "node_modules" ]; then
+# Автоустановка/обновление зависимостей (INFRA-1: сравнение mtime
+# package-lock.json и node_modules вместо голой проверки "папка есть/нет")
+DEPS_STATUS=$(node scripts/check-deps-fresh.js 2>/dev/null || echo "STALE")
+if [ "$DEPS_STATUS" = "MISSING" ]; then
     echo ""
     echo " [INFO] Первый запуск — устанавливаю зависимости..."
+    echo " [Не закрывайте окно — это может занять минуту]"
+    echo ""
+    npm install
+    echo ""
+elif [ "$DEPS_STATUS" = "STALE" ]; then
+    echo ""
+    echo " [INFO] package-lock.json изменился — обновляю зависимости..."
+    echo " [Не закрывайте окно — это может занять минуту]"
     echo ""
     npm install
     echo ""

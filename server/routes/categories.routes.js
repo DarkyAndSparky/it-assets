@@ -9,13 +9,15 @@
 
 const express = require('express');
 const db = require('../database');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireLogin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { setCategoriesSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
+// INFRA-7: гейтим для консистентности с остальными справочниками —
+// используется только внутри залогиненных экранов (asset-tab.js).
+router.get('/', requireLogin, (req, res) => {
   res.json(db.getCategories());
 });
 

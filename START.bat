@@ -18,8 +18,15 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-if not exist node_modules (
+for /f "delims=" %%i in ('node scripts\check-deps-fresh.js 2^>nul') do set DEPS_STATUS=%%i
+if "%DEPS_STATUS%"=="MISSING" (
     echo  First run - installing dependencies...
+    echo  [Please don't close this window - this may take a minute]
+    npm install
+    echo.
+) else if "%DEPS_STATUS%"=="STALE" (
+    echo  package-lock.json changed since last install - updating dependencies...
+    echo  [Please don't close this window - this may take a minute]
     npm install
     echo.
 )

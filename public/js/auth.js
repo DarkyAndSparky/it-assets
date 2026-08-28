@@ -24,6 +24,8 @@ function toggleAuth() {
     currentUser  = null;
     _updateAuthUI();
     toast(t('msg_logged_out'));
+    stopHealthPolling();
+    if (typeof refreshHealth === 'function') refreshHealth(); // прячет точку
     render(); return;
   }
   _showLoginModal();
@@ -62,6 +64,7 @@ async function doLogin() {
       authPassword = pwd;
       _updateAuthUI();
       toast(t('msg_welcome', { name: currentUser.name }), 'success');
+      startHealthPolling();
       render();
       // Обязательная смена дефолтного пароля — блокирует остальной интерфейс,
       // сервер всё равно откажет во всех действиях, кроме смены своего пароля

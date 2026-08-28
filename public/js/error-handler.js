@@ -14,10 +14,10 @@ window.onerror = function(msg, src, line, col, err) {
   const text = `JS Error: ${msg}\n${src}:${line}:${col}`;
   console.error('[IT-ASSETS ERROR]', text, err);
   // Показываем toast если функция уже определена
-  if (typeof toast === 'function') toast('Ошибка интерфейса: ' + msg.slice(0, 80), 'error');
+  if (typeof toast === 'function') toast((typeof t === 'function' ? t('msg_ui_error', { msg: msg.slice(0, 80) }) : 'UI error: ' + msg.slice(0, 80)), 'error');
   return false;
 };
 window.addEventListener('unhandledrejection', e => {
   console.error('[IT-ASSETS UNHANDLED]', e.reason);
-  if (typeof toast === 'function') toast('Ошибка запроса: ' + String(e.reason).slice(0, 80), 'error');
+  if (typeof toast === 'function') toast((typeof t === 'function' ? t('msg_request_error', { msg: String(e.reason).slice(0, 80) }) : 'Request error: ' + String(e.reason).slice(0, 80)), 'error');
 });

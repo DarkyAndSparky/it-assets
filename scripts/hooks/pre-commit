@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# scripts/hooks/pre-commit
+#
+# INFRA-3: неблокирующее напоминание — если в коммите тронут код
+# (server/, public/js/, public/*.html), но не тронут CHANGELOG.md —
+# спрашиваем подтверждение перед коммитом. CHANGELOG.md выбран, а не
+# внешний ROADMAP-CONSOLIDATED.md, потому что роадмап ведётся вне
+# репозитория (обновляется отдельно, не коммитится) — git diff его
+# никогда не увидит, хук требовал бы его при каждом коммите без
+# возможности когда-либо это условие выполнить. Тот же паттерн, что в
+# procure-it: не хранится в .git/ (папка не коммитится сама по себе),
+# устанавливается заново через scripts/install-hooks.js (см. npm install
+# → prepare-скрипт), поэтому свежий clone/распакованный zip без .git
+# просто не получит хук — install-hooks.js это тоже безопасно
+# обрабатывает (тихо выходит, если .git нет).
+#
+# Неинтерактивный git (CI, git commit -m в скрипте без TTY) — хук молча
+# пропускает проверку, чтобы не блокировать автоматизацию.
+
+CHANGELOG_FILE="CHANGELOG.md"
+
+CHANGED=$(git diff --cached --name-only)
+
+# Если CHANGELOG и так в этом коммите — всё ок, ничего не спрашиваем.
+echo "$CHANGED" | grep -q "^$CHANGELOG_FILE$" && exit 0
+
+# Если код (server/, public/js/, public/*.html) не тронут — тоже ок,
+# нет смысла требовать роадмап на правку, скажем, README или CI-конфига.
+echo "$CHANGED" | grep -qE '^(server/|public/js/|public/.*\.html$)' || exit 0
+
+# Неинтерактивный терминал — не можем спросить, пропускаем молча.
+[ -t 1 ] || exit 0
+
+echo ""
+echo "⚠️  Код изменён (server/ или public/js/), а $CHANGELOG_FILE — нет."
+printf "   Продолжить коммит без обновления CHANGELOG.md? [y/N] "
+read -r ANSWER < /dev/tty
+case "$ANSWER" in
+  [yY]|[yY][eE][sS]) exit 0 ;;
+  *)
+    echo "   Коммит отменён. Обновите $CHANGELOG_FILE или используйте --no-verify."
+    exit 1
+    ;;
+esac

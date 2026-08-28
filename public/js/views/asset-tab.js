@@ -55,7 +55,7 @@ async function renderAssetTab(tab) {
   if (fStatus!=='Все') params.set('status',fStatus);
   if (searchVal) params.set('search',searchVal);
   app.innerHTML='<div class="spinner"></div>';
-  const _resp=await fetch(`${API}/api/assets?${params}`).then(r=>r.json());
+  const _resp=await fetch(`${API}/api/assets?${params}`, { headers: ah() }).then(r=>r.json());
   const assets = Array.isArray(_resp) ? _resp : (_resp.items || []);
   const totalAssets = _resp.total ?? assets.length;
   const totalPages  = _resp.pages ?? 1;
@@ -312,7 +312,7 @@ async function showBulkInvModal(tab) {
   // Загружаем организации с правилами инв. номеров
   let orgsWithRules = [];
   try {
-    const orgs = await fetch(`${API}/api/orgs`).then(r=>r.json());
+    const orgs = await fetch(`${API}/api/orgs`, { headers: ah() }).then(r=>r.json());
     orgsWithRules = orgs.filter(o => o.inv_rules && o.inv_rules.filter(r=>r.active!==false).length > 0);
   } catch(e) {}
 

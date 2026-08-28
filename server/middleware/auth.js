@@ -62,8 +62,25 @@ function requireAdmin(req, res, next) {
   });
 }
 
+// INFRA-7: requireAuth (выше) на самом деле проверяет доступ на РЕДАКТИРОВАНИЕ —
+// пароль (x-edit-password) и роль не ниже operator, плюс блокирует viewer.
+// Для чтения (GET активов/истории/справочников) это неверный чек — он бы
+// заблокировал легитимный viewer от простого просмотра. requireLogin —
+// облегчённая версия: только "пользователь существует и активен", без
+// проверки пароля и роли. Именно она годится для гейтинга read-only
+// роутов, которые раньше были открыты вообще без авторизации.
+function requireLogin(req, res, next) {
+  const userId = req.headers['x-user-id'];
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const user = db.getUser(userId);
+  if (!user || !user.active)
+    return res.status(401).json({ error: 'Пользователь не найден или неактивен' });
+  req.currentUser = { ...user };
+  return next();
+}
+
 function changedBy(req) {
   return req.currentUser?.name || 'редактор';
 }
 
-module.exports = { requireAuth, requireAdmin, changedBy };
+module.exports = { requireAuth, requireAdmin, requireLogin, changedBy };

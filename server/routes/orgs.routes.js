@@ -9,7 +9,7 @@
 
 const express = require('express');
 const db = require('../database');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireLogin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { createOrgSchema, updateOrgSchema, renameOrgSchema, liquidateOrgSchema,
         addInvRuleSchema, toggleInvRuleSchema, renameInvRuleSchema,
@@ -17,10 +17,13 @@ const { createOrgSchema, updateOrgSchema, renameOrgSchema, liquidateOrgSchema,
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
+// INFRA-7: все три GET раньше были без requireAuth — включая правила
+// инвентарных номеров (org.inv_rules), которые определяют логику
+// нумерации активов.
+router.get('/', requireLogin, (req, res) => {
   res.json(db.config.getOrgs(req.query.system === 'true'));
 });
-router.get('/:id', (req, res) => {
+router.get('/:id', requireLogin, (req, res) => {
   const org = db.config.getOrg(req.params.id);
   if (!org) return res.status(404).json({ error: 'Не найдено' });
   res.json(org);
@@ -43,7 +46,7 @@ router.post('/:id/liquidate', requireAuth, validate(liquidateOrgSchema), (req, r
   try { res.json(db.config.liquidateOrg(req.params.id, targetOrgId, changedBy||'admin', !!renumberInv)); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
-router.get('/:id/inv-rules', (req, res) => {
+router.get('/:id/inv-rules', requireLogin, (req, res) => {
   const org = db.config.getOrg(req.params.id);
   if (!org) return res.status(404).json({ error: 'Не найдено' });
   res.json(org.inv_rules || []);

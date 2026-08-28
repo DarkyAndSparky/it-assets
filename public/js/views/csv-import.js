@@ -88,7 +88,7 @@ async function importCSV() {
   let _typeTabMap = {};
   let _typeNormMap = {};
   try {
-    const codes = await fetch(`${API}/api/type-codes`).then(r=>r.json());
+    const codes = await fetch(`${API}/api/type-codes`, { headers: ah() }).then(r=>r.json());
     codes.forEach(t => {
       const key = t.name.trim().toLowerCase();
       _typeTabMap[key]  = t.tab  || 'os';

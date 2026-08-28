@@ -39,8 +39,8 @@ function _revealMaskedValue(realValue) {
 }
 
 async function showDetail(id) {
-  const a=await fetch(`${API}/api/assets/${id}`).then(r=>r.json());
-  const histResp=await fetch(`${API}/api/history?asset_id=${id}&limit=20`).then(r=>r.json());
+  const a=await fetch(`${API}/api/assets/${id}`, { headers: ah() }).then(r=>r.json());
+  const histResp=await fetch(`${API}/api/history?asset_id=${id}&limit=20`, { headers: ah() }).then(r=>r.json());
   const hist = Array.isArray(histResp) ? histResp : (histResp.items || []);
   // Org lookup через справочник
   if (!a.org && a.org_id && _orgsCache.length) {
@@ -300,7 +300,7 @@ async function doAdd(tab) {
 
 async function showEditModal(id) {
   await ensureRefData();
-  const a=await fetch(`${API}/api/assets/${id}`).then(r=>r.json());
+  const a=await fetch(`${API}/api/assets/${id}`, { headers: ah() }).then(r=>r.json());
   const allCats=[...new Set([...Object.values(catsCache).flat(),a.category])].filter(Boolean);
   const types=['Ноутбук','Системный Блок','Монитор','МФУ','Планшет','Телевизор','ИБП',
     'Точка доступа','Мини ПК','Мышь','Клавиатура','Гарнитура','Колонки','Камера',

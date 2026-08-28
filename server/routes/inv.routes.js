@@ -8,17 +8,20 @@
 
 const express = require('express');
 const db = require('../database');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireLogin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { reserveInvSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
-router.get('/codes', (req, res) => {
+// INFRA-7: раньше открыты без авторизации — коды организаций/типов и
+// генератор следующего инв. номера использовались только из-под логина
+// на фронтенде (inv-generator.js), но API это не проверял.
+router.get('/codes', requireLogin, (req, res) => {
   res.json({ orgs: db.ORG_CODES || {}, types: db.TYPE_CODES || {} });
 });
 
-router.get('/next', (req, res) => {
+router.get('/next', requireLogin, (req, res) => {
   const { org_id, org, type } = req.query;
   if (!type) return res.status(400).json({ error: 'type required' });
   let orgId = org_id;

@@ -8,13 +8,14 @@
 
 const express = require('express');
 const db = require('../database');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireLogin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { createLocationSchema, updateLocationSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
+// INFRA-7: раньше открыт без авторизации.
+router.get('/', requireLogin, (req, res) => {
   res.json(db.config.getLocations(req.query.filial_id||null, req.query.system==='true'));
 });
 router.post('/', requireAuth, validate(createLocationSchema), (req, res) => {

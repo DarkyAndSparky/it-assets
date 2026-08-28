@@ -40,21 +40,21 @@ async function renderSettings() {
       ${!isAdmin ? `<div class="card" style="margin-bottom:14px;background:var(--warn-bg);border:1px solid var(--warn-border)">
         <div style="font-size:13px;color:var(--warn-text);display:flex;align-items:center;gap:8px">
           <span style="font-size:20px">🔒</span>
-          <div>Войдите в режим редактирования для доступа к настройкам администратора.</div>
+          <div>${t('msg_edit_mode_admin_note')}</div>
         </div>
       </div>` : ''}
 
       <!-- Вкладки настроек -->
       <div class="cat-tabs settings-tabs" style="margin-bottom:18px">
-        <button class="cat-tab ${_settingsTab==='general'?'active':''}" data-stab="general" data-action="switchSettingsTab" data-args='["general"]'>⚙️ Общие</button>
+        <button class="cat-tab ${_settingsTab==='general'?'active':''}" data-stab="general" data-action="switchSettingsTab" data-args='["general"]'>${t('tab_settings_general')}</button>
         ${isAdmin ? `
-        <button class="cat-tab ${_settingsTab==='users'?'active':''}" data-stab="users" data-action="switchSettingsTab" data-args='["users"]'>👥 Пользователи</button>
-        <button class="cat-tab ${_settingsTab==='employees'?'active':''}" data-stab="employees" data-action="switchSettingsTab" data-args='["employees"]'>🧑‍💼 Сотрудники</button>
-        <button class="cat-tab ${_settingsTab==='orgs'?'active':''}" data-stab="orgs" data-action="switchSettingsTab" data-args='["orgs"]'>🏢 Организации</button>
-        <button class="cat-tab ${_settingsTab==='filials'?'active':''}" data-stab="filials" data-action="switchSettingsTab" data-args='["filials"]'>🏠 Филиалы</button>
-        <button class="cat-tab ${_settingsTab==='locations'?'active':''}" data-stab="locations" data-action="switchSettingsTab" data-args='["locations"]'>📍 Локации</button>
-        <button class="cat-tab ${_settingsTab==='types'?'active':''}" data-stab="types" data-action="switchSettingsTab" data-args='["types"]'>🔧 Типы устройств</button>
-        <button class="cat-tab ${_settingsTab==='config'?'active':''}" data-stab="config" data-action="switchSettingsTab" data-args='["config"]'>📦 Конфиг</button>
+        <button class="cat-tab ${_settingsTab==='users'?'active':''}" data-stab="users" data-action="switchSettingsTab" data-args='["users"]'>${t('tab_settings_users')}</button>
+        <button class="cat-tab ${_settingsTab==='employees'?'active':''}" data-stab="employees" data-action="switchSettingsTab" data-args='["employees"]'>${t('tab_settings_employees')}</button>
+        <button class="cat-tab ${_settingsTab==='orgs'?'active':''}" data-stab="orgs" data-action="switchSettingsTab" data-args='["orgs"]'>${t('tab_settings_orgs')}</button>
+        <button class="cat-tab ${_settingsTab==='filials'?'active':''}" data-stab="filials" data-action="switchSettingsTab" data-args='["filials"]'>${t('tab_settings_filials')}</button>
+        <button class="cat-tab ${_settingsTab==='locations'?'active':''}" data-stab="locations" data-action="switchSettingsTab" data-args='["locations"]'>${t('tab_settings_locations')}</button>
+        <button class="cat-tab ${_settingsTab==='types'?'active':''}" data-stab="types" data-action="switchSettingsTab" data-args='["types"]'>${t('tab_settings_types')}</button>
+        <button class="cat-tab ${_settingsTab==='config'?'active':''}" data-stab="config" data-action="switchSettingsTab" data-args='["config"]'>${t('tab_settings_config')}</button>
         ` : ''}
       </div>
 
@@ -72,7 +72,7 @@ async function switchSettingsTab(tab) {
     b.classList.toggle('active', b.dataset.stab === tab);
   });
   const panel = document.getElementById('settings-panel');
-  if (panel) panel.innerHTML = '<div style="color:var(--muted);padding:16px">Загрузка...</div>';
+  if (panel) panel.innerHTML = `<div style="color:var(--muted);padding:16px">${t('msg_loading')}</div>`;
   const html = await _renderSettingsPanel(isAdmin);
   if (panel) {
     panel.innerHTML = html;

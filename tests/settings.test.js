@@ -86,7 +86,7 @@ describe('PUT /api/categories/:tab', () => {
       .send({ categories: newCats });
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
-    const get = await request(app).get('/api/categories');
+    const get = await request(app).get('/api/categories').set(AUTH);
     expect(get.body.os).toEqual(newCats);
   });
 
@@ -95,7 +95,7 @@ describe('PUT /api/categories/:tab', () => {
     const res = await request(app).put('/api/categories/infra').set(AUTH)
       .send({ categories: newCats });
     expect(res.status).toBe(200);
-    const get = await request(app).get('/api/categories');
+    const get = await request(app).get('/api/categories').set(AUTH);
     expect(get.body.infra).toEqual(newCats);
   });
 
@@ -117,7 +117,7 @@ describe('PUT /api/type-codes', () => {
     const res = await request(app).put('/api/type-codes').set(AUTH)
       .send({ codes: newCodes });
     expect(res.status).toBe(200);
-    const get = await request(app).get('/api/type-codes');
+    const get = await request(app).get('/api/type-codes').set(AUTH);
     expect(get.body).toHaveLength(3);
     expect(get.body.find(t => t.code === 'NB').name).toBe('Ноутбук');
   });

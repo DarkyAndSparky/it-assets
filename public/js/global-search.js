@@ -46,23 +46,23 @@ async function runGlobalSearch(q) {
   _gsLastQuery = q;
 
   resultsEl.style.marginTop = '12px';
-  resultsEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:4px 0">Поиск...</div>';
+  resultsEl.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:4px 0">${t('msg_searching')}</div>`;
   resultsEl.style.maxHeight = '60px';
 
   try {
-    const resp = await fetch(`${API}/api/assets/search?q=${encodeURIComponent(q)}`);
+    const resp = await fetch(`${API}/api/assets/search?q=${encodeURIComponent(q)}`, { headers: ah() });
     if (!resp.ok) throw new Error(resp.status);
     const items = await resp.json();
 
     if (q !== _gsLastQuery) return; // устаревший результат
 
     if (!items.length) {
-      resultsEl.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:6px 0">Ничего не найдено по запросу «${esc(q)}»</div>`;
+      resultsEl.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:6px 0">${t('msg_nothing_found_for', { q: esc(q) })}</div>`;
       resultsEl.style.maxHeight = '60px';
       return;
     }
 
-    const TAB_LABEL = { os:'💻 ОС', small:'🖱 Мелочи', infra:'🌐 Инфра' };
+    const TAB_LABEL = { os:t('nav_os'), small:t('nav_small'), infra:t('nav_infra') };
 
     // Группируем по вкладке
     const byTab = {};
@@ -85,31 +85,30 @@ async function runGlobalSearch(q) {
         <td style="font-size:12px">${hl(a.responsible||'—')}</td>
         <td style="font-size:12px;color:var(--muted)">${esc(a.org||'—')} · ${esc(a.filial||'—')}</td>
         <td><span class="badge-s ${a.status==='используется'?'s-used':a.status==='резерв'?'s-reserve':'s-off'}">${esc(a.status)}</span></td>
-        <td><button class="btn-icon" data-action="showDetail" data-args='${JSON.stringify([a.id])}' data-stop="1" title="Открыть карточку">→</button></td>
+        <td><button class="btn-icon" data-action="showDetail" data-args='${JSON.stringify([a.id])}' data-stop="1" title="${t('tooltip_open_card')}">→</button></td>
       </tr>`;
     }).join('');
 
     const moreNote = items.length > 30
       ? `<tr><td colspan="9" style="text-align:center;color:var(--muted);font-size:12px;padding:8px">
-           Показаны первые 30 из ${items.length}. Уточните запрос.
+           ${t('msg_showing_first_30', { n: items.length })}
          </td></tr>`
       : '';
 
     resultsEl.innerHTML = `
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
-        Найдено: <b>${items.length}</b> ${items.length===1?'запись':items.length<5?'записи':'записей'}
-        по запросу «${esc(q)}»
+        ${t('msg_found_records', { n: items.length, q: esc(q) })}
       </div>
       <div class="tbl-wrap" style="border-radius:8px;border:1px solid var(--border)">
         <table style="font-size:13px">
-          <thead><tr><th>Вкладка</th><th>Инв. №</th><th>Тип</th><th>Модель</th><th>Серийный №</th><th>Ответственный</th><th>Орг · Филиал</th><th>Статус</th><th></th></tr></thead>
+          <thead><tr><th>${t('th_tab')}</th><th>${t('th_inv_no')}</th><th>${t('th_type')}</th><th>${t('th_model')}</th><th>${t('th_serial_no')}</th><th>${t('th_responsible')}</th><th>${t('th_org_filial')}</th><th>${t('th_status')}</th><th></th></tr></thead>
           <tbody>${rows}${moreNote}</tbody>
         </table>
       </div>`;
     resultsEl.style.maxHeight = '600px';
 
   } catch(e) {
-    resultsEl.innerHTML = `<div style="color:var(--noInv-text);font-size:13px">Ошибка поиска: ${e.message}</div>`;
+    resultsEl.innerHTML = `<div style="color:var(--noInv-text);font-size:13px">${t('msg_search_error', { msg: e.message })}</div>`;
     resultsEl.style.maxHeight = '60px';
   }
 }

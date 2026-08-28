@@ -22,7 +22,7 @@
 function switchTab(tab) {
   const _protected = ['os','small','infra','history','accounts','alerts','settings'];
   if (_protected.includes(tab) && !currentUser) {
-    toast('Войдите в систему', 'error');
+    toast(t('msg_login_required'), 'error');
     return;
   }
   currentTab=tab; currentCat=''; searchVal=''; fOrg='Все'; fFilial='Все'; fStatus='Все'; sortCol=''; sortDir=1;
@@ -51,8 +51,8 @@ async function render() {
   try {
     if (!catsCache.os) {
       [catsCache, invCodes] = await Promise.all([
-        fetch(`${API}/api/categories`).then(r=>r.json()).catch(()=>({os:['Оборудование пользователей','Оргтехника','Мини ПК'],small:['Периферия','Гарнитуры','Колонки'],infra:['Сетевое оборудование','Wi-Fi','Принтеры','Видеонаблюдение','ИБП','Серверы']})),
-        fetch(`${API}/api/inv/codes`).then(r=>r.json()).catch(()=>({orgs:{},types:{}}))
+        fetch(`${API}/api/categories`, { headers: ah() }).then(r=>r.json()).catch(()=>({os:['Оборудование пользователей','Оргтехника','Мини ПК'],small:['Периферия','Гарнитуры','Колонки'],infra:['Сетевое оборудование','Wi-Fi','Принтеры','Видеонаблюдение','ИБП','Серверы']})),
+        fetch(`${API}/api/inv/codes`, { headers: ah() }).then(r=>r.json()).catch(()=>({orgs:{},types:{}}))
       ]);
     }
     if (currentTab==='dashboard') return await renderDashboard();
