@@ -8,8 +8,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Версия из package.json
-APP_VER=$(node -e "try{process.stdout.write(require('./package.json').version)}catch(e){process.stdout.write('unknown')}" 2>/dev/null || echo "unknown")
+# Версия — единый источник правды теперь файл VERSION в корне (см. INFRA-4)
+APP_VER=$(cat VERSION 2>/dev/null || echo "unknown")
 
 echo ""
 echo " ============================================"

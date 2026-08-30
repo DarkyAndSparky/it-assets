@@ -5,7 +5,12 @@ title IT Assets - Server
 echo.
 echo  ============================================
 
-node -e "const p=require('./package.json');process.stdout.write('  IT Assets '+p.version+' - Starting server...\n')" 2>nul || echo   IT Assets - Starting server...
+set /p APP_VER=<VERSION 2>nul
+if defined APP_VER (
+    echo   IT Assets %APP_VER% - Starting server...
+) else (
+    echo   IT Assets - Starting server...
+)
 
 echo  ============================================
 echo.

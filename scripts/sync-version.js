@@ -1,31 +1,33 @@
+#!/usr/bin/env node
 /**
  * scripts/sync-version.js
  *
- * INFRA-4: package.json — единственный источник правды для версии (как и
- * задокументировано в docs/index.html, строка ~407). Этот скрипт раскидывает
- * её по местам, где версия дублируется как отображаемый текст:
+ * INFRA-4: единственный источник правды по версии — файл VERSION в корне
+ * репозитория (plain text, формат <alpha|beta>-N-YYwWW-NN). Раньше
+ * источником был package.json.version — переехали на отдельный файл по
+ * образцу соседнего проекта atlas-server: plain-text проще редактировать
+ * руками, чем лезть внутрь JSON, и не требует валидного синтаксиса вокруг.
+ *
+ * Раскидывает версию по местам, где она дублируется как отображаемый текст:
+ *   - package.json (версия пакета — для npm/консистентности с остальным
+ *     инструментарием, которому нужен package.json.version)
  *   - README.md — бейдж версии (shields.io)
  *   - docs/index.html — версия в сайдбаре
  *
  * server/index.js и server/routes/settings.routes.js версию НЕ дублируют —
- * они читают её из package.json в рантайме (`require('../../package.json')`),
- * так что синхронизировать там нечего.
+ * они читают VERSION напрямую в рантайме, синхронизировать там нечего.
  *
- * Формат версии: <alpha|beta>-N-YYwWW-NN (например beta-1-26w29-01).
- * Человекочитаемое отображение — тот же transform, что и в server/index.js:
- *   alpha-N- → αN ·   |   beta-N- → βN ·   |   остальные "-" → "·"
- *
- * Запуск: node scripts/sync-version.js (вручную, не хук — версия меняется
- * не при каждом коммите, а осознанным решением при релизе/милстоуне).
+ * Запуск: node scripts/sync-version.js или npm run sync-version
  */
 'use strict';
 
 const fs   = require('fs');
 const path = require('path');
 
-const ROOT        = path.join(__dirname, '..');
-const PKG_PATH    = path.join(ROOT, 'package.json');
-const README_PATH = path.join(ROOT, 'README.md');
+const ROOT         = path.join(__dirname, '..');
+const VERSION_FILE = path.join(ROOT, 'VERSION');
+const PKG_PATH     = path.join(ROOT, 'package.json');
+const README_PATH  = path.join(ROOT, 'README.md');
 const DOCS_PATH    = path.join(ROOT, 'docs', 'index.html');
 
 const VERSION_RE = /^(alpha|beta)-(\d+)-(\d{2}w\d{2})-(\d+)$/;
@@ -36,6 +38,18 @@ function toDisplay(version) {
   const [, stage, n, week, seq] = m;
   const stageChar = stage === 'alpha' ? 'α' : 'β';
   return `${stageChar}${n} · ${week}·${seq}`;
+}
+
+function updatePackageJson(version, content) {
+  let pkg;
+  try { pkg = JSON.parse(content); }
+  catch (e) {
+    console.warn('[sync-version] package.json: не удалось распарсить как JSON — пропускаю.');
+    return { content, changed: false };
+  }
+  if (pkg.version === version) return { content, changed: false };
+  pkg.version = version;
+  return { content: JSON.stringify(pkg, null, 2) + '\n', changed: true };
 }
 
 function updateReadmeBadge(version, content) {
@@ -63,10 +77,13 @@ function updateDocsVersion(version, content) {
 }
 
 function main() {
-  const pkg = JSON.parse(fs.readFileSync(PKG_PATH, 'utf8'));
-  const version = pkg.version;
+  if (!fs.existsSync(VERSION_FILE)) {
+    console.error('[sync-version] Файл VERSION не найден в корне репозитория.');
+    process.exit(1);
+  }
+  const version = fs.readFileSync(VERSION_FILE, 'utf8').trim();
   if (!version) {
-    console.error('[sync-version] package.json: поле version отсутствует.');
+    console.error('[sync-version] Файл VERSION пуст.');
     process.exit(1);
   }
 
@@ -75,6 +92,14 @@ function main() {
   }
 
   let anyChanged = false;
+
+  if (fs.existsSync(PKG_PATH)) {
+    const pkgRaw = fs.readFileSync(PKG_PATH, 'utf8');
+    const { content, changed } = updatePackageJson(version, pkgRaw);
+    if (changed) { fs.writeFileSync(PKG_PATH, content); console.log('[sync-version] package.json обновлён.'); anyChanged = true; }
+  } else {
+    console.warn('[sync-version] package.json не найден.');
+  }
 
   if (fs.existsSync(README_PATH)) {
     const readme = fs.readFileSync(README_PATH, 'utf8');
@@ -92,7 +117,7 @@ function main() {
     console.warn('[sync-version] docs/index.html не найден.');
   }
 
-  console.log(`[sync-version] Текущая версия: ${version} (${toDisplay(version)})`);
+  console.log(`[sync-version] Текущая версия (из VERSION): ${version} (${toDisplay(version)})`);
   if (!anyChanged) console.log('[sync-version] Всё уже синхронизировано, изменений не потребовалось.');
 }
 

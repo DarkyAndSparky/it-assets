@@ -171,35 +171,132 @@ function _renderGeneralPanel(isAdmin, db_company_name='', db_logo_svg='', db_ver
     </div>`;
 }
 
-// INFRA-5: подробная админ-диагностика — подгружается по клику, а не при
-// каждом открытии настроек (эндпоинт тяжелее обычного /api/settings —
-// резолвит версии всех зависимостей из node_modules).
+// INFRA-5/INFRA-8: подробная админ-диагностика — подгружается по клику, а
+// не при каждом открытии настроек. Оформление по образцу procure-it:
+// раздельные карточки "О программе" / "Окружение" (авто-обновление раз в
+// 10 сек, пока панель открыта) / "Технологии" / "Последние изменения"
+// (из CHANGELOG.md) / "Данные".
+let _sysInfoEnvTimer = null;
+
 async function loadSystemInfo() {
   const box = document.getElementById('system-info-result');
   if (!box) return;
   box.innerHTML = `<span style="color:var(--muted)">${t('msg_loading')}</span>`;
+  clearInterval(_sysInfoEnvTimer);
+
   try {
-    const s = await fetch(`${API}/api/settings/system-info`, { headers: ah() }).then(r => {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    });
-    const fmtBytes = n => n == null ? '?' : (n / 1024).toFixed(1) + ' KB';
-    const fmtDate  = d => d ? new Date(d).toLocaleString(_lang === 'en' ? 'en-US' : 'ru-RU') : '—';
-    const deps = Object.entries(s.dependencies || {})
-      .map(([name, v]) => `<div>${name}: <code>${v.installed}</code> <span style="opacity:.6">(${v.required})</span></div>`)
-      .join('');
-    box.innerHTML = `
-      <div><b>Node.js:</b> ${s.node.version} · ${s.node.platform}/${s.node.arch} · PID ${s.node.pid}</div>
-      <div><b>${t('lbl_uptime')}:</b> ${Math.floor(s.node.uptime_sec / 3600)} ${t('lbl_hours_short')} ${Math.floor((s.node.uptime_sec % 3600) / 60)} ${t('lbl_minutes_short')} · <b>RSS:</b> ${s.node.memory_rss_mb} MB</div>
-      <div style="margin-top:8px"><b>${t('lbl_data')}:</b> db.json ${fmtBytes(s.storage.db_json_bytes)} · config.json ${fmtBytes(s.storage.config_json_bytes)} · sqlite ${fmtBytes(s.storage.sqlite_bytes)}</div>
-      <div><b>${t('lbl_backups')}:</b> ${s.storage.backups.count} ${t('lbl_pcs_last')}: ${s.storage.backups.last ? s.storage.backups.last.file + ' (' + fmtDate(s.storage.backups.last.mtime) + ')' : t('lbl_backups_count_none')}</div>
-      <div><b>${t('lbl_records')}:</b> ${t('lbl_assets_short')} ${s.counts.assets ?? '?'} · ${t('lbl_history_short')} ${s.counts.history ?? '?'} · ${t('lbl_employees_short')} ${s.counts.employees ?? '?'} · ${t('lbl_users_short')} ${s.counts.users ?? '?'}</div>
-      <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><b>${t('lbl_dependencies')}:</b></div>
-      <div style="max-height:160px;overflow:auto">${deps}</div>
-    `;
+    const s = await _fetchSystemInfo();
+    box.innerHTML = _renderSystemInfoCards(s);
+    // Окружение (uptime/память/размер БД/последний бэкап) меняется
+    // постоянно — перерисовываем каждые 10 сек, пока карточка на экране,
+    // не перегружая остальные (статичные) блоки повторными запросами.
+    _sysInfoEnvTimer = setInterval(async () => {
+      const envBox = document.getElementById('about-env-card-body');
+      if (!envBox || !document.body.contains(envBox)) { clearInterval(_sysInfoEnvTimer); return; }
+      try {
+        const fresh = await _fetchSystemInfo();
+        envBox.innerHTML = _renderEnvRows(fresh);
+      } catch (e) { /* тихо — авто-обновление необязательно */ }
+    }, 10000);
   } catch (e) {
     box.innerHTML = `<span style="color:var(--danger, #e94560)">${t('msg_load_error', { msg: e.message })}</span>`;
   }
+}
+
+async function _fetchSystemInfo() {
+  return fetch(`${API}/api/settings/system-info`, { headers: ah() }).then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  });
+}
+
+function _fmtBytes(n) {
+  if (n == null) return '?';
+  if (n > 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
+  return (n / 1024).toFixed(1) + ' KB';
+}
+function _fmtDate(d) {
+  return d ? new Date(d).toLocaleString(_lang === 'en' ? 'en-US' : 'ru-RU') : '—';
+}
+function _fmtUptime(sec) {
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+  return `${h} ${t('lbl_hours_short')} ${m} ${t('lbl_minutes_short')}`;
+}
+
+function _renderEnvRows(s) {
+  return `
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px;align-items:baseline">
+      <span style="color:var(--muted)">Node.js</span><span style="font-family:monospace">${esc(s.node.version)}</span>
+      <span style="color:var(--muted)">${t('lbl_platform')}</span><span style="font-family:monospace">${esc(s.node.platform)} / ${esc(s.node.arch)}</span>
+      <span style="color:var(--muted)">${t('lbl_uptime2')}</span><span>${_fmtUptime(s.node.uptime_sec)}</span>
+      <span style="color:var(--muted)">${t('lbl_process_memory')}</span><span>${s.node.memory_rss_mb} MB</span>
+      <span style="color:var(--muted)">PID</span><span style="font-family:monospace">${s.node.pid}</span>
+      <span style="color:var(--muted)">${t('lbl_db_size')}</span><span>${_fmtBytes(s.storage.sqlite_bytes + s.storage.db_json_bytes + s.storage.config_json_bytes)}</span>
+      <span style="color:var(--muted)">${t('lbl_last_backup2')}</span><span>${s.storage.backups.last ? _fmtDate(s.storage.backups.last.mtime) : t('lbl_no_backups2')}</span>
+    </div>`;
+}
+
+function _renderSystemInfoCards(s) {
+  const about = s.about || { name: 'it-assets', version: s.version, description: '', license: t('lbl_none'), author: t('lbl_none'), repository: '' };
+  const deps = Object.entries(s.dependencies || {})
+    .map(([name, v]) => `<div>${esc(name)}: <code>${esc(v.installed)}</code> <span style="opacity:.6">(${esc(v.required)})</span></div>`)
+    .join('');
+  const techRows = (s.techStack || []).map(t2 => `
+      <div>
+        <div style="font-weight:600;font-size:13px">${esc(t2.name)}</div>
+        <div style="font-size:11px;color:var(--muted)">${esc(t2.role)}</div>
+      </div>`).join('');
+  const changes = (s.recentChanges || []);
+
+  return `
+    <div class="card" style="margin-bottom:14px;padding:12px">
+      <div style="font-weight:700;margin-bottom:8px">${t('about_program_title')} ${esc(about.name)}</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px;align-items:baseline">
+        <span style="color:var(--muted)">${t('lbl_version')}</span><span style="font-family:monospace;font-weight:600">${esc(about.version)}</span>
+        <span style="color:var(--muted)">${t('lbl_description')}</span><span>${esc(about.description) || t('lbl_none')}</span>
+        <span style="color:var(--muted)">${t('lbl_license')}</span><span>${esc(about.license) || t('lbl_none')}</span>
+        <span style="color:var(--muted)">${t('lbl_author2')}</span><span>${esc(about.author) || t('lbl_none')}</span>
+        <span style="color:var(--muted)">${t('lbl_repository')}</span><span>${about.repository ? `<a href="${esc(about.repository)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(about.repository)}</a>` : t('lbl_none')}</span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;padding:12px" id="about-env-card">
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
+        <div style="font-weight:700">${t('about_env_title')}</div>
+        <div style="font-size:10px;color:var(--muted)">${t('about_env_refresh_note')}</div>
+      </div>
+      <div id="about-env-card-body">${_renderEnvRows(s)}</div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;padding:12px">
+      <div style="font-weight:700;margin-bottom:8px">${t('about_tech_title')}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px">${techRows}</div>
+    </div>
+
+    ${changes.length ? `
+    <details class="card" style="margin-bottom:14px;padding:0">
+      <summary style="cursor:pointer;padding:12px;font-weight:700;list-style:none;display:flex;align-items:center;gap:8px">
+        ${t('about_changes_title')}
+        <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:auto">${t('about_changes_note')}</span>
+      </summary>
+      <div style="padding:0 12px 12px">
+        <ul style="margin:0;padding-left:18px;font-size:12px;color:var(--muted);line-height:1.7">
+          ${changes.map(c => `<li>${esc(c)}</li>`).join('')}
+        </ul>
+      </div>
+    </details>` : ''}
+
+    <div class="card" style="padding:12px">
+      <div style="font-weight:700;margin-bottom:8px">${t('about_data_title')}</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px;align-items:baseline">
+        <span style="color:var(--muted)">${t('lbl_records')}</span><span>${t('lbl_assets_short')} ${s.counts.assets ?? '?'} · ${t('lbl_history_short')} ${s.counts.history ?? '?'} · ${t('lbl_employees_short')} ${s.counts.employees ?? '?'} · ${t('lbl_users_short')} ${s.counts.users ?? '?'}</span>
+        <span style="color:var(--muted)">${t('lbl_backups')}</span><span>${s.storage.backups.count} ${t('lbl_pcs_last')}: ${s.storage.backups.last ? esc(s.storage.backups.last.file) : t('lbl_no_backups2')}</span>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-weight:600;font-size:12px;margin-bottom:6px">${t('lbl_dependencies')}</div>
+        <div style="max-height:160px;overflow:auto;font-size:12px">${deps}</div>
+      </div>
+    </div>`;
 }
 
 // ── Вкладка: Организации ──────────────────────────────────────────────────────

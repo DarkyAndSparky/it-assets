@@ -16,9 +16,14 @@ const { putStylesSchema, putLogoSvgSchema, putCompanyNameSchema, putPasswordSche
 const fs   = require('fs');
 const path = require('path');
 
-// Версия из package.json — та же логика, что была в index.js
+// Версия — единый источник правды VERSION в корне репозитория, см.
+// подробный комментарий в server/index.js. Фолбэк на pkg.version на
+// случай отсутствия файла.
 const pkg = (() => { try { return require('../../package.json'); } catch(e) { return {}; } })();
-const APP_VERSION = pkg.version || 'unknown';
+const APP_VERSION = (() => {
+  try { return fs.readFileSync(path.join(__dirname, '..', '..', 'VERSION'), 'utf8').trim(); }
+  catch(e) { return pkg.version || 'unknown'; }
+})();
 
 // INFRA-5: реально установленная версия зависимости (не диапазон из package.json
 // приложения) — резолвим из node_modules/<pkg>/package.json, как в procure-it.
@@ -72,7 +77,52 @@ router.put('/password', rateLimitLogin, requireAuth, validate(putPasswordSchema)
   res.json({ ok: true });
 });
 
-// INFRA-5: «О системе» (admin-only) — версия, окружение, зависимости,
+// INFRA-8: короткая выжимка из CHANGELOG.md для карточки «О системе» —
+// не полный файл (details/summary и так открывается по клику, но грузить
+// туда весь CHANGELOG избыточно), только пункты из первой НЕПУСТОЙ секции
+// (обычно [Unreleased], но сразу после релиза он пуст — тогда берём
+// последний тег версии, чтобы карточка не показывала пустоту сразу после
+// bump'а версии), ограничено 8 пунктами.
+//
+// Раньше здесь был вариант с лукахедом (?=\n^## \[|$) — сломан на пустых
+// секциях: $ с флагом /m матчится в конце ЛЮБОЙ строки, а не только конца
+// файла, из-за чего лукахед срабатывал сразу после заголовка секции и
+// body всегда оказывался пустым. Через явные индексы заголовков надёжнее
+// и читаемее, чем городить экранирование для этого частного случая.
+function parseChangelogSummary() {
+  try {
+    const changelogPath = path.join(__dirname, '..', '..', 'CHANGELOG.md');
+    const text = fs.readFileSync(changelogPath, 'utf8');
+    const headerRe = /^## \[([^\]]+)\][^\n]*$/gm;
+    const headers = [...text.matchAll(headerRe)];
+
+    for (let i = 0; i < headers.length; i++) {
+      const bodyStart = headers[i].index + headers[i][0].length;
+      const bodyEnd   = i + 1 < headers.length ? headers[i + 1].index : text.length;
+      const body      = text.slice(bodyStart, bodyEnd);
+      const items = [...body.matchAll(/^- (.+(?:\n {2}.+)*)/gm)]
+        .map(m => m[1].replace(/\n\s+/g, ' ').trim())
+        .slice(0, 8);
+      if (items.length) return items; // первая секция хоть с чем-то — она и есть актуальная
+    }
+    return [];
+  } catch (e) {
+    return [];
+  }
+}
+
+// INFRA-8: технологии проекта — статический список, поддерживается вручную
+// (нет смысла резолвить это динамически, стек не меняется каждый релиз).
+const TECH_STACK = [
+  { name: 'Node.js', role: 'Рантайм' },
+  { name: 'Express', role: 'HTTP-сервер' },
+  { name: 'lowdb', role: 'JSON-хранилище (config/справочники)' },
+  { name: 'SQLite (better-sqlite3)', role: 'Активы и история' },
+  { name: 'Vanilla JS', role: 'Фронтенд (без сборки/фреймворка)' },
+  { name: 'bcryptjs', role: 'Хеширование паролей' },
+];
+
+
 // размер БД/бэкапов, счётчики сущностей. Тяжелее обычного /api/settings,
 // поэтому не отдаётся всем подряд — только requireAdmin.
 router.get('/system-info', requireAdmin, (req, res) => {
@@ -106,7 +156,17 @@ router.get('/system-info', requireAdmin, (req, res) => {
   try { counts.users = db.getUsers(true).length; } catch (e) {}
 
   res.json({
-    version: APP_VERSION,
+    // INFRA-8: раздел "О программе" — стиль карточки как в procure-it
+    // (version/description/license/author/repository).
+    about: {
+      name: pkg.name || 'it-assets',
+      version: APP_VERSION,
+      description: pkg.description || '',
+      license: pkg.license || '—',
+      author: pkg.author || '—',
+      repository: (pkg.repository && pkg.repository.url) || pkg.repository || '',
+    },
+    version: APP_VERSION, // оставлено для обратной совместимости с уже отданными сборками
     node: {
       version: process.version,
       platform: process.platform,
@@ -115,6 +175,8 @@ router.get('/system-info', requireAdmin, (req, res) => {
       uptime_sec: Math.round(process.uptime()),
       memory_rss_mb: Math.round(process.memoryUsage().rss / 1024 / 1024),
     },
+    techStack: TECH_STACK,
+    recentChanges: parseChangelogSummary(),
     dependencies: Object.keys(pkg.dependencies || {}).reduce((acc, name) => {
       acc[name] = { required: pkg.dependencies[name], installed: installedVersion(name) };
       return acc;

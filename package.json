@@ -1,7 +1,13 @@
 {
   "name": "it-assets",
-  "version": "beta-1-26w29-01",
+  "version": "beta-1-26w35-01",
   "description": "IT Assets Management — beta 1",
+  "author": "DarkyAndSparky",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DarkyAndSparky/it-assets"
+  },
   "main": "server/index.js",
   "engines": {
     "node": ">=22.5.0"

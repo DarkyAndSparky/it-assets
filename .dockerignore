@@ -11,6 +11,7 @@ test-results/
 .git/
 .gitignore
 *.md
+!CHANGELOG.md
 *.bat
 *.sh
 playwright.config.js

@@ -17,6 +17,15 @@ services:
       # - HTTPS_PORT=3443
       # - IT_ASSETS_BACKUP_MAX_MB=2048
       NODE_ENV: production
+    healthcheck:
+      # Тот же HEALTHCHECK, что и в Dockerfile — дублируется явно, чтобы
+      # статус был виден прямо в `docker compose ps` (образ мог быть собран
+      # где-то ещё и не содержать HEALTHCHECK, если Dockerfile правили).
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>{if(r.status!==200)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
 
 volumes:
   it-assets-data:

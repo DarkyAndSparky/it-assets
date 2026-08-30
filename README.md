@@ -4,7 +4,7 @@
 
 **Ветка разработки**
 
-![Version](https://img.shields.io/badge/версия-β1·26w29·01-blue?style=flat-square)
+![Version](https://img.shields.io/badge/версия-β1·26w35·01-blue?style=flat-square)
 ![Tests](https://img.shields.io/badge/тесты-283%20passed-brightgreen?style=flat-square&logo=jest)
 ![E2E](https://img.shields.io/badge/E2E-44%20verified%20%2B%2014%20new-yellow?style=flat-square&logo=playwright)
 ![Node](https://img.shields.io/badge/Node.js-v22.5%2B-brightgreen?style=flat-square&logo=node.js)

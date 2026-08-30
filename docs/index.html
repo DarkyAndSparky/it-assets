@@ -95,7 +95,7 @@
 <nav class="sidebar">
   <div class="sidebar-logo">
     <div class="project">⚙️ IT Assets</div>
-    <div class="version">β1 · 26w29·01</div>
+    <div class="version">β1 · 26w35·01</div>
     <div class="badge">Developer Documentation</div>
   </div>
   <div class="nav-section">
@@ -308,6 +308,8 @@ WantedBy=multi-user.target</pre>
 sudo systemctl enable --now it-assets</pre>
 
   <h2>Переменные окружения</h2>
+  <p>Полный список — в файле <code>.env.example</code> в корне репозитория (копируйте в
+    <code>.env</code> и раскомментируйте нужное). Ключевые:</p>
   <table>
     <tr><th>Переменная</th><th>По умолчанию</th><th>Описание</th></tr>
     <tr><td><code>PORT</code></td><td>3000</td><td>HTTP-порт (редирект на HTTPS)</td></tr>
@@ -315,11 +317,17 @@ sudo systemctl enable --now it-assets</pre>
     <tr><td><code>IT_ASSETS_DATA_DIR</code></td><td>./data</td><td>Путь к папке с данными (БД и бэкапы)</td></tr>
     <tr><td><code>TRUST_PROXY</code></td><td>—</td><td>Установите <code>1</code> при работе за nginx/reverse proxy</td></tr>
     <tr><td><code>CORS_ORIGINS</code></td><td>—</td><td>Разрешённые origins через запятую</td></tr>
+    <tr><td><code>IT_ASSETS_BACKUP_MAX_MB</code></td><td>2048</td><td>Максимальный суммарный размер папки <code>data/backups/</code> в МБ</td></tr>
+    <tr><td><code>IT_ASSETS_AUTO_BACKUP_ENABLED</code></td><td>1 (вкл)</td><td>Выключить автобэкап — <code>0</code></td></tr>
+    <tr><td><code>IT_ASSETS_AUTO_BACKUP_INTERVAL_MIN</code></td><td>60</td><td>Интервал автобэкапа в минутах</td></tr>
+    <tr><td><code>IT_ASSETS_LOG_RETENTION_DAYS</code></td><td>14</td><td>Сколько дней хранить файлы логов</td></tr>
   </table>
 
   <h2>Резервное копирование</h2>
   <p>Данные хранятся в папке <code>data/</code>. Для бэкапа достаточно скопировать эту папку:</p>
   <pre>cp -r /opt/it-assets/data /backup/it-assets-$(date +%Y%m%d)</pre>
+  <p>Автобэкап (раз в час по умолчанию) настраивается через <code>IT_ASSETS_AUTO_BACKUP_ENABLED</code>/
+    <code>IT_ASSETS_AUTO_BACKUP_INTERVAL_MIN</code> — не пересобирая проект.</p>
   <table>
     <tr><th>Тип бэкапа</th><th>Хранится копий</th></tr>
     <tr><td>Авто (каждый час)</td><td>20</td></tr>
@@ -327,6 +335,8 @@ sudo systemctl enable --now it-assets</pre>
     <tr><td>Ручной (через интерфейс)</td><td>20</td></tr>
     <tr><td>Перед восстановлением</td><td>5</td></tr>
   </table>
+  <p>Суммарный размер папки бэкапов ограничен <code>IT_ASSETS_BACKUP_MAX_MB</code>
+    (по умолчанию 2GB) — старые бэкапы удаляются автоматически при превышении.</p>
 
   <h2>Обновление системы</h2>
   <p>1. Остановите сервер</p>
@@ -466,6 +476,20 @@ git push origin dev</pre>
 
   <h2>Структура файлов</h2>
   <pre>it-assets/
+├── VERSION                   — Источник правды по версии (plain text, напр. beta-1-26w35-01);
+│                                package.json/README/docs синхронизируются ОТ него через
+│                                scripts/sync-version.js, не наоборот
+├── CHANGELOG.md               — Keep a Changelog; секция [Unreleased] парсится рантаймом
+│                                для карточки «О системе» (parseChangelogSummary)
+├── THIRD_PARTY_LICENSES.md    — Сводка лицензий npm-зависимостей (сгенерирована по факту
+│                                установленного node_modules, не вручную)
+├── .env.example                — Документация всех переменных окружения, копировать в .env
+├── Dockerfile / docker-compose.yml / .dockerignore  — Продакшн-образ, HEALTHCHECK на GET /api/health
+├── scripts/
+│   ├── check-deps-fresh.js  — Сравнение mtime package-lock.json vs node_modules для START.bat/start.sh
+│   ├── install-hooks.js     — Ставит scripts/hooks/pre-commit в .git/hooks/ (npm "prepare")
+│   ├── sync-version.js      — Раскидывает VERSION по package.json/README-бейджу/docs/index.html
+│   └── hooks/pre-commit     — Неблокирующее напоминание обновить CHANGELOG.md при правке кода
 ├── server/
 │   ├── index.js             — Express-приложение, сборка роутов (994 → 548 строк после рефакторинга)
 │   ├── database.js          — Композиция репозиториев (826 → 198 строк), db.config.* / db.getUser и т.д.,
@@ -475,14 +499,18 @@ git push origin dev</pre>
 │   │   └── sqlite.js        — SQLite-подключение (node:sqlite, WAL), схемы всех таблиц,
 │   │                          автомиграция из lowdb при первом запуске
 │   ├── logger.js            — структурированные JSON-логи с ротацией по дате
-│   ├── middleware/          — auth.js (requireAuth/requireAdmin/changedBy), rateLimit.js (rateLimitLogin)
+│   ├── middleware/          — auth.js (requireAuth/requireLogin/requireAdmin/changedBy — requireAuth
+│   │                          на самом деле проверяет режим редактирования, requireLogin легче,
+│   │                          только «залогинен и активен», см. раздел «Авторизация» ниже),
+│   │                          rateLimit.js (rateLimitLogin)
 │   ├── repositories/        — orgs, filials, locations, accounts, employees, users, settings,
 │   │                          assets, history, csv, stats — вся бизнес-логика по одному файлу на сущность,
 │   │                          все на SQLite (кроме stats/history — чистая агрегация без своих данных)
 │   ├── routes/               — express.Router() на каждую сущность, монтируются в index.js
 │   ├── migrate.js           — Одноразовая миграция lowdb-схемы (v1→v7), выполняется ДО SQLite-слоя,
 │   │                          затем no-op при каждом следующем запуске
-│   ├── cert.js               — Генерация самоподписанного TLS-сертификата (уважает IT_ASSETS_DATA_DIR)
+│   ├── cert.js               — Генерация самоподписанного TLS-сертификата (уважает IT_ASSETS_DATA_DIR),
+│   │                          certDaysLeft() переиспользуется health-баром (см. GET /api/settings/health)
 │   └── pin.js                — hashPin/verifyPin (bcrypt)
 ├── public/
 │   ├── index.html            — SPA-оболочка (Фаза 5+6 завершена): разбита на модули
@@ -544,6 +572,16 @@ git push origin dev</pre>
   <div class="alert warning"><strong>HTTPS обязателен.</strong> С этой версии сервер поднимает HTTPS на 3443 с самоподписанным сертификатом (<code>server/cert.js</code>), а HTTP на 3000 отдаёт только 301-редирект на HTTPS. Если сертификат сгенерировать не удалось — фолбэк на обычный HTTP на 3000 (см. консольный вывод при старте).</div>
 
   <h2>Авторизация (три режима)</h2>
+  <div class="alert warning"><strong>requireAuth vs requireLogin.</strong> <code>requireAuth</code>
+    (несмотря на общее название) на самом деле проверяет доступ на <em>редактирование</em> — пароль
+    (<code>x-edit-password</code>) и роль не ниже <code>operator</code>, блокирует <code>viewer</code>.
+    Стоит на всех <code>POST</code>/<code>PUT</code>/<code>DELETE</code>/<code>PATCH</code>.
+    <code>requireLogin</code> — облегчённая проверка, только «пользователь существует и активен»
+    (без пароля/роли), используется на read-only <code>GET</code>-роутах (активы, история конкретного
+    актива, справочники орг/филиалов/локаций, коды типов, генератор инв. номеров) — раньше эти роуты
+    были открыты вообще без какой-либо авторизации (см. аудит INFRA-7 в <code>CHANGELOG.md</code>).
+    Публичный <code>dashboard</code>-экран (не входит в защищённые вкладки фронтенда) намеренно
+    использует эндпоинты без авторизации вообще (<code>GET /api/stats</code>, <code>GET /api/history</code>).</div>
   <p>Middleware <code>requireAuth</code> поддерживает варианты входа:</p>
   <table>
     <tr><th>Режим</th><th>Заголовки / Body</th><th>Описание</th></tr>
@@ -588,8 +626,11 @@ git push origin dev</pre>
   <div class="alert warning"><strong>⚠ Не обновлять lowdb до 2.x+.</strong> Он переехал на ESM и несовместим с текущим CommonJS <code>database.js</code>. Ставки ниже, чем до Фазы 7c (lowdb больше не основное хранилище, только служебная <code>_meta.schema_version</code>), но обновление всё равно сломает автомиграцию в SQLite при первом запуске на новых инсталляциях.</div>
 
   <h2>Переменные окружения</h2>
-  <div class="alert warning"><strong>⚠ PORT больше не используется.</strong> Раньше <code>process.env.PORT</code> задавал HTTP-порт; с переходом на HTTPS порты захардкожены в <code>server/index.js</code>: <code>HTTP_PORT = 3000</code> (только 301-редирект на HTTPS) и <code>HTTPS_PORT = 3443</code> (основной трафик). Переменная <code>PORT</code> в коде объявлена, но нигде не читается при старте сервера — считать устаревшей до дальнейшего рефакторинга.</div>
-  <p>Файл <code>.env</code> не используется.</p>
+  <p><code>process.env.PORT</code> и <code>process.env.HTTPS_PORT</code> читаются в
+    <code>server/index.js</code> (с фолбэком на 3000/3443, если не заданы) — переопределяются, портов
+    захардкоженных значений нет. Полный список переменных — в <code>.env.example</code> в корне
+    репозитория, копируйте в <code>.env</code> (не коммитится, в <code>.gitignore</code>) и
+    раскомментируйте нужное; сервер стартует и без него, со значениями по умолчанию.</p>
 </section>
 
 <!-- DB FILES -->
@@ -1466,6 +1507,56 @@ type_codes        — справочник типов устройств (code, 
       <p>Выполняет тестовую запись (<code>_meta.diag_ping</code>) и проверяет количество записей на диске vs в памяти. Теперь также отдаёт текущую версию схемы (<code>_meta.schema_version</code> из config.json) и сводку по бэкапам.</p>
     </div>
   </div>
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/settings/system-info</div><div class="endpoint-desc">Подробная диагностика для карточки «О системе» <span class="admin-badge">👑 admin</span></div></div>
+    <div class="endpoint-body">
+      <p>Версия (из <code>VERSION</code>), окружение Node.js (platform/arch/pid/uptime/память), реально
+        установленные версии всех зависимостей (резолв из <code>node_modules/*/package.json</code>, не
+        диапазоны из <code>package.json</code> приложения), стек технологий (статичный список), размер
+        БД, счётчики сущностей, инфо по бэкапам, и до 8 пунктов из первой непустой секции
+        <code>CHANGELOG.md</code> (обычно <code>[Unreleased]</code>). Тяжелее обычных эндпоинтов —
+        резолвит зависимости на каждый вызов, поэтому не дёргается автоматически, только по клику
+        «Подробная диагностика» в настройках.</p>
+    </div>
+  </div>
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/settings/version</div><div class="endpoint-desc">Лёгкий эндпоинт версии <span class="auth-badge">🔐 login</span></div></div>
+    <div class="endpoint-body">
+      <pre>{ "version": "beta-1-26w35-01" }</pre>
+      <p>Умышленно отдельный от <code>/system-info</code> — для мини-виджетов (шапка и т.п.), которым не
+        нужен весь список зависимостей. Доступен любому залогиненному пользователю (<code>requireLogin</code>),
+        не только admin.</p>
+    </div>
+  </div>
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/settings/health</div><div class="endpoint-desc">Health-бар — быстрая проверка живости <span class="auth-badge">🔐 login</span></div></div>
+    <div class="endpoint-body">
+      <pre>{
+  "overall": "ok",
+  "checks": {
+    "db":     { "status": "ok", "detail": "OK" },
+    "backup": { "status": "ok", "detail": "Последний 0.3 ч назад" },
+    "cert":   { "status": "ok", "detail": "Действителен ещё 800 дн." },
+    "disk":   { "status": "ok", "detail": "45.2 GB свободно (78.1%)" }
+  }
+}</pre>
+      <p>Каждая проверка — <code>ok</code>/<code>warn</code>/<code>error</code>. БД — пробный
+        <code>SELECT 1</code>. Бэкап — свежесть последнего (&lt;2ч ok, &lt;6ч warn, иначе error, с
+        поблажкой первые 90 минут после старта сервера). Сертификат — дней до истечения через
+        <code>cert.js → certDaysLeft()</code>. Диск — свободное место под <code>IT_ASSETS_DATA_DIR</code>
+        через <code>fs.statfsSync</code>. Фронтенд опрашивает раз в минуту, только пока пользователь
+        залогинен — цветная точка в шапке, разворачивается по клику.</p>
+    </div>
+  </div>
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/health</div><div class="endpoint-desc">Публичный health-check (без авторизации)</div></div>
+    <div class="endpoint-body">
+      <p>Минимальный публичный эндпоинт — используется <code>HEALTHCHECK</code> в <code>Dockerfile</code>
+        и <code>healthcheck:</code> в <code>docker-compose.yml</code>. Не путать с
+        <code>/api/settings/health</code> (детальный, требует логин) — этот только подтверждает, что
+        процесс жив и отвечает на HTTP.</p>
+    </div>
+  </div>
 
   <h2>Миграции схемы</h2>
   <div class="endpoint">
@@ -1546,13 +1637,18 @@ npm run dev          # то же самое</pre>
   <h2>Скрипты запуска</h2>
   <table>
     <tr><th>Файл</th><th>ОС</th><th>Что делает</th></tr>
-    <tr><td>start.sh</td><td>Linux / macOS</td><td>Проверяет Node.js, npm install при первом запуске, запускает сервер, открывает браузер</td></tr>
+    <tr><td>start.sh</td><td>Linux / macOS</td><td>Проверяет свежесть <code>node_modules</code> через <code>scripts/check-deps-fresh.js</code> (сравнение mtime <code>package-lock.json</code>, не просто «папка есть/нет»), npm install при необходимости, запускает сервер, открывает браузер</td></tr>
     <tr><td>install.sh</td><td>Linux / macOS</td><td>Только npm install с инструкцией по установке Node.js</td></tr>
     <tr><td>test.sh</td><td>Linux / macOS</td><td>jest --runInBand --forceExit, корректный exit-код</td></tr>
-    <tr><td>START.bat</td><td>Windows</td><td>То же: npm install при первом запуске, запуск сервера + браузер</td></tr>
+    <tr><td>START.bat</td><td>Windows</td><td>То же: <code>check-deps-fresh.js</code>, npm install при необходимости, запуск сервера + браузер</td></tr>
     <tr><td>INSTALL.bat</td><td>Windows</td><td>npm install (однократно)</td></tr>
     <tr><td>TEST.bat</td><td>Windows</td><td>jest --runInBand --forceExit</td></tr>
   </table>
+  <p><code>scripts/install-hooks.js</code> запускается автоматически при <code>npm install</code>
+    (lifecycle-скрипт <code>prepare</code>) — ставит git pre-commit хук (напоминание обновить
+    <code>CHANGELOG.md</code> при правке <code>server/</code>/<code>public/js/</code>, неблокирующий,
+    молча пропускается в неинтерактивном/не-git окружении). <code>npm run sync-version</code> —
+    раскидывает версию из <code>VERSION</code> по <code>package.json</code>/README-бейджу/этому файлу.</p>
 
   <h2>Первый запуск</h2>
   <p>Если папка <code>data/</code> отсутствует — создаётся автоматически. Оба JSON-файла инициализируются дефолтами: системные заглушки, категории, коды типов, системный пользователь <code>sys-user-admin</code> (login <code>admin</code>, PIN <code>admn0000</code>). При первом старте также генерируется самоподписанный TLS-сертификат (<code>data/cert.pem</code>, <code>data/key.pem</code>, через <code>server/cert.js</code>, ~825 дней срок действия) — процесс может занять пару секунд.</p>
@@ -1568,9 +1664,11 @@ npm run dev          # то же самое</pre>
   <div class="alert warning"><strong>Фолбэк без TLS.</strong> Если сертификат сгенерировать не удалось (например, нет прав на запись в <code>data/</code>), сервер откатывается на обычный HTTP на порту 3000 без редиректа — с предупреждением в консоли.</div>
 
   <h2>Консольный вывод при старте</h2>
-  <pre>=== IT ASSETS β1 · 26w27·02 ===
-DB path: /home/user/it-assets/data/db.json
-DB size: 512.3 KB  | modified: 06.07.2026, 12:00:00
+  <pre>────────────────────────────────────────────────────────
+ 🗄️  IT ASSETS β1 · 26w35·01 — сервер запущен
+────────────────────────────────────────────────────────
+DB path: /home/user/it-assets/data/it-assets.sqlite
+DB size: 512.3 KB  | modified: 28.08.2026, 12:00:00
 DB write: OK (150 assets, 1234 history)
 Assets: 150
 
@@ -1579,12 +1677,18 @@ HTTP  (redirect to HTTPS):
 
 HTTPS (main):
   https://localhost:3443
-  https://192.168.1.50:3443  &lt;-- для коллег
+  https://192.168.1.50:3443  &lt;-- colleagues
 
   [WARNING] Self-signed certificate
   Chrome:  click "Advanced" -&gt; "Proceed to localhost"
   Firefox: click "Accept the Risk and Continue"
-  Edge:    click "Advanced" -&gt; "Continue to localhost"</pre>
+  Edge:    click "Advanced" -&gt; "Continue to localhost"
+
+  Чтобы остановить сервер — нажмите Ctrl+C.
+────────────────────────────────────────────────────────</pre>
+  <div class="alert info"><strong>Рамка вокруг вывода</strong> — обрамление подсмотрено в соседнем
+    проекте atlas-server, чтобы блок старта было проще выцепить взглядом среди прочих логов в
+    консоли/PM2. Сама диагностика не менялась.</div>
   <div class="alert warning"><strong>⚠ Больше не выводится пароль в консоли.</strong> Раньше стартовый лог включал <code>Password: admin123</code> (единый пароль). Сейчас пароля как такового нет — есть PIN пользователя <code>sys-user-admin</code>, он в консоль не выводится.</div>
 
   <h2>Переменные окружения</h2>
@@ -1596,7 +1700,12 @@ HTTPS (main):
     <tr><td><code>IT_ASSETS_DATA_DIR</code></td><td><code>&lt;repo&gt;/data</code></td><td>Путь к папке с <code>it-assets.sqlite</code> / <code>db.json</code> / <code>config.json</code> / <code>backups/</code>. Используется и в <code>server/database.js</code>, и в <code>server/index.js</code> (backup-роуты) — важно, что оба места читают одну и ту же переменную, иначе бэкапы и БД разъедутся по разным папкам.</td></tr>
     <tr><td><code>TRUST_PROXY</code></td><td>(не задан)</td><td>При <code>1</code> — rate-limit на логине (<code>rateLimitLogin</code>) берёт IP клиента из <code>X-Forwarded-For</code> (для деплоя за реверс-прокси). По умолчанию используется реальный TCP-адрес соединения — иначе клиент мог бы подделать заголовок и обойти ограничение попыток входа.</td></tr>
     <tr><td><code>NODE_ENV</code></td><td>(не задан)</td><td>При <code>test</code> (выставляется автоматически Jest'ом) отключены фоновые таймеры автобэкапа — см. раздел «Тесты».</td></tr>
+    <tr><td><code>IT_ASSETS_BACKUP_MAX_MB</code></td><td>2048</td><td>Максимальный суммарный размер папки <code>data/backups/</code> в МБ — старые бэкапы удаляются автоматически при превышении.</td></tr>
+    <tr><td><code>IT_ASSETS_AUTO_BACKUP_ENABLED</code></td><td>1 (вкл)</td><td><code>0</code>/<code>false</code> — выключает и часовой автобэкап, и бэкап при старте сервера.</td></tr>
+    <tr><td><code>IT_ASSETS_AUTO_BACKUP_INTERVAL_MIN</code></td><td>60</td><td>Интервал автобэкапа в минутах. Некорректное значение — тихий фолбэк на 60.</td></tr>
+    <tr><td><code>IT_ASSETS_LOG_RETENTION_DAYS</code></td><td>14</td><td>Сколько дней хранить файлы структурированных логов (<code>server/logger.js</code>).</td></tr>
   </table>
+  <p>Полный список с примерами — в файле <code>.env.example</code> в корне репозитория.</p>
 
   <div class="alert danger"><strong>Критично (Windows):</strong> не размещать папку проекта на Рабочем столе — путь с кириллицей ломает Node.js. Рекомендуется <code>C:\it-assets\</code>.</div>
 
