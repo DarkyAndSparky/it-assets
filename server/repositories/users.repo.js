@@ -13,6 +13,19 @@ const { v7: uuidv7 } = require('uuid');
 const { sqlite } = require('../db/sqlite');
 const { hashPin, verifyPin } = require('../pin');
 
+// SEC-12 (найдено при аудите net-monitor, см. NETMONITOR-AUDIT.md): раньше
+// authByLogin() при отсутствии пользователя возвращал null СРАЗУ, не вызывая
+// verifyPin() — а при существующем логине с неверным паролем bcrypt.compareSync
+// реально отрабатывал (~50-100мс). Эта разница во времени ответа позволяла
+// перебором отличить существующие логины от несуществующих, даже при
+// одинаковом тексте ошибки. DUMMY_HASH — реальный bcrypt-хеш случайной
+// строки, посчитанный один раз при старте модуля (не на каждый запрос —
+// это было бы дорого); при отсутствии пользователя сверяем введённый пароль
+// с ним, чтобы время ответа не отличалось от случая «логин есть, пароль
+// неверный». Результат сравнения с DUMMY_HASH всегда игнорируется — сверка
+// только ради тайминга.
+const DUMMY_HASH = hashPin(uuidv7());
+
 const stmts = {
   selectActive: sqlite.prepare('SELECT * FROM users WHERE active = 1'),
   selectAll:    sqlite.prepare('SELECT * FROM users'),
@@ -46,7 +59,10 @@ function authUser(userId, pin) {
 function authByLogin(login, password) {
   const users = getUsers(false);
   const user = users.find(u => u.active && u.login && u.login.toLowerCase() === String(login || '').trim().toLowerCase());
-  if (!user) return null;
+  if (!user) {
+    verifyPin(password, DUMMY_HASH); // SEC-12: см. комментарий у DUMMY_HASH выше
+    return null;
+  }
   if (!verifyPin(password, user.pin)) return null;
   return user;
 }

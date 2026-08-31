@@ -1,3 +1,22 @@
+// OPS-2 (Track 9, найдено при аудите net-monitor, см. NETMONITOR-AUDIT.md):
+// ограничиваем права по умолчанию для ВСЕХ файлов, создаваемых этим
+// процессом (db.json, config.json, it-assets.sqlite — содержит хеши
+// паролей/PIN, файлы логов, ZIP-бэкапы) — до владельца (600 для файлов,
+// 700 для директорий), без доступа группе/остальным. Раньше права
+// определялись дефолтным umask ОС (обычно 022 на Linux → 644, читаемо
+// любым локальным пользователем на той же машине). Единственное
+// исключение — server/cert.js явно выставляет cert.pem в 644 (публично
+// читаемый по дизайну — отдаётся браузерам через TLS handshake, не через
+// файловый доступ), но с этим umask запрошенные 644 всё равно урежутся
+// до 600 (644 & ~077 = 600) — это НЕ проблема, ключ (key.pem, и так 600)
+// и сертификат одинаково доступны только владельцу процесса, что строже
+// исходного намерения, не мягче.
+//
+// ДОЛЖНО стоять раньше любых require() — некоторые модули могут создавать
+// файлы/сокеты уже при импорте (например better-sqlite3 открывает файл БД
+// сразу при require('./db/sqlite')).
+process.umask(0o077);
+
 const express = require('express');
 const cors    = require('cors');
 const path    = require('path');
@@ -44,6 +63,21 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
+  // SEC-13 (Track 9, найдено при аудите net-monitor): мы всегда работаем
+  // по HTTPS (самоподписанный сертификат, см. cert.js) — HSTS был к месту,
+  // но отсутствовал. Условно на `req.secure` (не безусловно) — эта
+  // проверка отражает реальный TLS-статус TCP-сокета (`trust proxy` в
+  // Express здесь НЕ настроен через app.set(), TRUST_PROXY проверяется
+  // вручную только в rateLimit.js для X-Forwarded-For — так что req.secure
+  // не подвержен подмене через заголовки, надёжный сигнал). Не отправляем
+  // HSTS на редком фолбэк-пути (TLS не поднялся, сервер отвечает по
+  // голому HTTP) — было бы некорректно утверждать «всегда HTTPS», когда
+  // это буквально не так прямо сейчас. 180 дней (как в net-monitor) — не
+  // maximum-агрессивный год+preload, разумный компромисс для
+  // самоподписанного внутреннего инструмента.
+  if (req.secure) {
+    res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+  }
   res.setHeader('Content-Security-Policy',
     "default-src 'self'; " +
     "script-src 'self'; " +
@@ -79,6 +113,10 @@ app.use(cors({
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(express.static(path.join(__dirname, '../public')));
+
+// OPS-4 (Track 9): общий rate-limit на все /api/* — раньше был только на
+// /login. См. подробный комментарий в server/middleware/apiRateLimit.js.
+app.use('/api', require('./middleware/apiRateLimit'));
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
 // requireAuth/requireAdmin/changedBy вынесены в server/middleware/auth.js (Фаза 1/2 рефакторинга)
@@ -217,6 +255,92 @@ if (require.main === module) {
     const HTTP_PORT  = process.env.PORT       || 3000;
     const HTTPS_PORT = process.env.HTTPS_PORT || 3443;
 
+    // OPS-1 (Track 9, найдено при аудите procure-it, см. NETMONITOR-AUDIT.md):
+    // ссылки на реально запущенные http/https-серверы — нужны graceful
+    // shutdown'у ниже, чтобы штатно закрыть слушающие сокеты перед выходом
+    // (какая из веток запустится — зависит от того, удалось ли получить
+    // TLS-сертификат, поэтому храним в let, не const).
+    let httpServer  = null;
+    let httpsServer = null;
+
+    // OPS-1: раньше SIGTERM/SIGINT никак не обрабатывались — `docker stop`
+    // (или Ctrl+C) слал сигнал, Node его игнорировал, и по истечении
+    // stop_grace_period (Docker-дефолт 10 сек, если не задан явно) процесс
+    // получал SIGKILL — потенциально посреди записи в SQLite. WAL-режим
+    // устойчивее к абортам, чем rollback-journal, но резкий kill — риск,
+    // которого легко избежать. Закрываем слушающие сокеты (не принимаем
+    // новые соединения, но НЕ рвём уже открытые keep-alive на середине),
+    // затем WAL-чекпоинт + закрытие SQLite, затем выход. Таймаут-предохранитель
+    // на случай подвисшего keep-alive-соединения, которое никогда не закроется
+    // само — не ждём его вечно.
+    let shuttingDown = false;
+    function gracefulShutdown(signal) {
+      if (shuttingDown) return; // повторный сигнал во время shutdown — не запускаем второй раз
+      shuttingDown = true;
+      logger.info('shutdown', `${signal} получен, завершаю работу штатно`);
+      console.log(`\n[${signal}] Завершение работы...`);
+
+      const forceExitTimer = setTimeout(() => {
+        logger.warn('shutdown', 'таймаут 5с — принудительный выход (не все соединения закрылись)');
+        process.exit(1);
+      }, 5000);
+      forceExitTimer.unref(); // сам по себе не должен удерживать процесс живым
+
+      const closers = [httpServer, httpsServer]
+        .filter(Boolean)
+        .map(s => new Promise(resolve => s.close(resolve)));
+
+      Promise.all(closers).finally(() => {
+        try {
+          sqlite.exec('PRAGMA wal_checkpoint(TRUNCATE);');
+          sqlite.close();
+          logger.info('shutdown', 'SQLite закрыта штатно');
+        } catch(e) {
+          logger.error('shutdown', 'ошибка при закрытии БД', e.message);
+        }
+        clearTimeout(forceExitTimer);
+        process.exit(0);
+      });
+    }
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+
+    // OPS-3 (Track 9, найдено при аудите net-monitor + procure-it, см.
+    // NETMONITOR-AUDIT.md): раньше не было ни одного глобального
+    // обработчика — необработанный reject/исключение либо ронял процесс
+    // Node-дефолтом (Node 15+ делает process.exit(1) на unhandledRejection),
+    // либо (для uncaughtException) вообще без единого лога о причине.
+    //
+    // Два источника предлагали противоположные подходы — решение принято
+    // осознанно, не скопировано:
+    //   - net-monitor: и rejection, и exception — логирует и продолжает
+    //     работать (выше доступность, риск — жить в потенциально
+    //     неконсистентном состоянии).
+    //   - procure-it: оба случая завершают процесс после cleanup (следует
+    //     официальной рекомендации Node.js — после uncaughtException
+    //     состояние процесса не гарантированно безопасно для продолжения).
+    //
+    // У нас уже есть gracefulShutdown() (OPS-1) и `restart: unless-stopped`
+    // в docker-compose.yml — значит "завершиться безопасно" обходится
+    // почти бесплатно, Docker поднимет заново за секунды. Разделяем по
+    // серьёзности, а не копируем один источник целиком:
+    //   - unhandledRejection — обычно восстановимо (одна упавшая async-
+    //     операция, не обязательно ломает остальной процесс) — логируем,
+    //     НЕ завершаемся (как net-monitor). У нас и так мало async-
+    //     хендлеров (риск уже ниже, чем у обоих источников).
+    //   - uncaughtException — серьёзнее (могло прерваться в середине
+    //     синхронной операции с сайд-эффектом) — завершаемся штатно через
+    //     уже готовый gracefulShutdown() (как procure-it).
+    process.on('unhandledRejection', (reason) => {
+      logger.error('process', 'Unhandled promise rejection', String(reason));
+      console.error('[UNHANDLED REJECTION]', reason);
+    });
+    process.on('uncaughtException', (err) => {
+      logger.error('process', 'Uncaught exception — завершаю работу штатно', err.message);
+      console.error('[UNCAUGHT EXCEPTION]', err);
+      gracefulShutdown('uncaughtException');
+    });
+
     function printStartInfo(ips) {
       const fs2    = require('fs');
       const dbPath = require('./db/store').DB_PATH;
@@ -295,7 +419,7 @@ if (require.main === module) {
       const host = req.hostname || 'localhost';
       res.redirect(301, 'https://' + host + ':' + HTTPS_PORT + req.originalUrl);
     });
-    http.createServer(httpApp).listen(HTTP_PORT, '0.0.0.0', () => {
+    httpServer = http.createServer(httpApp).listen(HTTP_PORT, '0.0.0.0', () => {
       console.log('[HTTP]  :' + HTTP_PORT + ' -> redirect to HTTPS :' + HTTPS_PORT);
     });
 
@@ -322,7 +446,7 @@ if (require.main === module) {
     }
 
     const ips = getLocalIPs();
-    https.createServer(tlsOptions, app).listen(HTTPS_PORT, '0.0.0.0', () => {
+    httpsServer = https.createServer(tlsOptions, app).listen(HTTPS_PORT, '0.0.0.0', () => {
       printStartInfo(ips);
     });
   })();

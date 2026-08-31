@@ -3,6 +3,12 @@ services:
     build: .
     container_name: it-assets
     restart: unless-stopped
+    # OPS-1 (Track 9, найдено при аудите procure-it): дефолт Docker для
+    # SIGTERM→SIGKILL — 10 сек. Сервер теперь штатно обрабатывает SIGTERM
+    # (WAL-чекпоинт + закрытие SQLite перед выходом, см. server/index.js),
+    # но даём чуть больше времени с запасом на случай открытых keep-alive
+    # соединений — сам сервер обычно укладывается в 1-2 сек.
+    stop_grace_period: 15s
     ports:
       - "3000:3000"   # HTTP — редиректит на HTTPS
       - "3443:3443"   # HTTPS — основной, самоподписанный сертификат

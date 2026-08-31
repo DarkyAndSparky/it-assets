@@ -18,6 +18,25 @@ const historyInsert = sqlite.prepare(
   `INSERT INTO history (id, asset_id, action_type, date, from_who, to_who, filial, location, equipment, model, type, serial, reason, changed_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 );
 
+// SEC-11 (найдено при аудите net-monitor, см. NETMONITOR-AUDIT.md): кавычки
+// вокруг значения защищают от разрыва структуры CSV, но НЕ от formula
+// injection — Excel/LibreOffice всё равно исполнит содержимое ячейки как
+// формулу, если оно начинается с =, +, -, @ (или таб/CR — тоже триггерят
+// в некоторых реализациях), даже внутри кавычек. Классический вектор:
+// значение поля "Ответственный" или "Примечание" вида
+// =HYPERLINK("http://evil.com","клик") — исполнится при открытии в Excel.
+// Поля затронуты: responsible/note/model/location/login и другие
+// свободно-текстовые — редактируются оператором или приходят из
+// CSV-импорта, то есть потенциально контролируются недоверенным вводом.
+// Рекомендация OWASP — префиксовать одинарной кавычкой, если значение
+// начинается с одного из опасных символов; Excel показывает такое значение
+// как текст, не как формулу.
+function csvCell(v) {
+  const s = String(v ?? '');
+  const padded = /^[=+\-@]/.test(s) ? "'" + s : s;
+  return `"${padded.replace(/"/g, '""')}"`;
+}
+
 function exportCsv(tab) {
   let items = assetsRepo.getAllAssets().filter(a => a.status !== 'списан');
   if (tab) items = items.filter(a => a.tab === tab);
@@ -30,7 +49,7 @@ function exportCsv(tab) {
     r.meta?.ip||'',r.meta?.mac||'',r.meta?.subnet||'',r.meta?.winbox||r.meta?.controller||'',
     r.meta?.login||'',r.meta?.password||'',r.meta?.hostname||'',
     r.meta?.cartridge||'',r.meta?.firmware||'',r.meta?.cabinet||r.meta?.inv||''
-  ])].map(r => r.map(c => `"${String(c||'').replace(/"/g,'""')}"`).join(';')).join('\n');
+  ])].map(r => r.map(csvCell).join(';')).join('\n');
   return '\uFEFF' + csv;
 }
 
