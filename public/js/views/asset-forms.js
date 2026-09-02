@@ -38,9 +38,126 @@ function _revealMaskedValue(realValue) {
   this.dataset.v = this.dataset.v || realValue;
 }
 
+// ─── ФОТО АКТИВОВ ─────────────────────────────────────────────────────────────
+// <img src="..."> не может нести кастомные auth-заголовки (x-user-id) — а
+// GET /api/assets/:id/photos/:photoId защищён requireLogin (INFRA-7). Поэтому
+// грузим каждое фото через fetch(..., {headers: ah()}) и превращаем в blob
+// URL, единственный рабочий вариант с нашей header-based моделью авторизации
+// (не cookie-based, браузер не может подставить заголовок сам).
+const _photoBlobUrls = new Set(); // отслеживаем, чтобы освобождать через URL.revokeObjectURL при закрытии модалки
+
+function _renderPhotoGrid(assetId, photos) {
+  if (!photos.length) {
+    return `<div style="color:var(--muted);font-size:12px;padding:8px 0">${t('msg_no_photos')}</div>`;
+  }
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px">
+    ${photos.map(p => `
+      <div style="position:relative">
+        <div class="photo-thumb-wrap" data-action="_showPhotoLightbox" data-args='${JSON.stringify([assetId, p.id])}'
+          style="aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--surface);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center">
+          <img id="photo-thumb-${p.id}" style="width:100%;height:100%;object-fit:cover;display:none"/>
+          <span id="photo-thumb-spinner-${p.id}" style="font-size:11px;color:var(--muted)">…</span>
+        </div>
+        ${canEdit()?`
+        <button class="btn-icon" title="${t('tooltip_delete_photo')}" data-action="_deleteAssetPhoto" data-args='${JSON.stringify([assetId, p.id])}'
+          style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.55);color:#fff;border-radius:6px;width:20px;height:20px;font-size:11px;line-height:1;padding:0">🗑</button>`:''}
+      </div>`).join('')}
+  </div>`;
+}
+
+async function _loadPhotoThumbnails(assetId, photos) {
+  for (const p of photos) {
+    try {
+      const blob = await fetch(`${API}/api/assets/${assetId}/photos/${p.id}`, { headers: ah() }).then(r => { if (!r.ok) throw new Error(); return r.blob(); });
+      const url = URL.createObjectURL(blob);
+      _photoBlobUrls.add(url);
+      const img = document.getElementById(`photo-thumb-${p.id}`);
+      const spinner = document.getElementById(`photo-thumb-spinner-${p.id}`);
+      if (img) { img.src = url; img.style.display = 'block'; }
+      if (spinner) spinner.style.display = 'none';
+    } catch (e) { /* тихо — одно неудавшееся фото не должно ломать остальную сетку */ }
+  }
+}
+
+// Вызывается через data-onchange-action — event-delegation.js делает
+// fn.apply(el, args), то есть `this` внутри — сам <input type="file">
+// (см. public/js/event-delegation.js). el.value тоже приходит вторым
+// аргументом автоматически (для файлового инпута бесполезен — просто
+// fake-путь вида "C:\fakepath\photo.jpg", игнорируем).
+async function _onAssetPhotoInputChange(assetId) {
+  const input = this;
+  const files = input?.files;
+  if (!files || !files.length) return;
+
+  const grid = document.getElementById(`asset-photos-grid-${assetId}`);
+  for (const file of Array.from(files)) {
+    if (file.size > 8 * 1024 * 1024) { toast(`${file.name}: ${t('msg_photo_too_large')}`, 'error'); continue; }
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = () => reject(new Error('read failed'));
+        reader.readAsDataURL(file);
+      });
+      const r = await fetch(`${API}/api/assets/${assetId}/photos`, {
+        method: 'POST', headers: ah(),
+        body: JSON.stringify({ photo: dataUrl, original_name: file.name }),
+      });
+      const d = await r.json();
+      if (!r.ok) { toast(d.error || t('msg_photo_upload_error'), 'error'); continue; }
+    } catch (e) {
+      toast(t('msg_photo_upload_error'), 'error');
+    }
+  }
+  input.value = ''; // сбрасываем — иначе повторный выбор того же файла не сгенерирует change
+
+  // Перерисовываем сетку целиком — проще, чем точечно вставлять новые
+  // элементы, и гарантированно синхронно с сервером (в т.ч. если часть
+  // файлов из multi-select не загрузилась).
+  const photos = await fetch(`${API}/api/assets/${assetId}/photos`, { headers: ah() }).then(r=>r.json()).catch(()=>[]);
+  if (grid) {
+    grid.innerHTML = _renderPhotoGrid(assetId, photos);
+    _loadPhotoThumbnails(assetId, photos);
+  }
+  toast(t('msg_photo_uploaded'), 'success');
+}
+
+async function _deleteAssetPhoto(assetId, photoId) {
+  if (!confirm(t('msg_confirm_delete_photo'))) return;
+  const r = await fetch(`${API}/api/assets/${assetId}/photos/${photoId}`, { method: 'DELETE', headers: ah() });
+  if (!r.ok) { const d = await r.json().catch(()=>({})); return toast(d.error || t('msg_error'), 'error'); }
+  toast(t('msg_photo_deleted'), 'success');
+  const grid = document.getElementById(`asset-photos-grid-${assetId}`);
+  const photos = await fetch(`${API}/api/assets/${assetId}/photos`, { headers: ah() }).then(r=>r.json()).catch(()=>[]);
+  if (grid) {
+    grid.innerHTML = _renderPhotoGrid(assetId, photos);
+    _loadPhotoThumbnails(assetId, photos);
+  }
+}
+
+async function _showPhotoLightbox(assetId, photoId) {
+  try {
+    const blob = await fetch(`${API}/api/assets/${assetId}/photos/${photoId}`, { headers: ah() }).then(r => { if (!r.ok) throw new Error(); return r.blob(); });
+    const url = URL.createObjectURL(blob);
+    _photoBlobUrls.add(url);
+    showModal(`
+      <div style="text-align:center">
+        <img src="${url}" style="max-width:100%;max-height:70vh;border-radius:8px"/>
+      </div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="btn btn-secondary" data-action="closeModal">${t('btn_close')}</button>
+      </div>`);
+  } catch (e) {
+    toast(t('msg_error'), 'error');
+  }
+}
+
 async function showDetail(id) {
-  const a=await fetch(`${API}/api/assets/${id}`, { headers: ah() }).then(r=>r.json());
-  const histResp=await fetch(`${API}/api/history?asset_id=${id}&limit=20`, { headers: ah() }).then(r=>r.json());
+  const [a, histResp, photos] = await Promise.all([
+    fetch(`${API}/api/assets/${id}`, { headers: ah() }).then(r=>r.json()),
+    fetch(`${API}/api/history?asset_id=${id}&limit=20`, { headers: ah() }).then(r=>r.json()),
+    fetch(`${API}/api/assets/${id}/photos`, { headers: ah() }).then(r=>r.ok ? r.json() : []).catch(()=>[]),
+  ]);
   const hist = Array.isArray(histResp) ? histResp : (histResp.items || []);
   // Org lookup через справочник
   if (!a.org && a.org_id && _orgsCache.length) {
@@ -74,6 +191,17 @@ async function showDetail(id) {
     </div>
     ${metaRows?`<hr class="sep"/><div class="section-title">${t('section_meta')}</div>
       <div class="meta-grid">${metaRows}</div>`:''}
+    <hr class="sep"/>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="section-title" style="margin:0">${t('section_photos')}${photos.length?` (${photos.length})`:''}</div>
+      ${canEdit()?`
+        <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0">
+          ${t('btn_add_photo')}
+          <input type="file" accept="image/*" capture="environment" multiple
+            style="display:none" data-onchange-action="_onAssetPhotoInputChange" data-onchange-args='${JSON.stringify([id])}'/>
+        </label>` : ''}
+    </div>
+    <div id="asset-photos-grid-${id}">${_renderPhotoGrid(id, photos)}</div>
     ${hist.length?`<hr class="sep"/>
     <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:10px;letter-spacing:.5px">
       ${t('section_history_count', { n: hist.length })}
@@ -121,6 +249,7 @@ async function showDetail(id) {
     </div>`);
   currentDetailAsset = a;
   requestAnimationFrame(() => renderQrInto('detail-qr-' + id, buildQrText(a)));
+  if (photos.length) _loadPhotoThumbnails(id, photos);
 
 }
 

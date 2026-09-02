@@ -225,6 +225,15 @@ const backupRoutes = require('./routes/backup.routes');
 const { listBackups, BACKUP_DIR } = backupRoutes;
 app.use('/api/backup', backupRoutes);
 app.use('/api/qr', require('./routes/qr.routes'));
+
+// OPS-5 (Track 9, найдено при аудите net-monitor): без этого несуществующий
+// /api/... путь (опечатка, устаревший вызов после рефакторинга) проваливался
+// в SPA-фоллбек ниже и получал HTML index.html вместо честного 404 — фронтенд,
+// ожидающий .json(), падал с непонятной ошибкой парсинга вместо ясного 404.
+// Должен стоять ПОСЛЕ всех app.use('/api...', ...) выше и ДО app.get('*', ...)
+// ниже — только тогда отработает как настоящий catch-all для несовпавших /api-путей.
+app.use('/api', (req, res) => res.status(404).json({ error: 'not_found' }));
+
 app.get('*', (req, res) =>
   res.sendFile(path.join(__dirname, '../public/index.html')));
 

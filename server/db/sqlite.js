@@ -393,6 +393,28 @@ sqlite.exec(`
 sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_assets_status ON assets(status);`);
 sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_assets_org_id ON assets(org_id);`);
 
+// ─── Фото активов ────────────────────────────────────────────────────────
+// Файлы данных не хранятся тут (BLOB), только метаданные — сами байты
+// лежат на диске под DATA_DIR/attachments/<asset_id>/<id>.<ext> (см.
+// server/repositories/photos.repo.js). Причина: SQLite отлично справляется
+// с BLOB'ами, но держать фото (JPEG с телефона — обычно 1-5MB) прямо в
+// основной БД раздувает единственный .sqlite-файл, который целиком читается
+// в память при бэкапе/миграциях в паре мест по проекту — файлы на диске
+// проще стримить и бэкапить отдельно (см. INFRA правки в backup.routes.js).
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS asset_photos (
+    id            TEXT PRIMARY KEY,
+    asset_id      TEXT NOT NULL,
+    filename      TEXT NOT NULL,
+    original_name TEXT NOT NULL DEFAULT '',
+    size_bytes    INTEGER NOT NULL DEFAULT 0,
+    uploaded_by   TEXT NOT NULL DEFAULT '',
+    uploaded_at   TEXT NOT NULL,
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
+  );
+`);
+sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_asset_photos_asset_id ON asset_photos(asset_id);`);
+
 sqlite.exec(`
   CREATE TABLE IF NOT EXISTS history (
     id           TEXT PRIMARY KEY,

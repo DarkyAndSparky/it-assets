@@ -290,6 +290,20 @@ const putLogoSvgSchema = z.object({
   }
 });
 
+// Фото активов — та же идея, что putLogoSvgSchema (data URL в JSON-теле),
+// но без верхнего предела в 512KB (это фото с телефона, не иконка) —
+// реальный лимит размера и формата проверяется в самом репозитории
+// (server/repositories/photos.repo.js/parseDataUrl), тут только базовая
+// форма запроса, чтобы плохой запрос не долетал до файловой записи вообще.
+const addAssetPhotoSchema = z.object({
+  photo: z.string({ message: 'photo (data URL) required' }).min(1, 'photo required'),
+  original_name: z.string().max(200).optional(),
+}).superRefine((data, ctx) => {
+  if (!data.photo.startsWith('data:image/')) {
+    ctx.addIssue({ code: 'custom', path: ['photo'], message: 'Ожидается data URL вида data:image/...;base64,...' });
+  }
+});
+
 const putCompanyNameSchema = z.object({
   company_name: z.preprocess(v => v ?? '', z.string().trim().min(1, 'company_name required').max(200, 'Слишком длинное название')),
 });
@@ -372,6 +386,7 @@ module.exports = {
   reserveInvSchema,
   putStylesSchema,
   putLogoSvgSchema,
+  addAssetPhotoSchema,
   putCompanyNameSchema,
   putPasswordSchema,
   importDiffSchema,

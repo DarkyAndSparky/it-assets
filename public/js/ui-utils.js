@@ -65,7 +65,17 @@ function _preventDefault(e) { e.preventDefault(); }
 function showModal(html){document.getElementById('modal-box').innerHTML=html;document.getElementById('modal-overlay').classList.add('open');}
 function closeModal(e){
   if (window._forcePinChangeMode) return; // модалка смены дефолтного PIN не закрывается стороной
-  if(!e||e.target===document.getElementById('modal-overlay'))document.getElementById('modal-overlay').classList.remove('open');
+  if(!e||e.target===document.getElementById('modal-overlay')){
+    document.getElementById('modal-overlay').classList.remove('open');
+    // Фото активов: карточка/лайтбокс грузят изображения через fetch()+blob
+    // (auth-заголовки нельзя передать в <img src>, см. asset-forms.js) —
+    // освобождаем накопленные object URL при закрытии модалки, иначе при
+    // частом открытии карточек с фото они бы копились в памяти вкладки.
+    if (typeof _photoBlobUrls !== 'undefined' && _photoBlobUrls.size) {
+      _photoBlobUrls.forEach(u => URL.revokeObjectURL(u));
+      _photoBlobUrls.clear();
+    }
+  }
 }
 // SEC-8: /api/export/csv теперь требует авторизацию (requireAuth), а этот
 // проект аутентифицирует запросы через заголовки (x-user-id/x-edit-password),

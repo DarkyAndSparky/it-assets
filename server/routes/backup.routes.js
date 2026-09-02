@@ -28,6 +28,10 @@ const DATA_DIR   = process.env.IT_ASSETS_DATA_DIR
   ? path.resolve(process.env.IT_ASSETS_DATA_DIR)
   : path.resolve(__dirname, '..', '..', 'data');
 const BACKUP_DIR = path.join(DATA_DIR, 'backups');
+// Фото активов — включаются в ZIP-бэкапы (см. makeBackup ниже) наравне с
+// db.json/config.json/it-assets.sqlite, чтобы восстановление из бэкапа не
+// молча теряло загруженные фото.
+const ATTACHMENTS_DIR = path.join(DATA_DIR, 'attachments');
 const AdmZip = (() => { try { return require('adm-zip'); } catch(e) { return null; } })();
 
 function ensureBackupDir() {
@@ -61,6 +65,12 @@ function makeBackup(label = 'auto') {
     if (fs.existsSync(dbSrc))     zip.addLocalFile(dbSrc,     '', 'db.json');
     if (fs.existsSync(cfgSrc))    zip.addLocalFile(cfgSrc,    '', 'config.json');
     if (fs.existsSync(sqliteSrc)) zip.addLocalFile(sqliteSrc, '', 'it-assets.sqlite');
+    // Фото активов — без этого фото молча терялись бы при восстановлении
+    // из бэкапа (метаданные в SQLite восстановились бы, сами файлы —
+    // нет). addLocalFolder no-op'ает, если папки нет вообще (свежая
+    // установка без единого загруженного фото) — не оборачиваем в try/catch.
+    const attachmentsSrc = ATTACHMENTS_DIR;
+    if (fs.existsSync(attachmentsSrc)) zip.addLocalFolder(attachmentsSrc, 'attachments');
     zip.writeZip(dest);
     pruneBackups();
     return { ok: true, file: name, size: fs.statSync(dest).size, format: 'zip' };
@@ -286,6 +296,26 @@ router.post('/restore/:name', requireAdmin, (req, res) => {
         for (const suffix of ['-wal', '-shm']) {
           const stale = path.join(DATA_DIR, 'it-assets.sqlite' + suffix);
           if (fs.existsSync(stale)) fs.unlinkSync(stale);
+        }
+      }
+      // Фото активов — старые бэкапы (до этой фичи) не содержат
+      // attachments/ вообще, это нормально (просто нечего восстанавливать).
+      // Полностью заменяем папку (не сливаем с текущей) — так restore из
+      // старого бэкапа корректно откатывает и удаления фото, а не только
+      // добавления. Извлекаем точечно только записи attachments/ — не
+      // extractAllTo, чтобы не задваивать уже точечно извлечённые выше
+      // db.json/config.json/it-assets.sqlite.
+      const attachmentEntries = entries.filter(e => e.entryName.startsWith('attachments/') && !e.isDirectory);
+      if (attachmentEntries.length) {
+        if (fs.existsSync(ATTACHMENTS_DIR)) fs.rmSync(ATTACHMENTS_DIR, { recursive: true, force: true });
+        for (const entry of attachmentEntries) {
+          // entryName вида "attachments/<asset_id>/<file>" — убираем
+          // ведущий "attachments/", extractEntryTo кладёт остаток пути
+          // относительно ATTACHMENTS_DIR, создавая подпапки сам.
+          const relPath = entry.entryName.slice('attachments/'.length);
+          const destPath = path.join(ATTACHMENTS_DIR, relPath);
+          fs.mkdirSync(path.dirname(destPath), { recursive: true });
+          fs.writeFileSync(destPath, entry.getData(), { mode: 0o600 });
         }
       }
       res.json({
