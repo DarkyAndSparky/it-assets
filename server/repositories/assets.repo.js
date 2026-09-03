@@ -112,9 +112,26 @@ function listAssets(query) {
   const lim   = Math.min(parseInt(limit) || 50, 200);
   const pg    = Math.max(parseInt(page)  || 1, 1);
   const pages = Math.ceil(total / lim) || 1;
-  const slice = items.slice((pg - 1) * lim, pg * lim).map(a => ({
+  const pageItems = items.slice((pg - 1) * lim, pg * lim);
+
+  // photo_count — для значка «есть фото» в таблице (без открытия карточки).
+  // Один сгруппированный запрос по IN(...) только для отображаемой страницы
+  // (максимум 200 id) — не N+1: без него пришлось бы дёргать /photos на
+  // каждую строку таблицы отдельно.
+  const ids = pageItems.map(a => a.id);
+  let photoCounts = {};
+  if (ids.length) {
+    const placeholders = ids.map(() => '?').join(',');
+    const rows = sqlite.prepare(
+      `SELECT asset_id, COUNT(*) c FROM asset_photos WHERE asset_id IN (${placeholders}) GROUP BY asset_id`
+    ).all(...ids);
+    photoCounts = Object.fromEntries(rows.map(r => [r.asset_id, r.c]));
+  }
+
+  const slice = pageItems.map(a => ({
     ...a,
     org: resolveOrgName(a),
+    photo_count: photoCounts[a.id] || 0,
   }));
 
   return { items: slice, total, page: pg, pages, limit: lim };

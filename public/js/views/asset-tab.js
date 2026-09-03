@@ -147,7 +147,10 @@ async function renderAssetTab(tab) {
           ${canEdit()?`<td data-action="_noop" style="width:32px;text-align:center"><input type="checkbox" class="row-cb" data-id="${a.id}" ${selectedIds.has(a.id)?'checked':''} data-onchange-action="_onSelectOneChange" data-onchange-args='${JSON.stringify([a.id, tab])}'/></td>`:''}
           <td class="mono" style="font-size:11px">${a.inv?`<span style="background:#eff6ff;color:#1d4ed8;border-radius:5px;padding:2px 6px;font-weight:600">${esc(a.inv)}</span>`:'<span style="color:#cbd5e1">—</span>'}</td>
           <td>${ic(a.type)} <span style="font-weight:500">${esc(a.type)}</span></td>
-          <td><b>${esc(a.model)}</b></td>
+          <td><b>${esc(a.model)}</b>${a.photo_count?`
+            <button class="btn-icon" data-action="_openAssetPhotosQuick" data-args='${JSON.stringify([a.id])}' data-stop="1"
+              title="${t('tooltip_has_photos', { n: a.photo_count })}"
+              style="margin-left:4px;font-size:11px;padding:1px 5px">📷${a.photo_count>1?a.photo_count:''}</button>`:''}</td>
           <td class="mono">${esc(a.serial)||'—'}</td>
           ${showMeta?`<td><span class="badge-meta">${esc(a.meta?.ip)||'—'}</span></td>
             <td class="mono" style="font-size:11px">${esc(a.meta?.mac)||'—'}</td>`:''}

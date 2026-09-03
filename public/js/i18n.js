@@ -841,6 +841,9 @@ const I18N = {
     msg_no_photos: 'Фото пока нет',
     tooltip_delete_photo: 'Удалить фото',
     tooltip_view_photo: 'Открыть в полный размер',
+    tooltip_has_photos: '{n} фото — открыть',
+    btn_show_photos: '📷 Показать фото ({n})',
+    btn_hide_photos: '📷 Скрыть фото',
     // Settings router (LOC-6, найдено при финальном проходе)
     msg_login_required: 'Войдите в систему',
     msg_edit_mode_admin_note: 'Войдите в режим редактирования для доступа к настройкам администратора.',
@@ -1674,6 +1677,9 @@ const I18N = {
     msg_no_photos: 'No photos yet',
     tooltip_delete_photo: 'Delete photo',
     tooltip_view_photo: 'View full size',
+    tooltip_has_photos: '{n} photo(s) — open',
+    btn_show_photos: '📷 Show Photos ({n})',
+    btn_hide_photos: '📷 Hide Photos',
     // Settings router (LOC-6, found during final pass)
     msg_login_required: 'Sign in first',
     msg_edit_mode_admin_note: 'Switch to edit mode to access administrator settings.',

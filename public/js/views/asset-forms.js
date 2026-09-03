@@ -51,9 +51,9 @@ function _renderPhotoGrid(assetId, photos) {
     return `<div style="color:var(--muted);font-size:12px;padding:8px 0">${t('msg_no_photos')}</div>`;
   }
   return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px">
-    ${photos.map(p => `
+    ${photos.map((p,i) => `
       <div style="position:relative">
-        <div class="photo-thumb-wrap" data-action="_showPhotoLightbox" data-args='${JSON.stringify([assetId, p.id])}'
+        <div class="photo-thumb-wrap" data-action="_openPhotoLightboxAt" data-args='${JSON.stringify([assetId, photos, i])}'
           style="aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--surface);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center">
           <img id="photo-thumb-${p.id}" style="width:100%;height:100%;object-fit:cover;display:none"/>
           <span id="photo-thumb-spinner-${p.id}" style="font-size:11px;color:var(--muted)">…</span>
@@ -63,6 +63,30 @@ function _renderPhotoGrid(assetId, photos) {
           style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.55);color:#fff;border-radius:6px;width:20px;height:20px;font-size:11px;line-height:1;padding:0">🗑</button>`:''}
       </div>`).join('')}
   </div>`;
+}
+
+// INSERT-1 (по запросу пользователя, после первой версии фичи): секция
+// фото в карточке актива теперь свёрнута по умолчанию — миниатюры (а
+// значит и байты изображений) грузятся только по клику на «Показать
+// фото», а не при каждом открытии карточки. Список метаданных фото
+// (без байтов, дёшево) всё равно приходит вместе с деталью актива — он
+// нужен для счётчика "(N)" на самой кнопке-переключателе.
+function _togglePhotoSection(assetId, photos) {
+  const box = document.getElementById(`asset-photos-box-${assetId}`);
+  const btn = document.getElementById(`asset-photos-toggle-${assetId}`);
+  if (!box || !btn) return;
+  const isOpen = box.style.display !== 'none';
+  if (isOpen) {
+    box.style.display = 'none';
+    btn.textContent = t('btn_show_photos', { n: photos.length });
+  } else {
+    box.style.display = 'block';
+    btn.textContent = t('btn_hide_photos');
+    if (!box.dataset.loaded) {
+      box.dataset.loaded = '1';
+      _loadPhotoThumbnails(assetId, photos);
+    }
+  }
 }
 
 async function _loadPhotoThumbnails(assetId, photos) {
@@ -90,6 +114,7 @@ async function _onAssetPhotoInputChange(assetId) {
   if (!files || !files.length) return;
 
   const grid = document.getElementById(`asset-photos-grid-${assetId}`);
+
   for (const file of Array.from(files)) {
     if (file.size > 8 * 1024 * 1024) { toast(`${file.name}: ${t('msg_photo_too_large')}`, 'error'); continue; }
     try {
@@ -112,8 +137,9 @@ async function _onAssetPhotoInputChange(assetId) {
   input.value = ''; // сбрасываем — иначе повторный выбор того же файла не сгенерирует change
 
   // Перерисовываем сетку целиком — проще, чем точечно вставлять новые
-  // элементы, и гарантированно синхронно с сервером (в т.ч. если часть
-  // файлов из multi-select не загрузилась).
+  // элементы, и гарантированно синхронно с сервером. Секция уже открыта
+  // (раз пользователь только что нажал «+ Фото» внутри неё) — сразу
+  // грузим миниатюры.
   const photos = await fetch(`${API}/api/assets/${assetId}/photos`, { headers: ah() }).then(r=>r.json()).catch(()=>[]);
   if (grid) {
     grid.innerHTML = _renderPhotoGrid(assetId, photos);
@@ -135,21 +161,46 @@ async function _deleteAssetPhoto(assetId, photoId) {
   }
 }
 
-async function _showPhotoLightbox(assetId, photoId) {
+// INSERT-2: лайтбокс с навигацией «вперёд/назад» — важно для составных
+// вещей с несколькими фото (например, комплект из нескольких предметов,
+// разные ракурсы шильдика). `photos` — весь массив метаданных (без
+// байтов, уже есть на руках у вызывающего кода), `index` — на каком фото
+// сейчас остановились, с переносом по кругу (после последнего — снова
+// первое).
+async function _openPhotoLightboxAt(assetId, photos, index) {
+  if (!photos || !photos.length) return;
+  index = ((index % photos.length) + photos.length) % photos.length;
+  const photo = photos[index];
   try {
-    const blob = await fetch(`${API}/api/assets/${assetId}/photos/${photoId}`, { headers: ah() }).then(r => { if (!r.ok) throw new Error(); return r.blob(); });
+    const blob = await fetch(`${API}/api/assets/${assetId}/photos/${photo.id}`, { headers: ah() }).then(r => { if (!r.ok) throw new Error(); return r.blob(); });
     const url = URL.createObjectURL(blob);
     _photoBlobUrls.add(url);
+    const hasMultiple = photos.length > 1;
     showModal(`
-      <div style="text-align:center">
-        <img src="${url}" style="max-width:100%;max-height:70vh;border-radius:8px"/>
+      <div style="text-align:center;position:relative;display:flex;align-items:center;justify-content:center;gap:8px">
+        ${hasMultiple?`<button class="btn-icon" data-action="_openPhotoLightboxAt" data-args='${JSON.stringify([assetId, photos, index-1])}' style="font-size:22px;flex-shrink:0">‹</button>`:''}
+        <img src="${url}" style="max-width:100%;max-height:65vh;border-radius:8px;flex:1;min-width:0"/>
+        ${hasMultiple?`<button class="btn-icon" data-action="_openPhotoLightboxAt" data-args='${JSON.stringify([assetId, photos, index+1])}' style="font-size:22px;flex-shrink:0">›</button>`:''}
       </div>
+      ${hasMultiple?`<div style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px">${index+1} / ${photos.length}${photo.original_name?' · '+esc(photo.original_name):''}</div>`
+        :(photo.original_name?`<div style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px">${esc(photo.original_name)}</div>`:'')}
       <div class="modal-actions" style="margin-top:14px">
         <button class="btn btn-secondary" data-action="closeModal">${t('btn_close')}</button>
       </div>`);
   } catch (e) {
     toast(t('msg_error'), 'error');
   }
+}
+
+// INSERT-3: быстрый переход к фото прямо из таблицы активов (значок 📷 у
+// модели, см. asset-tab.js) — без открытия полной карточки. Список
+// метаданных на таблице ещё не подгружен (там только photo_count), так
+// что тут единственный дополнительный запрос — сам список для конкретного
+// актива, byte-контент фото по-прежнему грузится лениво самим лайтбоксом.
+async function _openAssetPhotosQuick(assetId) {
+  const photos = await fetch(`${API}/api/assets/${assetId}/photos`, { headers: ah() }).then(r=>r.json()).catch(()=>[]);
+  if (!photos.length) return;
+  _openPhotoLightboxAt(assetId, photos, 0);
 }
 
 async function showDetail(id) {
@@ -192,8 +243,11 @@ async function showDetail(id) {
     ${metaRows?`<hr class="sep"/><div class="section-title">${t('section_meta')}</div>
       <div class="meta-grid">${metaRows}</div>`:''}
     <hr class="sep"/>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div class="section-title" style="margin:0">${t('section_photos')}${photos.length?` (${photos.length})`:''}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+      ${photos.length?`
+        <button id="asset-photos-toggle-${id}" class="btn btn-secondary btn-sm" style="margin:0"
+          data-action="_togglePhotoSection" data-args='${JSON.stringify([id, photos])}'>${t('btn_show_photos', { n: photos.length })}</button>
+      `:`<div class="section-title" style="margin:0">${t('section_photos')}</div>`}
       ${canEdit()?`
         <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0">
           ${t('btn_add_photo')}
@@ -201,7 +255,9 @@ async function showDetail(id) {
             style="display:none" data-onchange-action="_onAssetPhotoInputChange" data-onchange-args='${JSON.stringify([id])}'/>
         </label>` : ''}
     </div>
-    <div id="asset-photos-grid-${id}">${_renderPhotoGrid(id, photos)}</div>
+    <div id="asset-photos-box-${id}" style="display:none">
+      <div id="asset-photos-grid-${id}">${_renderPhotoGrid(id, photos)}</div>
+    </div>
     ${hist.length?`<hr class="sep"/>
     <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:10px;letter-spacing:.5px">
       ${t('section_history_count', { n: hist.length })}
@@ -249,7 +305,9 @@ async function showDetail(id) {
     </div>`);
   currentDetailAsset = a;
   requestAnimationFrame(() => renderQrInto('detail-qr-' + id, buildQrText(a)));
-  if (photos.length) _loadPhotoThumbnails(id, photos);
+  // Фото больше НЕ грузятся сразу при открытии карточки — секция свёрнута,
+  // миниатюры (байты изображений) подгружаются лениво по клику на кнопку
+  // «Показать фото» (см. _togglePhotoSection выше).
 
 }
 
