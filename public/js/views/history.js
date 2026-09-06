@@ -59,45 +59,45 @@ async function renderHistory(reset) {
   const totalPages = Math.ceil(total / itemsPerPage);
   const actionIcon={'add':'➕','move':'🔄','retire':'🗑️','import':'📥','reassign':'👤','status_change':'📋'};
   const actionLabel={'add':t('action_add'),'move':t('action_move'),'retire':t('action_retire'),'import':t('action_import'),'org_transfer':t('action_org_transfer'),'reassign':t('action_move'),'status_change':t('action_status_change')};
-  const actionColor={'add':'#059669','move':'#6366f1','retire':'#dc2626','import':'#0ea5e9','reassign':'#8b5cf6','status_change':'#f59e0b'};
+  const actionBadgeClass={'add':'hist-badge-add','move':'hist-badge-move','retire':'hist-badge-retire','import':'hist-badge-import','reassign':'hist-badge-reassign','status_change':'hist-badge-status_change'};
   // Берём из filterOptions (все записи) а не из items (только страница)
   const filials    = filterOptions.filials    || [...new Set(items.map(h=>h.filial).filter(Boolean))].sort();
   const orgsInHist = filterOptions.orgs       || [...new Set(items.map(h=>h.org_name||h.org||'').filter(Boolean))].sort();
   const authors    = filterOptions.authors    || [...new Set(items.map(h=>h.changed_by).filter(Boolean))].sort();
   app.innerHTML=`
-  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-    <div class="card" style="flex:1;min-width:130px;padding:14px 18px;display:flex;align-items:center;gap:10px">
-      <div style="font-size:26px">📋</div>
-      <div><div style="font-size:22px;font-weight:800;color:#6366f1">${stats.total||0}</div><div style="font-size:11px;color:var(--muted)">${t('lbl_total_records')}</div></div>
+  <div class="hist-stat-row">
+    <div class="card hist-stat-card">
+      <div class="u-text-26">📋</div>
+      <div><div class="u-text-22 u-fw-800 u-text-6366f1">${stats.total||0}</div><div class="u-text-11 u-text-muted">${t('lbl_total_records')}</div></div>
     </div>
-    <div class="card" style="flex:1;min-width:130px;padding:14px 18px;display:flex;align-items:center;gap:10px">
-      <div style="font-size:26px">📅</div>
-      <div><div style="font-size:22px;font-weight:800;color:#0ea5e9">${stats.today||0}</div><div style="font-size:11px;color:var(--muted)">${t('lbl_today')}</div></div>
+    <div class="card hist-stat-card">
+      <div class="u-text-26">📅</div>
+      <div><div class="u-text-22 u-fw-800 u-text-0ea5e9">${stats.today||0}</div><div class="u-text-11 u-text-muted">${t('lbl_today')}</div></div>
     </div>
-    <div class="card" style="flex:1;min-width:130px;padding:14px 18px;display:flex;align-items:center;gap:10px">
-      <div style="font-size:26px">➕</div>
-      <div><div style="font-size:22px;font-weight:800;color:#059669">${stats.adds||0}</div><div style="font-size:11px;color:var(--muted)">${t('lbl_additions')}</div></div>
+    <div class="card hist-stat-card">
+      <div class="u-text-26">➕</div>
+      <div><div class="u-text-22 u-fw-800 u-text-059669">${stats.adds||0}</div><div class="u-text-11 u-text-muted">${t('lbl_additions')}</div></div>
     </div>
-    <div class="card" style="flex:1;min-width:130px;padding:14px 18px;display:flex;align-items:center;gap:10px">
-      <div style="font-size:26px">🔄</div>
-      <div><div style="font-size:22px;font-weight:800;color:#6366f1">${stats.moves||0}</div><div style="font-size:11px;color:var(--muted)">${t('lbl_moves')}</div></div>
+    <div class="card hist-stat-card">
+      <div class="u-text-26">🔄</div>
+      <div><div class="u-text-22 u-fw-800 u-text-6366f1">${stats.moves||0}</div><div class="u-text-11 u-text-muted">${t('lbl_moves')}</div></div>
     </div>
-    <div class="card" style="flex:1;min-width:130px;padding:14px 18px;display:flex;align-items:center;gap:10px">
-      <div style="font-size:26px">🗑️</div>
-      <div><div style="font-size:22px;font-weight:800;color:var(--noInv-text)">${stats.retires||0}</div><div style="font-size:11px;color:var(--muted)">${t('lbl_retirements')}</div></div>
+    <div class="card hist-stat-card">
+      <div class="u-text-26">🗑️</div>
+      <div><div class="u-text-22 u-fw-800 u-text-noinv">${stats.retires||0}</div><div class="u-text-11 u-text-muted">${t('lbl_retirements')}</div></div>
     </div>
-    <div class="card" style="flex:1;min-width:130px;padding:14px 18px;display:flex;align-items:center;gap:10px">
-      <div style="font-size:26px">📥</div>
-      <div><div style="font-size:22px;font-weight:800;color:#0ea5e9">${stats.imports||0}</div><div style="font-size:11px;color:var(--muted)">${t('lbl_imports')}</div></div>
+    <div class="card hist-stat-card">
+      <div class="u-text-26">📥</div>
+      <div><div class="u-text-22 u-fw-800 u-text-0ea5e9">${stats.imports||0}</div><div class="u-text-11 u-text-muted">${t('lbl_imports')}</div></div>
     </div>
   </div>
   <div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <div class="section-title" style="margin:0">${t('section_history_events')} <span style="font-size:12px;color:var(--muted);font-weight:400">${t('msg_showing_of', { shown: items.length, total })}</span></div>
+    <div class="u-flex-between-wrap-gap-8">
+      <div class="section-title u-m-0">${t('section_history_events')} <span class="u-text-12 u-text-muted u-fw-400">${t('msg_showing_of', { shown: items.length, total })}</span></div>
       <button class="btn btn-ghost btn-sm" data-action="renderHistory" data-args='[true]'>✕ ${t('btn_reset')}</button>
     </div>
     <div class="filters">
-      <input class="search-inp" style="flex:2;min-width:160px" placeholder="🔍 ${t('msg_search_history_placeholder')}" value="${esc(histFilters.search)}"
+      <input class="search-inp u-flex-2-minw-160" placeholder="🔍 ${t('msg_search_history_placeholder')}" value="${esc(histFilters.search)}"
         data-oninput-action="onHistSearchInput"/>
       <select class="filter-sel" data-onchange-action="_setHistFilter" data-onchange-args='["action_type"]'>
         <option value="">${t('opt_all_events')}</option>
@@ -117,7 +117,7 @@ async function renderHistory(reset) {
         <option value="">${t('opt_all_orgs')}</option>
         ${orgsInHist.map(o=>`<option value="${esc(o)}" ${histFilters.org===o?'selected':''}>${esc(o)}</option>`).join('')}
       </select>
-      <select class="filter-sel" style="min-width:140px" data-onchange-action="_setHistFilter" data-onchange-args='["changed_by"]'>
+      <select class="filter-sel u-minw-140" data-onchange-action="_setHistFilter" data-onchange-args='["changed_by"]'>
         <option value="">${t('opt_all_authors')}</option>
         ${authors.map(a=>`<option value="${esc(a)}" ${histFilters.changed_by===a?'selected':''}>${esc(a)}</option>`).join('')}
       </select>
@@ -127,7 +127,7 @@ async function renderHistory(reset) {
         data-onchange-action="_setHistFilter" data-onchange-args='["to_date"]'/>
       ${Object.values(histFilters).some(v=>v) ? `<button class="btn btn-ghost btn-sm" data-action="renderHistory" data-args='[true]'>✕ ${t('btn_reset')}</button>` : ''}
     </div>
-    ${items.length===0?`<div style="text-align:center;padding:40px;color:var(--muted)">${t('msg_no_records_for_filters')}</div>`:`
+    ${items.length===0?`<div class="u-text-center u-p-40 u-text-muted">${t('msg_no_records_for_filters')}</div>`:`
     <div class="tbl-wrap"><table>
       <thead><tr><th>${t('th_datetime')}</th><th>${t('th_event')}</th><th>${t('th_equipment')}</th><th>${t('field_serial')}</th><th>${t('th_from')}</th><th>${t('th_to')} / ${t('th_where')}</th><th>${t('field_filial')}</th><th>${t('th_author')}</th><th>${t('th_reason')}</th></tr></thead>
       <tbody>${items.map(h=>{
@@ -135,38 +135,38 @@ async function renderHistory(reset) {
         const dateStr=dt?dt.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'}):'—';
         const timeStr=dt&&h.date.length>10?dt.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):'';
         const atype=h.action_type||'move';
-        const color=actionColor[atype]||'#6366f1';
+        const hbadge=actionBadgeClass[atype]||'hist-badge-move';
         const icon=actionIcon[atype]||'🔄';
         const label=actionLabel[atype]||esc(h.reason);
-        return `<tr style="cursor:${h.asset_id?'pointer':'default'}" ${h.asset_id?`data-action="goToAsset" data-args='${JSON.stringify([h.asset_id])}'`:''}>
-          <td style="white-space:nowrap">
-            <div style="font-weight:600;color:var(--text)">${dateStr}</div>
-            ${timeStr?`<div style="font-size:11px;color:var(--muted)">${timeStr}</div>`:''}
+        return `<tr class="${h.asset_id?'u-cursor-pointer':'u-cursor-default'}" ${h.asset_id?`data-action="goToAsset" data-args='${JSON.stringify([h.asset_id])}'`:''}>
+          <td class="u-nowrap">
+            <div class="u-fw-600 u-text-base">${dateStr}</div>
+            ${timeStr?`<div class="u-text-11 u-text-muted">${timeStr}</div>`:''}
           </td>
-          <td><span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:${color}18;color:${color}">${icon} ${label}</span></td>
-          <td style="max-width:200px">
-            <div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(h.equipment)}">${esc(h.equipment)||'—'}</div>
-            ${h.type?`<div style="font-size:11px;color:var(--muted)">${esc(h.type)}</div>`:''}
+          <td><span class="hist-badge-icon ${hbadge}">${icon} ${label}</span></td>
+          <td class="u-max-w-200">
+            <div class="u-fw-500 u-ellipsis" title="${esc(h.equipment)}">${esc(h.equipment)||'—'}</div>
+            ${h.type?`<div class="u-text-11 u-text-muted">${esc(h.type)}</div>`:''}
           </td>
-          <td class="mono" style="font-size:11px;color:var(--muted)">${esc(h.serial)||'—'}</td>
-          <td style="color:var(--muted);max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(h.from_who)}">${esc(h.from_who)||'—'}</td>
-          <td style="max-width:160px">
-            <div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(h.to_who)}">${esc(h.to_who)||'—'}</div>
-            ${h.location?`<div style="font-size:11px;color:var(--muted)">${esc(h.location)}</div>`:''}
+          <td class="mono u-text-11 u-text-muted">${esc(h.serial)||'—'}</td>
+          <td class="u-text-muted u-max-w-140 u-ellipsis" title="${esc(h.from_who)}">${esc(h.from_who)||'—'}</td>
+          <td class="u-max-w-160">
+            <div class="u-fw-500 u-ellipsis" title="${esc(h.to_who)}">${esc(h.to_who)||'—'}</div>
+            ${h.location?`<div class="u-text-11 u-text-muted">${esc(h.location)}</div>`:''}
           </td>
-          <td style="font-size:12px">${esc(h.filial)||'—'}</td>
-          <td style="font-size:12px;color:var(--muted);white-space:nowrap">${esc(h.changed_by)||'—'}</td>
+          <td class="u-text-12">${esc(h.filial)||'—'}</td>
+          <td class="u-text-12 u-text-muted u-nowrap">${esc(h.changed_by)||'—'}</td>
           <td><span class="badge-cat">${esc(h.reason)||'—'}</span></td>
         </tr>`;}).join('')}
       </tbody></table></div>
     ${totalPages > 1 ? `
-      <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:14px;flex-wrap:wrap">
+      <div class="paginator-wrap">
         <button class="btn btn-ghost btn-sm" data-action="_gotoHistPage" data-args='[1]' ${histPage===1?'disabled':''}>⏮</button>
         <button class="btn btn-ghost btn-sm" data-action="_gotoHistPage" data-args='${JSON.stringify([Math.max(1,histPage-1)])}' ${histPage===1?'disabled':''}>◀</button>
-        <span style="font-size:12px;color:var(--muted);min-width:100px;text-align:center">${t('lbl_page_of', { page: histPage, count: totalPages })}</span>
+        <span class="u-text-12 u-text-muted u-minw-100 u-text-center">${t('lbl_page_of', { page: histPage, count: totalPages })}</span>
         <button class="btn btn-ghost btn-sm" data-action="_gotoHistPage" data-args='${JSON.stringify([Math.min(totalPages,histPage+1)])}' ${histPage===totalPages?'disabled':''}>▶</button>
         <button class="btn btn-ghost btn-sm" data-action="_gotoHistPage" data-args='${JSON.stringify([totalPages])}' ${histPage===totalPages?'disabled':''}>⏭</button>
-        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;margin-left:8px">
+        <label class="u-flex-gap-8 u-text-12 u-cursor-pointer u-ml-8">
           <input type="checkbox" id="hist-show-all" data-onchange-action="_setHistShowAll">
           ${t('lbl_show_all')} (${total})
         </label>
@@ -225,7 +225,7 @@ async function importHistory() {
   if (r.ok){
     setP(100,t('msg_history_done_added', { n: d.added }));
     document.getElementById('import-progress-bar').style.background='linear-gradient(90deg,#10b981,#059669)';
-    document.getElementById('import-result').innerHTML=`<span style="color:#065f46">✅ ${t('msg_history_added_count', { n: d.added })}</span>`;
+    document.getElementById('import-result').innerHTML=`<span class="u-text-success">✅ ${t('msg_history_added_count', { n: d.added })}</span>`;
     toast(t('msg_history_imported_count', { n: d.added }),'success');
     setTimeout(()=>renderHistory(true), 800);
   } else {

@@ -81,7 +81,7 @@ app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy',
     "default-src 'self'; " +
     "script-src 'self'; " +
-    "style-src 'self' 'unsafe-inline'; " + // много inline style="..." в шаблонах — отдельная задача, не блокер
+    "style-src 'self'; " +
     "img-src 'self' data:; " +         // data: — логотип компании хранится и как base64 (см. settings-general.js)
     "font-src 'self'; " +
     "connect-src 'self'; " +

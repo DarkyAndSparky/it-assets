@@ -40,13 +40,17 @@ if [ ! -d "node_modules/@playwright/test" ]; then
     echo ""
 fi
 
-# Проверка, скачан ли браузер (первый запуск)
-if [ ! -d "$HOME/.cache/ms-playwright" ]; then
-    echo " [INFO] Скачиваю Chromium для Playwright (только при первом запуске)..."
-    echo ""
-    npx playwright install chromium
-    echo ""
-fi
+# Раньше здесь была проверка "[ ! -d "$HOME/.cache/ms-playwright" ]" — она
+# смотрела только на существование папки, а не на то, стоит ли внутри нужная
+# версия браузера конкретно для этой версии Playwright. Если папка уже
+# существовала (от другого проекта или прошлой версии), установка молча
+# пропускалась, и тесты падали прямо в момент запуска с
+# "Executable doesn't exist at ...chrome-headless-shell". `playwright install`
+# идемпотентна — при уже стоящем браузере отрабатывает за секунды без
+# повторной загрузки, поэтому безопасно вызывать её каждый раз.
+echo " [INFO] Проверяю браузер для Playwright..."
+npx playwright install chromium
+echo ""
 
 PLAYWRIGHT_BIN="node_modules/.bin/playwright"
 

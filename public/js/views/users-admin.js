@@ -29,8 +29,8 @@ async function _renderUsersPanel() {
       <td><b>${esc(u.name)}</b></td>
       <td><span class="badge-s ${ROLE_BADGE[u.role]||'s-off'}">${ROLE_LABEL[u.role]||u.role}</span></td>
       <td><span class="badge-s ${u.active!==false?'s-used':'s-off'}">${u.active!==false?t('lbl_active'):t('lbl_disabled')}</span></td>
-      <td>${u.role!=='admin' ? (u.can_view_accounts?`<span class="badge-s s-used" title="${t('tooltip_sees_acct_pw')}">${t('lbl_cva_yes')}</span>`:`<span class="badge-s s-off">${t('lbl_cva_no')}</span>`) : `<span style="color:var(--muted);font-size:11px">${t('lbl_always')}</span>`}</td>
-      <td style="white-space:nowrap">
+      <td>${u.role!=='admin' ? (u.can_view_accounts?`<span class="badge-s s-used" title="${t('tooltip_sees_acct_pw')}">${t('lbl_cva_yes')}</span>`:`<span class="badge-s s-off">${t('lbl_cva_no')}</span>`) : `<span class="u-text-muted u-text-11">${t('lbl_always')}</span>`}</td>
+      <td class="u-nowrap">
         <button class="btn-icon" title="${t('tooltip_edit')}" data-action="showEditUserModal" data-args='${JSON.stringify([u.id, esc(u.name), u.role, esc(u.login||u.name), !!u.can_view_accounts])}'>✏️</button>
         ${u.id!=='sys-user-admin'?`
         <button class="btn-icon" title="${u.active!==false?t('tooltip_deactivate'):t('tooltip_activate')}"
@@ -42,17 +42,17 @@ async function _renderUsersPanel() {
 
   return `
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-        <div class="section-title" style="margin:0">${t('users_title')}</div>
+      <div class="u-flex-between u-mb-14">
+        <div class="section-title u-m-0">${t('users_title')}</div>
         <button class="btn btn-primary btn-sm" data-action="showCreateUserModal">${t('btn_add')}</button>
       </div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">
+      <div class="u-text-12 u-text-muted u-mb-12 u-lh-16">
         ${t('users_hint')}
       </div>
       <div class="tbl-wrap">
         <table>
           <thead><tr><th>${t('th_name')}</th><th>${t('th_role')}</th><th>${t('th_status')}</th><th>${t('th_acct_passwords')}</th><th></th></tr></thead>
-          <tbody>${rows||`<tr><td colspan="5" style="color:var(--muted);text-align:center">${t('msg_no_users')}</td></tr>`}</tbody>
+          <tbody>${rows||`<tr><td colspan="5" class="u-text-muted u-text-center">${t('msg_no_users')}</td></tr>`}</tbody>
         </table>
       </div>
     </div>`;
@@ -75,10 +75,10 @@ function showCreateUserModal() {
       <input type="password" id="cu-pin" placeholder="${t('msg_password_min4')}"/>
     </div>
     <div class="form-row">
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+      <label class="checkbox-label">
         <input type="checkbox" id="cu-cva"/> ${t('lbl_sees_acct_passwords')}
       </label>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">${t('msg_cva_admin_note')}</div>
+      <div class="field-hint">${t('msg_cva_admin_note')}</div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-primary" data-action="doCreateUser">${t('btn_create')}</button>
@@ -122,10 +122,10 @@ function showEditUserModal(id, name, role, login, canViewAccounts) {
     <div class="form-row"><label>${t('field_new_password')}</label>
       <input type="password" id="eu-pin" placeholder="${t('msg_keep_password_placeholder')}"/></div>
     <div class="form-row">
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+      <label class="checkbox-label">
         <input type="checkbox" id="eu-cva" ${canViewAccounts?'checked':''}/> ${t('lbl_sees_acct_passwords')}
       </label>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">${t('msg_cva_admin_note')}</div>
+      <div class="field-hint">${t('msg_cva_admin_note')}</div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-primary" data-action="doUpdateUser" data-args='${JSON.stringify([id])}'>${t('btn_save')}</button>

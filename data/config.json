@@ -1,0 +1,249 @@
+{
+  "_meta": {
+    "version": 2,
+    "created_at": "2026-09-03T14:11:50.021Z",
+    "schema_version": 7,
+    "migrated_at": "2026-09-03T14:11:50.111Z"
+  },
+  "settings": {
+    "company_name": "IT ASSETS"
+  },
+  "accounts": [],
+  "organizations": [
+    {
+      "id": "sys-org-unk",
+      "name": "—",
+      "short_code": "UNK",
+      "status": "active",
+      "system": true,
+      "inv_rules": [],
+      "created_at": "2026-09-03T14:11:50.021Z",
+      "renamed_from": null,
+      "renamed_at": null
+    }
+  ],
+  "filials": [
+    {
+      "id": "sys-filial-unk",
+      "name": "—",
+      "address": "",
+      "org_id": null,
+      "status": "active",
+      "system": true,
+      "created_at": "2026-09-03T14:11:50.021Z",
+      "closed_at": null
+    }
+  ],
+  "locations": [
+    {
+      "id": "sys-location-unk",
+      "name": "—",
+      "type": "other",
+      "filial_id": "sys-filial-unk",
+      "status": "active",
+      "system": true,
+      "created_at": "2026-09-03T14:11:50.021Z",
+      "closed_at": null
+    }
+  ],
+  "employees": [],
+  "users": [
+    {
+      "id": "sys-user-admin",
+      "name": "admin",
+      "login": "admin",
+      "role": "admin",
+      "pin": "$2b$10$mK5Ln30LO3BX8/.g1XD/7uQ6BwrgKRqmms3.nxkLXpZ6H0P2dI5tu",
+      "active": true,
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "email": ""
+    }
+  ],
+  "categories": {
+    "os": [
+      "Оборудование пользователей",
+      "Оргтехника",
+      "Мини ПК"
+    ],
+    "small": [
+      "Периферия",
+      "Гарнитуры",
+      "Колонки"
+    ],
+    "infra": [
+      "Сетевое оборудование",
+      "Wi-Fi",
+      "Принтеры",
+      "Видеонаблюдение",
+      "ИБП",
+      "Серверы"
+    ]
+  },
+  "type_codes": [
+    {
+      "code": "NB",
+      "name": "Ноутбук",
+      "tab": "os"
+    },
+    {
+      "code": "PC",
+      "name": "Системный блок",
+      "tab": "os"
+    },
+    {
+      "code": "MON",
+      "name": "Монитор",
+      "tab": "os"
+    },
+    {
+      "code": "MFU",
+      "name": "МФУ",
+      "tab": "os"
+    },
+    {
+      "code": "PR",
+      "name": "Принтер",
+      "tab": "os"
+    },
+    {
+      "code": "TAB",
+      "name": "Планшет",
+      "tab": "small"
+    },
+    {
+      "code": "TV",
+      "name": "Телевизор",
+      "tab": "os"
+    },
+    {
+      "code": "UPS",
+      "name": "ИБП",
+      "tab": "infra"
+    },
+    {
+      "code": "MPC",
+      "name": "Мини ПК",
+      "tab": "os"
+    },
+    {
+      "code": "SRV",
+      "name": "Сервер",
+      "tab": "infra"
+    },
+    {
+      "code": "SW",
+      "name": "Коммутатор",
+      "tab": "infra"
+    },
+    {
+      "code": "RT",
+      "name": "Маршрутизатор",
+      "tab": "infra"
+    },
+    {
+      "code": "AP",
+      "name": "Точка доступа",
+      "tab": "infra"
+    },
+    {
+      "code": "CAM",
+      "name": "Камера",
+      "tab": "infra"
+    },
+    {
+      "code": "DVR",
+      "name": "Видеорегистратор",
+      "tab": "infra"
+    },
+    {
+      "code": "TSD",
+      "name": "ТСД",
+      "tab": "small"
+    },
+    {
+      "code": "SPK",
+      "name": "Спикерфон",
+      "tab": "small"
+    },
+    {
+      "code": "SPB",
+      "name": "Колонки",
+      "tab": "small"
+    },
+    {
+      "code": "RBR",
+      "name": "Радиомост",
+      "tab": "infra"
+    },
+    {
+      "code": "CPB",
+      "name": "Вызывная панель",
+      "tab": "infra"
+    },
+    {
+      "code": "VDI",
+      "name": "Видеодомофон",
+      "tab": "infra"
+    },
+    {
+      "code": "SCN",
+      "name": "Сканер",
+      "tab": "small"
+    },
+    {
+      "code": "MOU",
+      "name": "Мышь",
+      "tab": "small"
+    },
+    {
+      "code": "KB",
+      "name": "Клавиатура",
+      "tab": "small"
+    },
+    {
+      "code": "HS",
+      "name": "Гарнитура",
+      "tab": "small"
+    },
+    {
+      "code": "CAB",
+      "name": "Кабель/Патч-корд",
+      "tab": "small"
+    },
+    {
+      "code": "POE",
+      "name": "PoE инжектор",
+      "tab": "infra"
+    },
+    {
+      "code": "HUB",
+      "name": "USB-hub",
+      "tab": "small"
+    },
+    {
+      "code": "SSD",
+      "name": "SSD/HDD",
+      "tab": "small"
+    },
+    {
+      "code": "PHN",
+      "name": "Смартфон",
+      "tab": "small"
+    },
+    {
+      "code": "WEB",
+      "name": "Web камера",
+      "tab": "small"
+    },
+    {
+      "code": "SPF",
+      "name": "Сетевой фильтр",
+      "tab": "small"
+    },
+    {
+      "code": "BRC",
+      "name": "Кронштейн",
+      "tab": "small"
+    }
+  ]
+}

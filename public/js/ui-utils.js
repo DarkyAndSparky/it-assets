@@ -37,7 +37,10 @@ function copyToClipboard(text, successMsg) {
 function _copyFallback(text, successMsg) {
   const el = document.createElement('textarea');
   el.value = text;
-  el.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+  el.style.position = 'fixed';
+  el.style.top = '-9999px';
+  el.style.left = '-9999px';
+  el.style.opacity = '0';
   document.body.appendChild(el);
   el.select();
   try { document.execCommand('copy'); toast(successMsg, 'success'); }

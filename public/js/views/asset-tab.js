@@ -93,11 +93,11 @@ async function renderAssetTab(tab) {
   const showMeta = tab==='infra';
 
   app.innerHTML=`
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-    <div style="font-size:16px;font-weight:700">${tabLabel(tab)}
-      <span style="color:var(--muted);font-weight:400;font-size:13px">(${assets.length})</span>
+  <div class="u-flex-between u-mb-12">
+    <div class="u-text-16 u-fw-700">${tabLabel(tab)}
+      <span class="u-text-muted u-fw-400 u-text-13">(${assets.length})</span>
     </div>
-    <div style="display:flex;gap:6px">
+    <div class="u-flex-gap-6">
       ${canEdit()?`<button class="btn btn-secondary btn-sm" data-action="showCatEditor" data-args='${JSON.stringify([tab])}' title="${t('tooltip_categories')}">📂 ${t('btn_categories')}</button>`:''}
       <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=${tab}`, `IT_assets_${tab}.csv`])}'>⬇ CSV</button>
       ${canEdit()?`<button class="btn btn-primary btn-sm" data-action="showAddModal" data-args='${JSON.stringify([tab])}'>${t('btn_add')}</button>`:''}
@@ -107,16 +107,14 @@ async function renderAssetTab(tab) {
     ${['Все',...cats].map(c=>{const val=c==='Все'?'':c;return `<div class="cat-tab ${(currentCat||'Все')===c?'active':''}" data-action="_selectCategory" data-args='${JSON.stringify([tab, val])}'>${c==='Все'?t('lbl_all'):c}</div>`;}).join('')}
   </div>
   ${canEdit() && selectedIds.size > 0 ? `
-  <div style="display:flex;align-items:center;gap:8px;padding:9px 14px;
-    background:var(--accent-dim,var(--surface2));border:1px solid var(--accent);
-    border-radius:10px;margin-bottom:10px;flex-wrap:wrap">
-    <span style="font-size:13px;font-weight:700;color:var(--accent)">☑ ${t('lbl_selected')}: ${selectedIds.size}</span>
+  <div class="selection-toolbar">
+    <span class="u-text-13 u-fw-700 u-text-accent">☑ ${t('lbl_selected')}: ${selectedIds.size}</span>
     <button class="btn btn-primary btn-sm" data-action="showBulkMoveModal" data-args='${JSON.stringify([tab])}'>→ ${t('btn_move')}</button>
     <button class="btn btn-secondary btn-sm" data-action="showBulkInvModal" data-args='${JSON.stringify([tab])}'>🏷 ${t('field_inv')}</button>
     <button class="btn btn-danger btn-sm" data-action="showBulkRetireModal" data-args='${JSON.stringify([tab])}'>🗑 ${t('btn_retire')}</button>
     <button class="btn btn-ghost btn-sm" data-action="clearSelection" data-args='${JSON.stringify([tab])}'>✕ ${t('btn_clear_selection')}</button>
   </div>` : ''}
-  <div class="card" style="margin-bottom:0">
+  <div class="card u-mb-0">
     <div class="filters">
       <input class="search-inp" type="text" placeholder="🔍 ${t('msg_search')}" value="${esc(searchVal)}"
         data-oninput-action="_onAssetSearchInput" data-oninput-args='${JSON.stringify([tab])}'/>
@@ -134,7 +132,7 @@ async function renderAssetTab(tab) {
     </div>
     <div class="tbl-wrap"><table>
       <thead><tr>
-        ${canEdit()?`<th style="width:32px"><input type="checkbox" id="sel-all" title="${t('tooltip_select_all')}"
+        ${canEdit()?`<th class="u-w-32"><input type="checkbox" id="sel-all" title="${t('tooltip_select_all')}"
           data-onchange-action="_onSelectAllChange" data-onchange-args='${JSON.stringify([tab])}'/></th>`:''}
         ${thSort('inv',t('field_inv'))}${thSort('type',t('field_type'))}${thSort('model',t('field_model'))}${thSort('serial',t('field_serial'))}
         ${showMeta?'<th>IP</th><th>MAC</th>':''}
@@ -144,23 +142,23 @@ async function renderAssetTab(tab) {
       </tr></thead>
       <tbody>${assets.map(a=>`
         <tr class="clickable" data-action="showDetail" data-args='${JSON.stringify([a.id])}' id="row-${a.id}">
-          ${canEdit()?`<td data-action="_noop" style="width:32px;text-align:center"><input type="checkbox" class="row-cb" data-id="${a.id}" ${selectedIds.has(a.id)?'checked':''} data-onchange-action="_onSelectOneChange" data-onchange-args='${JSON.stringify([a.id, tab])}'/></td>`:''}
-          <td class="mono" style="font-size:11px">${a.inv?`<span style="background:#eff6ff;color:#1d4ed8;border-radius:5px;padding:2px 6px;font-weight:600">${esc(a.inv)}</span>`:'<span style="color:#cbd5e1">—</span>'}</td>
-          <td>${ic(a.type)} <span style="font-weight:500">${esc(a.type)}</span></td>
+          ${canEdit()?`<td data-action="_noop" class="u-w-32 u-text-center"><input type="checkbox" class="row-cb" data-id="${a.id}" ${selectedIds.has(a.id)?'checked':''} data-onchange-action="_onSelectOneChange" data-onchange-args='${JSON.stringify([a.id, tab])}'/></td>`:''}
+          <td class="mono u-text-11">${a.inv?`<span class="inv-badge">${esc(a.inv)}</span>`:'<span class="u-text-dim">—</span>'}</td>
+          <td>${ic(a.type)} <span class="u-fw-500">${esc(a.type)}</span></td>
           <td><b>${esc(a.model)}</b>${a.photo_count?`
             <button class="btn-icon" data-action="_openAssetPhotosQuick" data-args='${JSON.stringify([a.id])}' data-stop="1"
               title="${t('tooltip_has_photos', { n: a.photo_count })}"
-              style="margin-left:4px;font-size:11px;padding:1px 5px">📷${a.photo_count>1?a.photo_count:''}</button>`:''}</td>
+              class="u-ml-4 u-text-11 u-p-1-5">📷${a.photo_count>1?a.photo_count:''}</button>`:''}</td>
           <td class="mono">${esc(a.serial)||'—'}</td>
           ${showMeta?`<td><span class="badge-meta">${esc(a.meta?.ip)||'—'}</span></td>
-            <td class="mono" style="font-size:11px">${esc(a.meta?.mac)||'—'}</td>`:''}
+            <td class="mono u-text-11">${esc(a.meta?.mac)||'—'}</td>`:''}
           <td>${(!a.responsible||a.responsible==='?'||a.responsible==='—')
             ?`<span class="no-resp">${t('lbl_not_assigned')}</span>`:esc(a.responsible)}</td>
-          <td><b>${esc(a.filial)}</b>${a.location?` <span style="color:var(--muted)">· ${esc(a.location)}</span>`:''}</td>
-          <td style="font-size:11px;color:var(--muted);white-space:nowrap">${esc(_orgMap[a.org_id]||a.org||'—')}</td>
+          <td><b>${esc(a.filial)}</b>${a.location?` <span class="u-text-muted">· ${esc(a.location)}</span>`:''}</td>
+          <td class="u-text-11 u-text-muted u-nowrap">${esc(_orgMap[a.org_id]||a.org||'—')}</td>
           <td><span class="badge-cat">${esc(a.category)}</span></td>
           <td><span class="badge-s ${sc(a.status)}">${a.status}</span></td>
-          ${canEdit()?`<td data-action="_noop" style="white-space:nowrap">
+          ${canEdit()?`<td data-action="_noop" class="u-nowrap">
             <button class="btn btn-secondary btn-sm" data-action="showMoveModal" data-args='${JSON.stringify([a.id])}'>→</button>
             <button class="btn-icon" data-action="showEditModal" data-args='${JSON.stringify([a.id])}' title="${t('btn_edit')}">✏️</button>
           </td>`:''}
@@ -186,7 +184,7 @@ async function renderAssetTab(tab) {
 function showCatEditor(tab) {
   const cats = catsCache[tab]||[];
   showModal(`<h2>📂 ${t('modal_categories_title', { tab: tabLabel(tab) })}</h2>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:12px">
+    <div class="u-text-13 u-text-muted u-mb-12">
       ${t('msg_categories_used_for_grouping')}<br>
       ${t('msg_category_delete_note')}
     </div>
@@ -196,8 +194,8 @@ function showCatEditor(tab) {
         <span class="del" data-action="removeTag" data-args='${JSON.stringify([tab, esc(c)])}'>×</span>
       </div>`).join('')}
     </div>
-    <div style="display:flex;gap:7px;margin-top:14px">
-      <input id="new-cat-inp" style="flex:1" placeholder="${t('msg_new_collection_placeholder')}" 
+    <div class="u-flex-gap-7 u-mt-14">
+      <input id="new-cat-inp" class="u-flex-1" placeholder="${t('msg_new_collection_placeholder')}" 
         data-onkeydown-action="_onNewCatKeydown" data-onkeydown-args='${JSON.stringify([tab])}'/>
       <button class="btn btn-success" data-action="addTag" data-args='${JSON.stringify([tab])}'>${t('btn_add')}</button>
     </div>
@@ -236,10 +234,8 @@ async function saveCats(tab) {
 function thSort(col, label) {
   const active = sortCol === col;
   const arrow  = active ? (sortDir === 1 ? ' ▲' : ' ▼') : '';
-  const style  = active
-    ? 'cursor:pointer;user-select:none;color:var(--indigo);white-space:nowrap'
-    : 'cursor:pointer;user-select:none;white-space:nowrap';
-  return `<th style="${style}" data-action="setSort" data-args='${JSON.stringify([col])}'>${label}${arrow}</th>`;
+  const cls = 'sort-th' + (active ? ' sort-th-active' : '');
+  return `<th class="${cls}" data-action="setSort" data-args='${JSON.stringify([col])}'>${label}${arrow}</th>`;
 }
 
 function setSort(col) {
@@ -294,13 +290,13 @@ function renderPaginator(totalPages, totalAssets) {
       btns += `<button class="btn btn-sm ${cls}" data-action="gotoPage" data-args='${JSON.stringify([p])}'>${p}</button>`;
       lastWasDots = false;
     } else if (Math.abs(p - currentPage) === 3 && !lastWasDots) {
-      btns += '<span style="color:var(--muted);padding:0 4px">…</span>';
+      btns += '<span class="u-text-muted u-p-0-4">…</span>';
       lastWasDots = true;
     }
   }
   btns += `<button class="btn btn-ghost btn-sm"${nextDis} data-action="gotoPage" data-args='${JSON.stringify([currentPage+1])}'>${t('btn_next')} →</button>`;
-  btns += `<span style="font-size:12px;color:var(--muted);margin-left:8px">${from}–${to} ${t('lbl_of')} ${totalAssets}</span>`;
-  return `<div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:14px;flex-wrap:wrap">${btns}</div>`;
+  btns += `<span class="u-text-12 u-text-muted u-ml-8">${from}–${to} ${t('lbl_of')} ${totalAssets}</span>`;
+  return `<div class="paginator-wrap">${btns}</div>`;
 }
 
 function gotoPage(page) {
@@ -331,9 +327,9 @@ async function showBulkInvModal(tab) {
   ).join('');
 
   showModal(`<h2>${t('modal_bulk_inv_title')}</h2>
-    <div style="background:var(--surface2);border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px;border:1px solid var(--border)">
+    <div class="surface-note-box">
       ${t('lbl_selected_devices')}: <b>${selectedArr.length}</b><br>
-      <span style="font-size:11px;color:var(--muted)">${t('msg_devices_without_inv_note')}</span>
+      <span class="u-text-11 u-text-muted">${t('msg_devices_without_inv_note')}</span>
     </div>
     <div class="form-row"><label>${t('field_org')}</label>
       <select id="bi-org" data-onchange-action="_onBulkInvOrgChange" data-onchange-args='${JSON.stringify([orgsWithRules])}'>
@@ -343,8 +339,8 @@ async function showBulkInvModal(tab) {
     <div class="form-row"><label>${t('field_device_type_rule')}</label>
       <select id="bi-type"></select>
     </div>
-    <div id="bi-preview" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+    <div id="bi-preview" class="u-text-12 u-text-muted u-mb-8"></div>
+    <div class="u-text-12 u-text-muted u-mb-14 u-lh-16">
       ${t('msg_inv_only_without_number_note')}
     </div>
     <div class="modal-actions">
@@ -408,7 +404,7 @@ async function doBulkAssignInv(tab) {
 function showBulkRetireModal(tab) {
   if (!selectedIds.size) return toast(t('msg_nothing_selected'), 'error');
   showModal(`<h2>${t('modal_bulk_retire_title')}</h2>
-    <div style="background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px;color:var(--danger-text)">
+    <div class="danger-callout">
       ${t('msg_will_be_retired_count')}: <b>${selectedIds.size}</b> ${t('msg_units_of_equipment')}.<br>
       ${t('msg_retire_irreversible')}
     </div>
@@ -444,9 +440,9 @@ function showBulkMoveModal(tab) {
   const filOpts = _filialsCache.map(f=>`<option value="${f.name}">${esc(f.name)}</option>`).join('');
   const locOpts = _locsCache.map(l=>`<option value="${l.name}">${esc(l.name)}</option>`).join('');
   showModal(`<h2>${t('modal_bulk_move_title')}</h2>
-    <div style="background:#eff6ff;border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px">
+    <div class="blue-note-box">
       ${t('lbl_assets_count')}: <b>${selectedIds.size}</b> &nbsp;·&nbsp;
-      <span style="font-size:12px;color:var(--muted)">${t('msg_empty_field_note')}</span>
+      <span class="u-text-12 u-text-muted">${t('msg_empty_field_note')}</span>
     </div>
     <div class="form-row"><label>${t('field_responsible')}</label>
       <input id="bm-resp" placeholder="${t('msg_full_name_example')}"/></div>

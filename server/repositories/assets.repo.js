@@ -64,27 +64,55 @@ function buildUpdate(fields) {
   return { cols, vals };
 }
 
-function _resolveOrgName(a, orgMap) {
-  const SYS_ORG = new Set(['sys-org-unk', '', undefined, null]);
-  if (a.org_id && !SYS_ORG.has(a.org_id)) return orgMap[a.org_id] || a.org || '—';
-  return (a.org && a.org !== '—' && a.org !== '?') ? a.org : '—';
+// BUG-4: org/filial/location хранятся на ассете и как id (org_id/filial_id/
+// location_id), и как снапшот имени на момент простановки (org/filial/
+// location) — так исторически заведено, чтобы не терять контекст, если
+// справочник переименуют или запись закроют. Раньше только org_id
+// разрешался в актуальное имя при чтении (_resolveOrgName) — filial/location
+// оставались «замороженным» снапшотом и расходились с реальным названием
+// после переименования филиала/локации. normalizeAsset() применяет одну и
+// ту же логику разрешения ко всем трём полям: если id задан и есть в
+// актуальном справочнике — берём оттуда, иначе (id нет / запись закрыта и
+// вычищена из справочника) — падаем на снапшот, а если и снапшота нет —
+// на '—'.
+const SYS_UNK_IDS = new Set(['sys-org-unk', 'sys-filial-unk', 'sys-location-unk', '', undefined, null]);
+
+function _resolveName(idVal, snapshot, map) {
+  if (idVal && !SYS_UNK_IDS.has(idVal) && map[idVal]) return map[idVal];
+  return (snapshot && snapshot !== '—' && snapshot !== '?') ? snapshot : '—';
+}
+
+function _buildNameMaps() {
+  // db.config.getOrgs()/getFilials()/getLocations() — реальные SQL-backed
+  // справочники (Фаза 7c-7/7c-2). cfg.get(...) (lowdb) больше не
+  // обновляется с тех пор, как эти репозитории переехали на SQL —
+  // использование lowdb здесь было бы скрытым багом того же рода, что
+  // нашёлся в Фазе 7c-5.
+  return {
+    orgMap:      Object.fromEntries(db.config.getOrgs(true).map(o => [o.id, o.name])),
+    filialMap:   Object.fromEntries(db.config.getFilials(true).map(f => [f.id, f.name])),
+    locationMap: Object.fromEntries(db.config.getLocations(null, true).map(l => [l.id, l.name])),
+  };
+}
+
+function normalizeAsset(a, maps) {
+  return {
+    ...a,
+    org:      _resolveName(a.org_id,      a.org,      maps.orgMap),
+    filial:   _resolveName(a.filial_id,   a.filial,   maps.filialMap),
+    location: _resolveName(a.location_id, a.location, maps.locationMap),
+  };
 }
 
 function listAssets(query) {
   const { tab, category, org, filial, status, search,
           no_responsible, no_inv, no_serial, stale_days, limit, page } = query;
-  let items = stmts.selectActive.all().map(rowToAsset);
-
-  // db.config.getOrgs() — реальный SQL-backed список организаций (Фаза
-  // 7c-7). cfg.get('organizations') (lowdb) больше не обновляется с тех
-  // пор, как orgs.repo.js переехал на SQL — использование lowdb здесь
-  // было бы скрытым багом того же рода, что нашёлся в Фазе 7c-5.
-  const orgMap = Object.fromEntries(db.config.getOrgs(true).map(o => [o.id, o.name]));
-  const resolveOrgName = a => _resolveOrgName(a, orgMap);
+  const maps = _buildNameMaps();
+  let items = stmts.selectActive.all().map(rowToAsset).map(a => normalizeAsset(a, maps));
 
   if (tab)      items = items.filter(a => a.tab === tab);
   if (category && category !== 'Все') items = items.filter(a => a.category === category);
-  if (org      && org      !== 'Все') items = items.filter(a => resolveOrgName(a) === org);
+  if (org      && org      !== 'Все') items = items.filter(a => a.org === org);
   if (filial   && filial   !== 'Все') items = items.filter(a => a.filial === filial);
   if (status   && status   !== 'Все') items = items.filter(a => a.status === status);
   if (no_responsible === '1') items = items.filter(a => !a.responsible || a.responsible === '?' || a.responsible === '—');
@@ -130,7 +158,6 @@ function listAssets(query) {
 
   const slice = pageItems.map(a => ({
     ...a,
-    org: resolveOrgName(a),
     photo_count: photoCounts[a.id] || 0,
   }));
 
@@ -141,18 +168,89 @@ function searchAssets(q) {
   const query = (q || '').trim().toLowerCase();
   if (!query || query.length < 2) return [];
   const FIELDS = ['model','serial','inv','responsible','org','filial','location','type','note'];
-  const orgMap = Object.fromEntries(
-    db.config.getOrgs(true).map(o => [o.id, o.name.toLowerCase()])
-  );
-  return stmts.selectActive.all().map(rowToAsset)
-    .filter(a => FIELDS.some(f => (a[f]||'').toLowerCase().includes(query))
-      || (a.org_id && (orgMap[a.org_id]||'').includes(query)))
+  const maps = _buildNameMaps();
+  return stmts.selectActive.all().map(rowToAsset).map(a => normalizeAsset(a, maps))
+    .filter(a => FIELDS.some(f => (a[f]||'').toLowerCase().includes(query)))
     .slice(0, 100);
 }
 
 function getAssetById(id) {
   if (!id) return null;
-  return rowToAsset(stmts.selectOne.get(id));
+  const a = rowToAsset(stmts.selectOne.get(id));
+  if (!a) return null;
+  return normalizeAsset(a, _buildNameMaps());
+}
+
+function _lookupId(name, list) {
+  if (!name) return null;
+  const key = String(name).trim().toLowerCase();
+  if (!key) return null;
+  const found = list.find(e => e.name.trim().toLowerCase() === key);
+  return found ? found.id : null;
+}
+
+// PROD-3: серверная валидация meta по схеме типа (PROD-1). Валидируем
+// только если для type_code этого актива ЕСТЬ явно сохранённая схема
+// (db.getFieldSchema) — если схемы нет, поведение как раньше (meta не
+// проверяется), никакого скрытого дефолтного набора полей на сервере не
+// заводим: он уже есть на фронте (meta-fields.js) для рендера формы, и
+// дублирование этого списка на сервере — тот самый класс бага (два места
+// с одной и той же истиной, расходятся при правке одного без другого),
+// который в этом проекте уже не раз находили (см. Track 0 находки по
+// cfg/lowdb vs SQL).
+const META_TYPE_VALIDATORS = {
+  number:  v => v === '' || v == null || !isNaN(Number(v)),
+  boolean: v => v === '' || v == null || [true, false, 'true', 'false', '1', '0'].includes(v),
+  ip:      v => v === '' || v == null || /^(\d{1,3}\.){3}\d{1,3}$/.test(String(v)),
+  date:    v => v === '' || v == null || !isNaN(Date.parse(String(v))),
+  select:  (v, f) => v === '' || v == null || (f.options || []).includes(String(v)),
+  text:    () => true,
+};
+
+function _resolveTypeCode(typeName) {
+  if (!typeName) return null;
+  const found = db.getTypeCodes().find(t => t.name === typeName);
+  return found ? found.code : null;
+}
+
+function _validateMetaAgainstSchema(typeName, meta) {
+  const typeCode = _resolveTypeCode(typeName);
+  const schema = typeCode ? db.getFieldSchema(typeCode) : null;
+  if (!schema) return; // нет кастомной схемы для этого типа — не проверяем
+  for (const f of schema) {
+    const val = meta ? meta[f.key] : undefined;
+    if (f.required && (val === undefined || val === null || val === '')) {
+      const e = new Error(`Поле "${f.label || f.key}" обязательно для типа "${typeName}"`);
+      e.badRequest = true; throw e;
+    }
+    if (val !== undefined && val !== null) {
+      const validator = META_TYPE_VALIDATORS[f.type] || META_TYPE_VALIDATORS.text;
+      if (!validator(val, f)) {
+        const e = new Error(`Поле "${f.label || f.key}" не соответствует типу "${f.type}"`);
+        e.badRequest = true; throw e;
+      }
+    }
+  }
+}
+
+// BUG-4 (продолжение): createAsset/updateAsset/moveAsset раньше писали
+// только текстовый снапшот org/filial/location и никогда не проставляли
+// org_id/filial_id/location_id — из-за этого normalizeAsset() выше не мог
+// разрешить актуальное имя для активов, заведённых/перемещённых вручную
+// через UI (id был только у активов, попавших через CSV-импорт, или у
+// смигрированных дореформенных записей). _resolveWriteIds() подтягивает id
+// по имени из актуального справочника в момент записи — так же, как это
+// делает csv.repo.js при импорте, но без авто-создания недостающих записей:
+// значения в дропдаунах формы и так берутся из существующего справочника;
+// если имя не нашлось (например, org — это в форме свободный текст, не
+// обязанный совпадать со справочником) — id остаётся null, а
+// normalizeAsset() при чтении просто падает на снапшот, как и раньше.
+function _resolveWriteIds({ org, filial, location } = {}) {
+  const out = {};
+  if (org      !== undefined) out.org_id      = _lookupId(org,      db.config.getOrgs(true));
+  if (filial   !== undefined) out.filial_id   = _lookupId(filial,   db.config.getFilials(true));
+  if (location !== undefined) out.location_id = _lookupId(location, db.config.getLocations(null, true));
+  return out;
 }
 
 function createAsset(body, changedByStr) {
@@ -160,8 +258,10 @@ function createAsset(body, changedByStr) {
           responsible='', type='', model='', serial='', status='используется',
           org='', note='', inv='', meta={} } = body || {};
   if (!model) throw new Error('Model required');
+  _validateMetaAgainstSchema(type, meta);
   const now = new Date().toISOString();
   const id = uuidv7();
+  const ids = _resolveWriteIds({ org, filial, location });
 
   const values = ASSET_COLS.map(col => {
     if (col === 'id') return id;
@@ -169,7 +269,7 @@ function createAsset(body, changedByStr) {
     if (col === 'status') return status;
     if (col.startsWith('meta_')) return meta[col.slice(5)] ?? null;
     const plain = { tab, category, filial, address, location, responsible,
-      type, model, serial, org, note, inv: inv || '' };
+      type, model, serial, org, note, inv: inv || '', ...ids };
     return plain[col] !== undefined ? plain[col] : null;
   });
 
@@ -197,8 +297,15 @@ function createAsset(body, changedByStr) {
 function updateAsset(id, body, changedByStr) {
   const asset = stmts.selectOne.get(id);
   if (!asset) { const e = new Error('Not found'); e.notFound = true; throw e; }
+  // PROD-3: meta в body — частичный патч (см. buildUpdate ниже), поэтому
+  // для проверки required-полей валидируем СЛИТЫЙ результат (существующее
+  // + патч), а не только пришедшие ключи — иначе "требуется X" ложно не
+  // сработает, если X уже стоит, а патч трогает другое поле.
+  const effectiveType = (body && body.type !== undefined) ? body.type : asset.type;
+  const effectiveMeta = { ...rowToAsset(asset).meta, ...(body && body.meta) };
+  _validateMetaAgainstSchema(effectiveType, effectiveMeta);
   const now = new Date().toISOString();
-  const { cols, vals } = buildUpdate(body || {});
+  const { cols, vals } = buildUpdate({ ...(body || {}), ..._resolveWriteIds(body || {}) });
   cols.push('updated_at = ?'); vals.push(now);
 
   const STATUS_LABELS = {
@@ -276,6 +383,10 @@ function moveAsset(id, body, changedByStr) {
   const nextFilial      = pick(newFilial,      asset.filial);
   const nextAddress     = pick(newAddress,     asset.address);
   const nextLocation    = pick(newLocation,    asset.location);
+  // BUG-4: перемещение меняет текстовый снапшот org/filial/location — id
+  // должен переезжать вместе с ним, иначе normalizeAsset() при следующем
+  // чтении разрешит НОВОЕ имя, но по СТАРОМУ id (или не разрешит вовсе).
+  const nextIds = _resolveWriteIds({ org: nextOrg, filial: nextFilial, location: nextLocation });
 
   const histReason = [
     reason || 'Перемещение',
@@ -285,8 +396,8 @@ function moveAsset(id, body, changedByStr) {
 
   sqlite.exec('BEGIN');
   try {
-    sqlite.prepare('UPDATE assets SET responsible=?, org=?, filial=?, address=?, location=?, updated_at=? WHERE id=?')
-      .run(nextResponsible, nextOrg, nextFilial, nextAddress, nextLocation, now, id);
+    sqlite.prepare('UPDATE assets SET responsible=?, org=?, org_id=?, filial=?, filial_id=?, address=?, location=?, location_id=?, updated_at=? WHERE id=?')
+      .run(nextResponsible, nextOrg, nextIds.org_id, nextFilial, nextIds.filial_id, nextAddress, nextLocation, nextIds.location_id, now, id);
     stmts.historyInsert.run(uuidv7(), id, 'move', now,
       asset.responsible || '', nextResponsible ?? '',
       nextFilial ?? '', nextLocation ?? '',
@@ -311,6 +422,9 @@ function bulkMoveAssets(body, changedByStr) {
   // а не только количество, чтобы вызывающая сторона могла разобрать,
   // какие конкретно ассеты не обработались, а не только сколько их было.
   const results = { ok: 0, failed: [], ids_assigned: [], ids_failed: [] };
+  // Списки один раз на весь bulk-вызов, а не на каждый ассет в forEach.
+  const filialsList   = db.config.getFilials(true);
+  const locationsList = db.config.getLocations(null, true);
 
   sqlite.exec('BEGIN');
   try {
@@ -322,9 +436,12 @@ function bulkMoveAssets(body, changedByStr) {
       const nextFilial      = pick(newFilial,      asset.filial);
       const nextAddress     = pick(newAddress,     asset.address);
       const nextLocation    = pick(newLocation,    asset.location);
+      // BUG-4: тот же перенос id вместе со снапшотом, что и в moveAsset().
+      const nextFilialId   = newFilial   !== undefined ? _lookupId(nextFilial,   filialsList)   : asset.filial_id;
+      const nextLocationId = newLocation !== undefined ? _lookupId(nextLocation, locationsList) : asset.location_id;
 
-      sqlite.prepare('UPDATE assets SET responsible=?, filial=?, address=?, location=?, updated_at=? WHERE id=?')
-        .run(nextResponsible, nextFilial, nextAddress, nextLocation, now, id);
+      sqlite.prepare('UPDATE assets SET responsible=?, filial=?, filial_id=?, address=?, location=?, location_id=?, updated_at=? WHERE id=?')
+        .run(nextResponsible, nextFilial, nextFilialId, nextAddress, nextLocation, nextLocationId, now, id);
 
       const histReason = [
         reason || 'Массовое перемещение',

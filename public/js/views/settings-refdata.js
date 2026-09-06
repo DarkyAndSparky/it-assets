@@ -57,12 +57,12 @@ function _renderOrgsPanel() {
 
   const rows = visible.map(o => {
     const isLiq = o.status === 'liquidated';
-    return `<tr style="${isLiq ? 'opacity:0.55' : ''}">
-      <td><b>${esc(o.name)}</b>${isLiq ? ` <span style="font-size:11px;color:var(--muted)">${t('lbl_liquidated_suffix')}</span>` : ''}</td>
-      <td><code style="font-size:12px;color:var(--indigo)">${esc(o.short_code)}</code></td>
+    return `<tr class="${isLiq ? 'row-liquidated' : ''}">
+      <td><b>${esc(o.name)}</b>${isLiq ? ` <span class="u-text-11 u-text-muted">${t('lbl_liquidated_suffix')}</span>` : ''}</td>
+      <td><code class="u-text-12 u-text-indigo">${esc(o.short_code)}</code></td>
       <td>${isLiq ? '—' : t('lbl_rules_count', { n: o.inv_rules?.length || 0 })}</td>
       <td><span class="badge-s ${o.status==='active'?'s-used':'s-off'}">${o.status==='active'?t('lbl_status_active'):t('lbl_status_liquidated')}</span></td>
-      <td style="white-space:nowrap">
+      <td class="u-nowrap">
         ${!isLiq ? `
         <button class="btn-icon" title="${t('tooltip_inv_rules')}" data-action="showInvRulesModal" data-args='${JSON.stringify([o.id])}'>🏷</button>
         <button class="btn-icon" title="${t('tooltip_rename')}" data-action="showRenameOrgModal" data-args='${JSON.stringify([o.id, esc(o.name)])}'>✏️</button>
@@ -74,10 +74,10 @@ function _renderOrgsPanel() {
 
   return `
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-        <div class="section-title" style="margin:0">${t('orgs_title')}</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:5px;cursor:pointer">
+      <div class="section-header-flex">
+        <div class="section-title u-m-0">${t('orgs_title')}</div>
+        <div class="u-flex-gap-8">
+          <label class="checkbox-label-muted">
             <input type="checkbox" ${_showLiquidatedOrgs?'checked':''} data-onchange-action="_onToggleShowLiquidatedOrgs">
             ${t('lbl_show_archive')}
           </label>
@@ -87,10 +87,10 @@ function _renderOrgsPanel() {
       <div class="tbl-wrap">
         <table>
           <thead><tr><th>${t('th_name')}</th><th>${t('th_code')}</th><th>${t('th_inv_rules')}</th><th>${t('th_status')}</th><th></th></tr></thead>
-          <tbody>${rows || `<tr><td colspan="5" style="color:var(--muted);text-align:center">${t('msg_no_data')}</td></tr>`}</tbody>
+          <tbody>${rows || `<tr><td colspan="5" class="u-text-muted u-text-center">${t('msg_no_data')}</td></tr>`}</tbody>
         </table>
       </div>
-      ${liquidated.length && !_showLiquidatedOrgs ? `<div style="padding:8px 0 0;font-size:12px;color:var(--muted)">${t('msg_n_liquidated_hidden', { n: liquidated.length })}</div>` : ''}
+      ${liquidated.length && !_showLiquidatedOrgs ? `<div class="u-p-8-0 u-text-12 u-text-muted">${t('msg_n_liquidated_hidden', { n: liquidated.length })}</div>` : ''}
     </div>`;
 }
 
@@ -104,11 +104,11 @@ function _renderFilialsPanel() {
 
   const rows = visible.map(f => {
     const isClosed = f.status === 'closed';
-    return `<tr style="${isClosed ? 'opacity:0.5' : ''}">
-      <td><b>${esc(f.name)}</b>${isClosed ? ` <span style="font-size:11px;color:var(--muted)">${t('lbl_closed_suffix')}</span>` : ''}</td>
-      <td style="color:var(--muted);font-size:12px">${esc(f.address||'—')}</td>
+    return `<tr class="${isClosed ? 'row-closed' : ''}">
+      <td><b>${esc(f.name)}</b>${isClosed ? ` <span class="u-text-11 u-text-muted">${t('lbl_closed_suffix')}</span>` : ''}</td>
+      <td class="u-text-muted u-text-12">${esc(f.address||'—')}</td>
       <td><span class="badge-s ${f.status==='active'?'s-used':'s-off'}">${f.status}</span></td>
-      <td style="white-space:nowrap">
+      <td class="u-nowrap">
         ${!isClosed ? `<button class="btn-icon" title="${t('tooltip_edit')}" data-action="showEditFilialModal" data-args='${JSON.stringify([f.id, esc(f.name), esc(f.address||"")])}'>✏️</button>` : ''}
         ${f.status==='active' ? `<button class="btn-icon" title="${t('tooltip_close')}" data-action="closeFilial" data-args='${JSON.stringify([f.id, esc(f.name)])}'>🔒</button>` : ''}
         <button class="btn-icon" title="${t('tooltip_locations')}" data-action="_goToFilialLocations" data-args='${JSON.stringify([f.id])}'>📍</button>
@@ -118,10 +118,10 @@ function _renderFilialsPanel() {
 
   return `
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-        <div class="section-title" style="margin:0">${t('filials_title')}</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:5px;cursor:pointer">
+      <div class="section-header-flex">
+        <div class="section-title u-m-0">${t('filials_title')}</div>
+        <div class="u-flex-gap-8">
+          <label class="checkbox-label-muted">
             <input type="checkbox" ${_showClosedFilials?'checked':''} data-onchange-action="_onToggleShowClosedFilials">
             ${t('lbl_show_closed')}
           </label>
@@ -131,10 +131,10 @@ function _renderFilialsPanel() {
       <div class="tbl-wrap">
         <table>
           <thead><tr><th>${t('th_name')}</th><th>${t('th_address')}</th><th>${t('th_status')}</th><th></th></tr></thead>
-          <tbody>${rows || `<tr><td colspan="4" style="color:var(--muted);text-align:center">${t('msg_no_data')}</td></tr>`}</tbody>
+          <tbody>${rows || `<tr><td colspan="4" class="u-text-muted u-text-center">${t('msg_no_data')}</td></tr>`}</tbody>
         </table>
       </div>
-      ${closed.length && !_showClosedFilials ? `<div style="padding:8px 0 0;font-size:12px;color:var(--muted)">${t('msg_n_closed_hidden', { n: closed.length })}</div>` : ''}
+      ${closed.length && !_showClosedFilials ? `<div class="u-p-8-0 u-text-12 u-text-muted">${t('msg_n_closed_hidden', { n: closed.length })}</div>` : ''}
     </div>`;
 }
 
@@ -154,10 +154,10 @@ function _renderLocationsFiltered() {
     const fil = _filialsCache.find(f => f.id === l.filial_id);
     return `<tr>
       <td><b>${esc(l.name)}</b></td>
-      <td style="color:var(--muted);font-size:12px">${esc(fil?.name||'—')}</td>
+      <td class="u-text-muted u-text-12">${esc(fil?.name||'—')}</td>
       <td><span class="badge-cat">${esc(l.type||'office')}</span></td>
       <td><span class="badge-s ${l.status==='active'?'s-used':'s-off'}">${l.status}</span></td>
-      <td style="white-space:nowrap">
+      <td class="u-nowrap">
         <button class="btn-icon" title="${t('tooltip_edit')}" data-action="showEditLocationModal" data-args='${JSON.stringify([l.id, esc(l.name), l.filial_id, l.type||"office"])}'>✏️</button>
         ${l.status==='active'?`<button class="btn-icon" title="${t('tooltip_close')}" data-action="closeLocation" data-args='${JSON.stringify([l.id, esc(l.name)])}'>🔒</button>`:''}
       </td>
@@ -166,17 +166,17 @@ function _renderLocationsFiltered() {
 
   const html = `
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-        <div class="section-title" style="margin:0">${t('locations_title')}</div>
-        <div style="display:flex;gap:7px;align-items:center">
-          <select style="font-size:13px" data-onchange-action="_onLocFilterFilialChange">${filialOptions}</select>
+      <div class="section-header-flex-wrap">
+        <div class="section-title u-m-0">${t('locations_title')}</div>
+        <div class="u-flex-gap-7">
+          <select class="u-text-13" data-onchange-action="_onLocFilterFilialChange">${filialOptions}</select>
           <button class="btn btn-primary btn-sm" data-action="showCreateLocationModal">${t('btn_add')}</button>
         </div>
       </div>
       <div class="tbl-wrap">
         <table>
           <thead><tr><th>${t('th_name')}</th><th>${t('th_filial')}</th><th>${t('th_type')}</th><th>${t('th_status')}</th><th></th></tr></thead>
-          <tbody>${rows||`<tr><td colspan="5" style="color:var(--muted);text-align:center">${t('msg_no_data')}</td></tr>`}</tbody>
+          <tbody>${rows||`<tr><td colspan="5" class="u-text-muted u-text-center">${t('msg_no_data')}</td></tr>`}</tbody>
         </table>
       </div>
     </div>`;
@@ -191,9 +191,9 @@ function showCreateOrgModal() {
   showModal(`<h2>${t('modal_new_org_title')}</h2>
     <div class="form-row"><label>${t('field_name_required')}</label><input id="co-name" placeholder="${t('msg_new_org_name_placeholder2')}"/></div>
     <div class="form-row"><label>${t('field_code_short')}</label>
-      <input id="co-code" placeholder="${t('msg_code_placeholder')}" maxlength="8" style="text-transform:uppercase"
+      <input id="co-code" placeholder="${t('msg_code_placeholder')}" maxlength="8" class="u-uppercase"
         data-oninput-action="forceUppercase"/>
-      <div style="font-size:11px;color:var(--muted);margin-top:3px">
+      <div class="u-text-11 u-text-muted u-mt-3">
         ${t('msg_code_hint')}
       </div>
     </div>
@@ -214,9 +214,9 @@ async function doCreateOrg() {
 
 function showRenameOrgModal(id, currentName) {
   showModal(`<h2>${t('modal_rename_org_title')}</h2>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:14px">
+    <div class="u-text-13 u-text-muted u-mb-14">
       ${t('lbl_current_name')}: <b>${esc(currentName)}</b><br>
-      <span style="font-size:12px">${t('msg_history_snapshot_note')}</span>
+      <span class="u-text-12">${t('msg_history_snapshot_note')}</span>
     </div>
     <div class="form-row"><label>${t('field_new_name_required')}</label>
       <input id="rn-name" value="${esc(currentName)}"/></div>
@@ -239,7 +239,7 @@ function showLiquidateOrgModal(id, name) {
   const opts = _orgsCache.filter(o => o.id !== id && o.status === 'active')
     .map(o => `<option value="${o.id}">${esc(o.name)}</option>`).join('');
   showModal(`<h2>${t('modal_liquidate_org_title')}</h2>
-    <div style="background:var(--noInv-bg);border:1px solid var(--danger-border);border-radius:8px;padding:11px;margin-bottom:14px;font-size:13px;color:var(--danger-text)">
+    <div class="liquidate-warn-box">
       ${t('msg_liquidate_warning', { name: esc(name) })}
     </div>
     <div class="form-row"><label>${t('field_transfer_assets_to')}</label>
@@ -249,13 +249,13 @@ function showLiquidateOrgModal(id, name) {
         <option value="__new__">${t('msg_create_new_org')}</option>
       </select>
     </div>
-    <div id="lq-new-fields" style="display:none">
+    <div id="lq-new-fields" class="u-hidden">
       <div class="form-row"><label>${t('field_new_org_name_required')}</label>
         <input id="lq-new-name" placeholder="${t('msg_new_org_name_placeholder')}"/></div>
       <div class="form-row"><label>${t('field_short_code_required')}</label>
-        <input id="lq-new-code" placeholder="${t('msg_short_code_placeholder')}" style="text-transform:uppercase"
+        <input id="lq-new-code" placeholder="${t('msg_short_code_placeholder')}" class="u-uppercase"
           data-oninput-action="forceUppercase"/>
-        <div style="font-size:11px;color:var(--muted);margin-top:3px">
+        <div class="u-text-11 u-text-muted u-mt-3">
           ${t('msg_rules_copied_note')}
         </div></div>
     </div>
@@ -314,24 +314,24 @@ function showInvRulesModal(orgId) {
   if (!org) return;
   const rules = org.inv_rules || [];
   const rulesHtml = rules.length
-    ? `<table style="width:100%;font-size:13px;margin-bottom:14px">
-        <thead><tr><th>${t('th_code')}</th><th>${t('th_name')}</th><th>${t('th_counter')}</th><th>${t('th_format')}</th><th style="text-align:center">${t('th_status')}</th><th></th></tr></thead>
+    ? `<table class="inv-rules-table">
+        <thead><tr><th>${t('th_code')}</th><th>${t('th_name')}</th><th>${t('th_counter')}</th><th>${t('th_format')}</th><th class="u-text-center">${t('th_status')}</th><th></th></tr></thead>
         <tbody>${rules.map(r => `<tr id="ir-row-${r.type_code}">
           <td><code>${esc(r.type_code)}</code></td>
-          <td id="ir-name-${r.type_code}" data-ondblclick-action="startRenameInvRule" data-ondblclick-args='${JSON.stringify([orgId, r.type_code, esc(r.type_name)])}' style="cursor:text" title="${t('tooltip_rename_dblclick')}">${esc(r.type_name)}</td>
-          <td style="color:var(--muted);text-align:center">${r.counter}</td>
-          <td style="font-size:11px;color:var(--muted)">${esc(r.format)}</td>
-          <td style="text-align:center"><span class="badge-s ${r.active!==false?'s-used':'s-off'}" style="cursor:pointer"
+          <td id="ir-name-${r.type_code}" data-ondblclick-action="startRenameInvRule" data-ondblclick-args='${JSON.stringify([orgId, r.type_code, esc(r.type_name)])}' class="u-cursor-text" title="${t('tooltip_rename_dblclick')}">${esc(r.type_name)}</td>
+          <td class="u-text-muted u-text-center">${r.counter}</td>
+          <td class="u-text-11 u-text-muted">${esc(r.format)}</td>
+          <td class="u-text-center"><span class="badge-s ${r.active!==false?'s-used':'s-off'} u-cursor-pointer"
             data-action="toggleInvRule" data-args='${JSON.stringify([orgId, r.type_code, r.active===false])}'>${r.active!==false?t('lbl_rule_active'):t('lbl_rule_off')}</span></td>
-          <td style="text-align:right"><button class="btn-icon" title="${t('tooltip_delete_rule')}" data-action="deleteInvRule" data-args='${JSON.stringify([orgId, r.type_code])}'>🗑</button></td>
+          <td class="u-text-right"><button class="btn-icon" title="${t('tooltip_delete_rule')}" data-action="deleteInvRule" data-args='${JSON.stringify([orgId, r.type_code])}'>🗑</button></td>
         </tr>`).join('')}</tbody>
       </table>`
-    : `<div style="color:var(--muted);font-size:13px;margin-bottom:14px">${t('msg_no_rules')}</div>`;
+    : `<div class="u-text-muted u-text-13 u-mb-14">${t('msg_no_rules')}</div>`;
 
   showModal(`<h2>${t('modal_inv_rules_title', { org: esc(org.name) })}</h2>
     ${rulesHtml}
     <hr class="sep"/>
-    <div class="section-title" style="font-size:13px">${t('lbl_add_rule')}</div>
+    <div class="section-title u-text-13">${t('lbl_add_rule')}</div>
     <div class="two-col">
       <div class="form-row"><label>${t('field_type_code_required')}</label>
         <input id="ir-code" placeholder="NB" maxlength="5" data-oninput-action="forceUppercase"/></div>
@@ -366,7 +366,7 @@ function _onInvRuleRenameKeydown(orgId, typeCode, key) {
 function startRenameInvRule(orgId, typeCode, currentName) {
   const cell = document.getElementById(`ir-name-${typeCode}`);
   if (!cell) return;
-  cell.innerHTML = `<input id="ir-rename-${typeCode}" value="${esc(currentName)}" style="width:100%;font-size:13px;padding:2px 4px"
+  cell.innerHTML = `<input id="ir-rename-${typeCode}" value="${esc(currentName)}" class="rename-inv-input"
     data-onkeydown-action="_onInvRuleRenameKeydown" data-onkeydown-args='${JSON.stringify([orgId, typeCode])}'/>`;
   const inp = document.getElementById(`ir-rename-${typeCode}`);
   inp.focus(); inp.select();
@@ -402,22 +402,22 @@ function showDeleteInvRuleConflict(orgId, typeCode, info) {
     `<option value="${esc(r.type_code)}">${esc(r.type_code)} — ${esc(r.type_name)}</option>`
   ).join('');
   showModal(`<h2>${t('modal_delete_rule_title', { code: esc(typeCode) })}</h2>
-    <p style="font-size:14px;margin-bottom:16px">
+    <p class="u-text-14 u-mb-16">
       ${t('msg_assets_have_prefix', { count: info.count, prefix: esc(info.prefix) })}<br>
       ${t('msg_choose_what_to_do')}
     </p>
-    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+    <div class="u-flex-col-gap-12-mb-20">
+      <label class="u-flex-gap-10 u-cursor-pointer">
         <input type="radio" name="del-action" value="reset" checked/>
         <span>${t('lbl_reset_inv_numbers')}</span>
       </label>
-      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;${transferOptions ? '' : 'opacity:.4;pointer-events:none'}">
+      <label class="u-flex-start-gap-10 u-cursor-pointer ${transferOptions ? '' : 'transfer-option-disabled'}">
         <input type="radio" name="del-action" value="transfer" ${transferOptions ? '' : 'disabled'}/>
         <span>
           ${t('lbl_transfer_to_other_rule')}<br>
           ${transferOptions
-            ? `<select id="del-target" style="margin-top:6px;font-size:13px">${transferOptions}</select>`
-            : `<span style="font-size:12px;color:var(--muted)">${t('msg_no_other_active_rules')}</span>`}
+            ? `<select id="del-target" class="u-mt-6 u-text-13">${transferOptions}</select>`
+            : `<span class="u-text-12 u-text-muted">${t('msg_no_other_active_rules')}</span>`}
         </span>
       </label>
     </div>

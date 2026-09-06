@@ -27,3 +27,23 @@ function metaLabel(k) {
 function getMetaFields(category) {
   return META_FIELDS[category] || META_FIELDS['_default'];
 }
+
+// PROD-2: полные определения полей (не просто ключи) для рендера формы —
+// по схеме типа (PROD-1: _typeCodesCache/_fieldSchemasCache, см.
+// ensureRefData() в settings-backup.js), если для этого type_code она
+// задана; иначе — fallback на старый категорийный список (все поля как
+// раньше рендерятся текстовыми). typeName — значение из #a-type/#e-type
+// (свободный текст, сверяется по имени с type_codes, как и everywhere
+// else в проекте резолвится org/filial по имени, не по id).
+function _resolveTypeCodeByName(typeName) {
+  if (!typeName || typeof _typeCodesCache === 'undefined') return null;
+  const found = _typeCodesCache.find(t => t.name === typeName);
+  return found ? found.code : null;
+}
+
+function getMetaFieldDefs(category, typeName) {
+  const code = _resolveTypeCodeByName(typeName);
+  const schema = code && typeof _fieldSchemasCache !== 'undefined' ? _fieldSchemasCache[code] : null;
+  if (schema && schema.length) return schema;
+  return getMetaFields(category).map(key => ({ key, type: 'text' }));
+}

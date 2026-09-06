@@ -25,7 +25,8 @@ function renderQrInto(containerId, text) {
   img.src    = url;
   img.width  = 200;
   img.height = 200;
-  img.style.cssText = 'display:block;image-rendering:pixelated';
+  img.style.display = 'block';
+  img.style.imageRendering = 'pixelated';
   img.alt    = 'QR';
   img.onerror = () => { el.textContent = t('msg_qr_unavailable'); };
   el.appendChild(img);
@@ -53,7 +54,8 @@ function printAsset(assetData) {
     const img = document.createElement('img');
     img.width  = 280;
     img.height = 280;
-    img.style.cssText = 'display:block;image-rendering:pixelated';
+    img.style.display = 'block';
+    img.style.imageRendering = 'pixelated';
     img.src = `${API}/api/qr?text=` + encodeURIComponent(qrText);
     img.onload  = () => setTimeout(() => window.print(), 100);
     img.onerror = () => window.print(); // печатаем даже без QR

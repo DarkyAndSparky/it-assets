@@ -1,0 +1,55 @@
+# PROD-15: CI на npm test (jest) — обязательный, блокирует merge.
+# Отдельный job для test:e2e (Playwright) — informational, allowed to fail:
+# в сессии, где заводился этот файл, не было доступа к сети для установки
+# браузеров Playwright, поэтому сам e2e-прогон здесь НЕ проверен вживую.
+# Прежде чем полагаться на зелёный e2e-job, стоит один раз прогнать его
+# руками (push в ветку, посмотреть на реальный лог) и только потом снять
+# continue-on-error, если всё стабильно.
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  test:
+    name: Unit tests (jest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.5'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  e2e:
+    name: E2E tests (playwright) — informational, not gating
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.5'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run e2e tests
+        run: npm run test:e2e

@@ -186,9 +186,9 @@ async function importCSV() {
 
   const resultEl = document.getElementById('import-result');
   if (unknownList.length) {
-    resultEl.innerHTML = `<div style="background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:8px">
+    resultEl.innerHTML = `<div class="msg-box warn-box">
       ${t('msg_unknown_types_warning', { n: unknownList.length })}
-      <span style="color:var(--warn-text)">${unknownList.map(([tp,n])=>`${tp} (${n})`).join(', ')}</span>
+      <span class="u-text-warn">${unknownList.map(([tp,n])=>`${tp} (${n})`).join(', ')}</span>
     </div>`;
   }
 
@@ -216,16 +216,16 @@ async function importCSV() {
       sr.no_model    > 0 ? `${t('msg_no_model')}: ${sr.no_model}` : '',
     ].filter(Boolean).join(', ') : '';
     const skipHtml = d.skipped > 0
-      ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">${t('msg_skipped_detail', { n: d.skipped, detail: skipDetail })}</div>`
+      ? `<div class="u-text-11 u-text-muted u-mt-4">${t('msg_skipped_detail', { n: d.skipped, detail: skipDetail })}</div>`
       : '';
     const invHtml = d.inv_assigned > 0
-      ? `<div style="font-size:11px;color:#059669;margin-top:4px">${t('msg_inv_auto_assigned', { n: d.inv_assigned })}</div>`
+      ? `<div class="u-text-11 u-text-success-accent u-mt-4">${t('msg_inv_auto_assigned', { n: d.inv_assigned })}</div>`
       : '';
     const orgsHtml = d.created_orgs && d.created_orgs.length
-      ? `<div style="font-size:11px;color:var(--info-text);margin-top:4px">${t('msg_orgs_created', { n: d.created_orgs.length, list: d.created_orgs.join(', ') })}</div>`
+      ? `<div class="u-text-11 u-text-info u-mt-4">${t('msg_orgs_created', { n: d.created_orgs.length, list: d.created_orgs.join(', ') })}</div>`
       : '';
     document.getElementById('import-result').innerHTML=`
-      <div style="display:flex;align-items:center;gap:6px;color:#065f46;font-weight:600">
+      <div class="u-flex-gap-6 u-text-success u-fw-600">
         ${t('msg_added_count', { n: d.added })}
       </div>${invHtml}${orgsHtml}${skipHtml}`;
     toast(t('msg_imported_count', { n: d.added }),'success');

@@ -172,3 +172,421 @@ hr.sep{border:none;border-top:1px solid var(--border);margin:16px 0}
 /* Фаза 6: замена inline onfocus/onblur — смена цвета рамки при фокусе. */
 .focus-border-accent { border-color: var(--border); }
 .focus-border-accent:focus { border-color: var(--accent); }
+
+/* Фаза 7e (CSP-2/CSP-3): замена inline style="..." — небольшой набор
+   utility-классов вместо расширения main.css компонентом на каждый
+   разовый случай. Вводятся по мере встречи паттернов при проходе по
+   Track 3 (см. ROADMAP-CONSOLIDATED.md, "Стратегия для статичных
+   inline-стилей") — перед добавлением новых см. уже определённые здесь. */
+.u-max-w-500{max-width:500px}
+.u-mb-8{margin-bottom:8px}
+.u-mb-12{margin-bottom:12px}
+.u-mt-12{margin-top:12px}
+.u-text-12{font-size:12px}
+.u-text-13{font-size:13px}
+.u-text-muted{color:var(--muted)}
+/* Компонент (не utility): заголовок инлайн-сообщения об ошибке —
+   повторяется как есть (цвет+насыщенность) в router.js и bootstrap.js. */
+.error-title{color:var(--danger-text);font-weight:700}
+
+/* Фаза 7e (CSP-1): dd.style.cssText в employees.js — единственный
+   не-разовый случай из четырёх (создаётся один раз на инпут, дальше
+   только display/toggle точечно, что CSP не блокирует). */
+.emp-ac-dd{position:absolute;z-index:9999;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);max-height:220px;overflow-y:auto;display:none;min-width:260px;left:0;top:100%}
+
+/* Фаза 7e — расширение набора utility-классов по мере прохода CSP-4+. */
+.u-text-11{font-size:11px}
+.u-nowrap{white-space:nowrap}
+.u-flex-between{display:flex;align-items:center;justify-content:space-between}
+.u-flex-gap-6{display:flex;align-items:center;gap:6px}
+.u-m-0{margin:0}
+.u-mt-2{margin-top:2px}
+.u-mb-14{margin-bottom:14px}
+.u-lh-16{line-height:1.6}
+.u-text-center{text-align:center}
+/* Компоненты (повторяющиеся комбинации, не разовые): */
+.checkbox-label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.field-hint{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* Фаза 7e (CSP-5+): ещё utility-классы + семантический warn-box (карточка
+   предупреждения — сочетание встречается не разово, будет переиспользоваться). */
+.u-max-w-900{max-width:900px}
+.u-mb-18{margin-bottom:18px}
+.u-text-20{font-size:20px}
+.u-flex-gap-8{display:flex;align-items:center;gap:8px}
+.u-text-warn{color:var(--warn-text)}
+.u-p-16{padding:16px}
+.warn-box{background:var(--warn-bg);border:1px solid var(--warn-border)}
+.success-box{background:var(--success-bg);border:1px solid var(--success-border)}
+
+/* Фаза 7e (CSP-6): #059669 — устойчивый "успех/добавлено" акцент, не
+   привязанный к теме (используется одинаково в light/dark уже в 6 местах
+   до этой правки) — отдельно от var(--success-text)/#065f46 (потемнее,
+   для текста на светлом фоне через .msg-box). */
+.u-text-success-accent{color:#059669}
+.u-text-success{color:var(--success-text)}
+.u-text-info{color:var(--info-text)}
+.u-mt-4{margin-top:4px}
+.u-fw-600{font-weight:600}
+.msg-box{border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:8px}
+
+/* Фаза 7e (CSP-7): alerts.js. */
+.u-cursor-pointer{cursor:pointer}
+.u-flex-1{flex:1}
+.u-fw-400{font-weight:400}
+.u-fw-700{font-weight:700}
+.u-text-16{font-size:16px}
+.u-p-6-0{padding:6px 0}
+.list-footer{padding:10px 0;text-align:center;border-top:1px solid var(--border);margin-top:10px}
+
+/* Фаза 7e (CSP-8): auth.js — форма смены обязательного PIN. */
+.u-p-24{padding:24px}
+.u-max-w-420{max-width:420px}
+.u-text-22{font-size:22px}
+.u-lh-17{line-height:1.7}
+.u-block{display:block}
+.u-mb-4{margin-bottom:4px}
+.u-flex-wrap-gap-8{display:flex;gap:8px;flex-wrap:wrap}
+.form-input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface1);color:var(--text);font-size:14px;box-sizing:border-box}
+.field-error{display:none;color:var(--danger,#e5484d);font-size:12px;margin-bottom:12px}
+
+/* Фаза 7e (CSP-9): types-admin.js. Цвет вкладки (os/small/infra) — 3
+   фиксированных значения (TAB_COLORS в JS), проще статичными классами
+   через classList, чем через data-*. this.style.color= в updateTypeCode()
+   не трогаем — точечное JS-присвоение свойства style, CSP style-src его
+   не блокирует (в отличие от атрибута style="..."). */
+.u-text-indigo{color:var(--indigo)}
+.u-mb-6{margin-bottom:6px}
+.u-uppercase{text-transform:uppercase}
+.tab-color-os{color:#3b82f6}
+.tab-color-small{color:#8b5cf6}
+.tab-color-infra{color:#10b981}
+.type-edit-input{width:100%;font-size:13px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface)}
+.type-edit-select{font-size:13px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface)}
+.info-panel{font-size:12px;margin-bottom:12px;padding:8px 10px;background:var(--surface);border-radius:6px;border:1px solid var(--border)}
+
+/* Фаза 7e (CSP-10): global-search.js. maxHeight/marginTop/display остаются
+   точечными JS-присвоениями (style.maxHeight=, не атрибут) — CSP их не
+   блокирует, не трогаем. */
+.u-p-4-0{padding:4px 0}
+.search-hit-mark{background:var(--mark-bg);border-radius:2px;padding:0 1px}
+.search-tab-badge{font-size:10px;padding:2px 6px;border-radius:10px;background:var(--surface);color:var(--muted)}
+.u-p-8{padding:8px}
+.search-results-wrap{border-radius:8px;border:1px solid var(--border)}
+.u-text-noinv{color:var(--noInv-text)}
+
+/* Фаза 7e (CSP-11): inv-generator.js. 2-состояние превью (успех/warn)
+   остаётся точечными style.background=/style.color= в JS (refreshInvPreview) —
+   CSP их не блокирует; статичный markup ниже описывает только состояние
+   "по умолчанию" (успех) для начального рендера формы. */
+.u-mt-8{margin-top:8px}
+.u-ml-8{margin-left:8px}
+.u-mb-3{margin-bottom:3px}
+.u-mt-6{margin-top:6px}
+.u-w-100{width:100%}
+.u-gap-8{gap:8px}
+.u-flex-gap-7{display:flex;gap:7px;align-items:center}
+.inline-msg{border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:12px}
+.inv-preview{flex:1;font-weight:700;font-size:14px;font-family:monospace}
+.inv-preview-ok{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+.info-callout{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-top:8px}
+.info-callout-title{font-size:12px;font-weight:600;color:#0369a1;margin-bottom:8px}
+
+/* Фаза 7e (CSP-12): settings-backup.js — компактная таблица бэкапов. */
+.u-text-left{text-align:left}
+.u-text-right{text-align:right}
+.u-p-3-6{padding:3px 6px}
+.u-p-4-6{padding:4px 6px}
+.u-border-top{border-top:1px solid var(--border)}
+.u-font-mono{font-family:monospace}
+.u-no-underline{text-decoration:none}
+.backup-table{width:100%;font-size:12px;border-collapse:collapse}
+
+/* Фаза 7e (CSP-13): accounts.js. */
+.u-p-40{padding:40px}
+.u-max-w-400{max-width:400px}
+.u-p-0{padding:0}
+.u-overflow-hidden{overflow:hidden}
+.u-text-40{font-size:40px}
+.u-text-14{font-size:14px}
+.u-shrink-0{flex-shrink:0}
+.u-inline-flex-gap-4{display:inline-flex;align-items:center;gap:4px}
+.u-p-1-4{padding:1px 4px}
+.u-flex-start{align-items:flex-start}
+.u-neg-mt-6{margin:-6px 0 8px}
+.acc-info-box{background:var(--surface2);border:1px solid var(--border);border-left:3px solid #6366f1;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;display:flex;gap:10px}
+.acc-cat-header{padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+
+/* Фаза 7e (CSP-14): settings-config.js — предпросмотр импорта конфига.
+   outline (подсветка выбранной кнопки resolution) и display (показ поля
+   переименования) остаются точечными style.prop= в JS — не блокируются. */
+.u-max-w-600{max-width:600px}
+.u-text-danger{color:var(--danger-text)}
+.rename-input-box{display:none;margin-top:6px}
+.conflict-card{flex-direction:column;align-items:stretch}
+.level-badge{font-size:11px;background:var(--surface2);border-radius:4px;padding:2px 6px}
+.diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.diff-box-warn{background:var(--warn-bg);border-radius:6px;padding:8px;color:var(--warn-text)}
+.diff-box-success{background:var(--success-bg);border-radius:6px;padding:8px;color:var(--success-text)}
+.u-flex-wrap-gap-6{display:flex;gap:6px;flex-wrap:wrap}
+.success-callout{background:var(--success-bg);border:1px solid var(--success-border);border-radius:8px;color:var(--success-text);font-size:13px}
+.u-p-11{padding:11px}
+.u-p-14{padding:14px}
+
+/* Фаза 7e (CSP-15): asset-tab.js. 2-состояние заголовка сортировки —
+   вместо динамической style-строки в JS теперь статичные классы
+   .sort-th(-active), выбираются через тернарник в шаблоне (тот же эффект,
+   без построения CSS-строки в JS). */
+.u-mb-0{margin-bottom:0}
+.u-w-32{width:32px}
+.u-fw-500{font-weight:500}
+.u-ml-4{margin-left:4px}
+.u-p-1-5{padding:1px 5px}
+.u-text-accent{color:var(--accent)}
+.u-text-dim{color:#cbd5e1}
+.u-mt-14{margin-top:14px}
+.u-p-0-4{padding:0 4px}
+.inv-badge{background:#eff6ff;color:#1d4ed8;border-radius:5px;padding:2px 6px;font-weight:600}
+.selection-toolbar{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--accent-dim,var(--surface2));border:1px solid var(--accent);border-radius:10px;margin-bottom:10px;flex-wrap:wrap}
+.danger-callout{background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px;color:var(--danger-text)}
+.blue-note-box{background:#eff6ff;border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px}
+.surface-note-box{background:var(--surface2);border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px;border:1px solid var(--border)}
+.sort-th{cursor:pointer;user-select:none;white-space:nowrap}
+.sort-th-active{color:var(--indigo)}
+.paginator-wrap{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:14px;flex-wrap:wrap}
+
+/* Фаза 7e (CSP-16): asset-forms.js — самый крупный файл трека. Таймлайн
+   истории: 4 фиксированных цвета точки (retire/create/move/edit) — через
+   data-color + точечный style.background=/box-shadow= после вставки (цвет
+   участвует в двух CSS-свойствах сразу, box-shadow нельзя выразить
+   классом на 4 значения без дублирования — проще один JS-проход). Прочие
+   .style.display= (фото-модалка, спиннер) уже точечные — не трогаем. */
+.u-p-8-0{padding:8px 0}
+.u-hidden{display:none}
+.u-mb-2{margin-bottom:2px}
+.u-mb-10{margin-bottom:10px}
+.u-flex-col-center-gap-8{display:flex;flex-direction:column;align-items:center;gap:8px}
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
+.u-relative{position:relative}
+.photo-thumb-frame{aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--surface);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.photo-thumb-img{width:100%;height:100%;object-fit:cover;display:none}
+.photo-del-btn{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.55);color:#fff;border-radius:6px;width:20px;height:20px;font-size:11px;line-height:1;padding:0}
+.lightbox-frame{text-align:center;position:relative;display:flex;align-items:center;justify-content:center;gap:8px}
+.u-text-22{font-size:22px}
+.lightbox-img{max-width:100%;max-height:65vh;border-radius:8px;flex:1;min-width:0}
+.u-text-26{font-size:26px}
+.u-fw-800{font-weight:800}
+.u-text-17{font-size:17px}
+.detail-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+.photo-section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px}
+.u-ls-05{letter-spacing:.5px}
+.timeline-rail{position:relative;padding-left:20px}
+.timeline-line{position:absolute;left:7px;top:0;bottom:0;width:2px;background:var(--border);border-radius:2px}
+.timeline-dot{position:absolute;left:-16px;top:2px;width:10px;height:10px;border-radius:50%;border:2px solid #fff}
+.qr-frame{line-height:0;border-radius:8px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.12)}
+.u-max-w-200{max-width:200px}
+.u-lh-14{line-height:1.4}
+.move-summary-box{background:#f8fafc;border-radius:8px;padding:11px;margin-bottom:14px;font-size:13px}
+.u-p-5-0{padding:5px 0}
+.u-flex-gap-5{display:flex;gap:5px}
+.u-text-10{font-size:10px}
+
+/* Фаза 7e (CSP-17): dashboard.js — самый насыщенный динамикой файл трека.
+   Ширины баров/прогресса и акцентные цвета произвольных статистических
+   карточек — НЕ конечный перечень значений (считаются из данных), поэтому
+   классами не выразить: рендерим без style=, проставляем через data-w/
+   data-accent/data-bg + точечный style после вставки (см. конец
+   renderDashboard()). Цвета типа события истории (add/move/retire/import/
+   reassign) — конечный перечень (5+default) → статичные классы
+   .hist-badge-*, переиспользуются в history.js (CSP-18) без дублирования
+   значений цвета. */
+.dashboard-error{color:var(--danger-text);padding:20px}
+.search-card{margin-bottom:18px;padding:14px 18px}
+.u-flex-gap-10{display:flex;align-items:center;gap:10px}
+.search-input{flex:1;font-size:14px;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;outline:none;background:var(--surface);color:var(--text)}
+.search-results-collapse{margin-top:0;overflow:hidden;max-height:0;transition:max-height 0.25s ease,margin-top 0.25s ease}
+.login-prompt-card{margin-bottom:18px;padding:18px 20px;text-align:center}
+.u-text-32{font-size:32px}
+.u-text-15{font-size:15px}
+.u-ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.u-max-w-120{max-width:120px}
+.u-mt-18{margin-top:18px}
+.u-flex-col-gap-6{display:flex;flex-direction:column;gap:6px}
+.progress-track{background:var(--border);border-radius:4px;height:7px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:4px}
+.amber-card{margin-top:18px;border-left:3px solid var(--amber)}
+.stats-grid-fit{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.stat-box-warn{background:var(--warn-bg);border-radius:8px;padding:12px;cursor:pointer}
+.stat-box-noinv{background:var(--noInv-bg);border-radius:8px;padding:12px;cursor:pointer}
+.stat-box-noserial{background:var(--noSerial-bg);border-radius:8px;padding:12px;cursor:pointer}
+.u-text-noserial{color:var(--noSerial-text)}
+.u-opacity-8{opacity:.8}
+.u-text-5b21b6{color:#5b21b6}
+.hist-badge{padding:2px 7px;border-radius:20px;font-size:11px;font-weight:600}
+.hist-badge-add{background:#05966918;color:#059669}
+.hist-badge-move{background:#6366f118;color:#6366f1}
+.hist-badge-retire{background:#dc262618;color:#dc2626}
+.hist-badge-import{background:#0ea5e918;color:#0ea5e9}
+.hist-badge-reassign{background:#8b5cf618;color:#8b5cf6}
+
+/* Фаза 7e (CSP-18): history.js — переиспользует .hist-badge-* из CSP-17
+   (dashboard.js), добавлен только недостающий 6-й тип. */
+.hist-badge-status_change{background:#f59e0b18;color:#f59e0b}
+.hist-badge-icon{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.hist-stat-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.hist-stat-card{flex:1;min-width:130px;padding:14px 18px;display:flex;align-items:center;gap:10px}
+.u-text-6366f1{color:#6366f1}
+.u-text-0ea5e9{color:#0ea5e9}
+.u-text-059669{color:#059669}
+.u-flex-between-wrap-gap-8{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.u-flex-2-minw-160{flex:2;min-width:160px}
+.u-minw-140{min-width:140px}
+.u-minw-100{min-width:100px}
+.u-cursor-default{cursor:default}
+.u-text-base{color:var(--text)}
+.u-max-w-140{max-width:140px}
+.u-max-w-160{max-width:160px}
+
+/* Фаза 7e (CSP-19): settings-refdata.js. Два разных opacity намеренно НЕ
+   слиты в один класс — разные смысловые состояния (ликвидированная орг.
+   0.55 vs закрытый филиал/локация 0.5), см. заметку в брифе. */
+.row-liquidated{opacity:.55}
+.row-closed{opacity:.5}
+.transfer-option-disabled{opacity:.4;pointer-events:none}
+.section-header-flex{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.section-header-flex-wrap{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.checkbox-label-muted{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:5px;cursor:pointer}
+.u-mt-3{margin-top:3px}
+.liquidate-warn-box{background:var(--noInv-bg);border:1px solid var(--danger-border);border-radius:8px;padding:11px;margin-bottom:14px;font-size:13px;color:var(--danger-text)}
+.inv-rules-table{width:100%;font-size:13px;margin-bottom:14px}
+.u-cursor-text{cursor:text}
+.rename-inv-input{width:100%;font-size:13px;padding:2px 4px}
+.u-mb-16{margin-bottom:16px}
+.u-flex-col-gap-12-mb-20{display:flex;flex-direction:column;gap:12px;margin-bottom:20px}
+.u-flex-start-gap-10{display:flex;align-items:flex-start;gap:10px}
+
+/* Фаза 7e (CSP-20): employees.js. cssText в этом же файле уже был убран
+   в CSP-1 (dd в _empAutocomplete) — здесь только оставшиеся атрибуты
+   style="...". Найдена смежная (вне CSP-20/style-src) утечка: строки
+   292-293 используют onmouseover/onmouseout="this.style...", это
+   self-modifying inline-обработчик из тех, что должна была вычистить
+   Фаза 6 (см. комментарий вверху файла про её конвенцию) — не трогаем в
+   рамках этой задачи (другая CSP-директива, script-src, не style-src),
+   но стоит завести отдельным пунктом. */
+.no-records-cell{text-align:center;color:var(--muted);padding:20px}
+.row-inactive{opacity:.6}
+.emp-status-badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px}
+.emp-status-active{background:var(--success-bg);color:var(--success-text)}
+.emp-status-dismissed{background:var(--surface2);color:var(--muted)}
+.u-mb-15{margin-bottom:15px}
+.emp-search-input{width:100%;padding:8px 12px;border:1px solid var(--surface2);border-radius:6px;background:var(--surface1);color:var(--text);font-size:13px}
+.emp-empty-state{display:none;color:var(--muted);text-align:center;padding:20px}
+.section-subheader{display:flex;align-items:center;justify-content:space-between;margin:15px 0 8px}
+.emp-pager-base{display:none;gap:5px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.u-minw-90{min-width:90px}
+.u-p-20{padding:20px}
+.u-mt-10{margin-top:10px}
+.assets-scroll-box{margin:20px 0;max-height:300px;overflow-y:auto;border:1px solid var(--surface2);border-radius:8px;padding:10px}
+.asset-list-item{padding:8px;border-bottom:1px solid var(--surface1)}
+.asset-list-item-last{border:none}
+.u-opacity-6{opacity:.6}
+.u-mt-20{margin-top:20px}
+.u-flex-col-gap-10{display:flex;gap:10px;flex-direction:column}
+.option-box{border:1px solid var(--surface2);border-radius:8px;padding:10px;cursor:pointer;transition:.2s}
+.u-mb-5{margin-bottom:5px}
+.u-opacity-7{opacity:.7}
+.option-box-static{border:1px solid var(--surface2);border-radius:8px;padding:10px}
+.reassign-select{width:100%;padding:8px;border:1px solid var(--surface2);border-radius:4px;background:var(--surface1);color:var(--text);margin-bottom:10px}
+.emp-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:14px;font-size:13px}
+.u-max-h-200{max-height:200px;overflow-y:auto}
+.equip-list-item{padding:6px 0;border-bottom:1px solid var(--border);font-size:13px}
+.u-mx-6{margin:0 6px}
+.emp-ac-item-inner{padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)}
+
+/* Фаза 7e (CSP-21): settings-general.js, _renderStylePreview() — превью
+   темы оформления. isDark — конечное состояние (2 значения) → классы
+   -light/-dark. accent — цвет из <input type=color>, НЕ конечный
+   перечень (произвольный RGB) → data-accent-bg/-text/-border-left/
+   -border-bottom + точечный style после вставки (см. вызов в
+   _initStyleEditor/_livePreview). */
+.preview-shell{width:100%;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.25);font-size:10px;user-select:none}
+.preview-header{color:#fff;padding:7px 10px;display:flex;align-items:center;gap:6px}
+.preview-header-light{background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)}
+.preview-header-dark{background:linear-gradient(135deg,#0a0b0f,#13141c,#1a1b23)}
+.preview-logo{font-weight:800;font-size:11px}
+.preview-badge-count{border-radius:10px;padding:1px 6px;font-size:9px;font-weight:600}
+.preview-badge-user{background:rgba(255,255,255,.2);border-radius:6px;padding:2px 7px;font-size:9px}
+.preview-badges-wrap{margin-left:auto;display:flex;gap:4px}
+.preview-nav{display:flex;padding:0 8px;border-bottom:1px solid}
+.preview-nav-light{background:#fff;border-bottom-color:#e2e8f0}
+.preview-nav-dark{background:#1a1b23;border-bottom-color:#2d2f3e}
+.preview-nav-tab{padding:5px 7px;font-size:9px}
+.preview-nav-tab-active{font-weight:700}
+.preview-nav-tab-inactive{font-weight:500;border-bottom:2px solid transparent}
+.preview-nav-tab-inactive-light{color:#64748b}
+.preview-nav-tab-inactive-dark{color:#6b7280}
+.preview-content{padding:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
+.preview-content-light{background:#f0f2f5}
+.preview-content-dark{background:#0f1117}
+.preview-card{border-radius:6px;padding:6px 8px;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.preview-card-light{background:#fff}
+.preview-card-dark{background:#1a1b23}
+.preview-card-title{font-size:10px;font-weight:700}
+.preview-card-title-light{color:#1a1a2e}
+.preview-card-title-dark{color:#e8eaf0}
+.preview-card-num{font-size:14px;font-weight:800;margin-top:2px}
+.preview-card-sub{font-size:8px}
+.preview-card-sub-light{color:#64748b}
+.preview-card-sub-dark{color:#6b7280}
+
+/* Фаза 7e (CSP-21, продолжение): settings-general.js — карточки настроек,
+   диагностика, "О системе". */
+.settings-card{max-width:520px;margin-bottom:14px}
+.settings-card-last{max-width:520px}
+.u-wrap{flex-wrap:wrap}
+.settings-divider-top{margin-top:16px;border-top:1px solid var(--border);padding-top:14px}
+.logo-preview-box{margin-bottom:10px;min-height:50px;background:var(--surface);border:1px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;padding:6px 12px}
+.u-flex-1-minw-0{flex:1;min-width:0}
+.accent-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.theme-preview-box{margin-bottom:10px;border-radius:8px;overflow:hidden}
+.theme-preview-shadow-light{box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.theme-preview-shadow-dark{box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.accent-color-input{width:40px;height:32px;padding:2px;border-radius:6px;border:1px solid var(--border);cursor:pointer}
+.csv-file-input{margin-bottom:8px;font-size:13px;width:100%}
+.progress-track-sm{background:var(--border);border-radius:6px;height:8px;overflow:hidden}
+.progress-fill-anim{height:100%;width:0%;background:linear-gradient(90deg,#3b82f6,#6366f1);border-radius:6px;transition:width 0.2s ease}
+.u-lh-19{line-height:1.9}
+.u-lh-2{line-height:2}
+.divider-top-sm{margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.divider-top-lg{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.u-text-danger-fallback{color:var(--danger,#e94560)}
+.env-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px;align-items:baseline}
+.info-card{margin-bottom:14px;padding:12px}
+.info-card-noMb{padding:12px}
+.info-card-flush{margin-bottom:14px;padding:0}
+.u-flex-baseline-gap-8-mb-8{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.tech-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px}
+.changes-summary{cursor:pointer;padding:12px;font-weight:700;list-style:none;display:flex;align-items:center;gap:8px}
+.u-ml-auto{margin-left:auto}
+.changes-body{padding:0 12px 12px}
+.changes-list{margin:0;padding-left:18px;font-size:12px;color:var(--muted);line-height:1.7}
+.deps-box{max-height:160px;overflow:auto;font-size:12px}
+.divider-top-xs{margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
+.diag-warn-box{margin-top:8px;padding:8px;background:var(--noInv-bg);border-radius:6px;color:var(--danger-text)}
+.logo-svg-img{height:36px;width:auto;object-fit:contain}
+
+/* Фаза 7e (CSP-22): public/index.html — шапка приложения. */
+.logo-wrap{display:flex;align-items:center;gap:10px;cursor:pointer}
+.logo-svg-slot{display:none;height:36px}
+.u-text-24{font-size:24px}
+.header-tagline{font-size:11px;opacity:.6;margin-top:1px}
+.header-version{font-size:10px;opacity:.5;font-weight:400}
+.header-btn-ghost{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:8px;cursor:pointer}
+.header-btn-theme{font-size:15px}
+.header-btn-lang{font-size:12px;font-weight:700;letter-spacing:.5px}
+.header-auth-status{font-size:12px;opacity:.8}
+
+/* Фаза 7e (CSP-незапланированный): i18n.js и health.js — ни один из этих
+   файлов не встречался в исходном списке CSP-2..22 брифа, найдены только
+   финальной сверкой grep по всему public/ перед CSP-23. */
+.inline-code-chip{background:var(--surface2);padding:2px 6px;border-radius:4px}

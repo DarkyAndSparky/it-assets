@@ -36,16 +36,16 @@ async function renderSettings() {
   await ensureRefData();
 
   app.innerHTML = `
-    <div style="max-width:900px">
-      ${!isAdmin ? `<div class="card" style="margin-bottom:14px;background:var(--warn-bg);border:1px solid var(--warn-border)">
-        <div style="font-size:13px;color:var(--warn-text);display:flex;align-items:center;gap:8px">
-          <span style="font-size:20px">🔒</span>
+    <div class="u-max-w-900">
+      ${!isAdmin ? `<div class="card warn-box u-mb-14">
+        <div class="u-text-13 u-text-warn u-flex-gap-8">
+          <span class="u-text-20">🔒</span>
           <div>${t('msg_edit_mode_admin_note')}</div>
         </div>
       </div>` : ''}
 
       <!-- Вкладки настроек -->
-      <div class="cat-tabs settings-tabs" style="margin-bottom:18px">
+      <div class="cat-tabs settings-tabs u-mb-18">
         <button class="cat-tab ${_settingsTab==='general'?'active':''}" data-stab="general" data-action="switchSettingsTab" data-args='["general"]'>${t('tab_settings_general')}</button>
         ${isAdmin ? `
         <button class="cat-tab ${_settingsTab==='users'?'active':''}" data-stab="users" data-action="switchSettingsTab" data-args='["users"]'>${t('tab_settings_users')}</button>
@@ -72,7 +72,7 @@ async function switchSettingsTab(tab) {
     b.classList.toggle('active', b.dataset.stab === tab);
   });
   const panel = document.getElementById('settings-panel');
-  if (panel) panel.innerHTML = `<div style="color:var(--muted);padding:16px">${t('msg_loading')}</div>`;
+  if (panel) panel.innerHTML = `<div class="u-text-muted u-p-16">${t('msg_loading')}</div>`;
   const html = await _renderSettingsPanel(isAdmin);
   if (panel) {
     panel.innerHTML = html;

@@ -85,8 +85,14 @@ test.describe('Настройки → Общие: бэкапы', () => {
     // SEC-8: экспорт теперь требует авторизацию, а обычная <a href> не может
     // передать наши заголовки (x-user-id/x-edit-password) — поэтому кнопки,
     // не ссылки; URL зашит в data-args для downloadWithAuth().
+    // Локатор сузили до [data-action="downloadWithAuth"] — просто
+    // `button:has-text("ОС")` матчит ещё 5 других кнопок на странице (в том
+    // числе "Сбросить", "🔍 Проверить состояние" и т.п. — has-text ищет
+    // подстроку где угодно в тексте кнопки, а не точное совпадение), из-за
+    // чего Playwright падал с "strict mode violation" вместо однозначного
+    // выбора нужной кнопки экспорта.
     const getArgs = async (text) => {
-      const raw = await page.locator(`button:has-text("${text}")`).getAttribute('data-args');
+      const raw = await page.locator(`button[data-action="downloadWithAuth"]:has-text("${text}")`).getAttribute('data-args');
       return JSON.parse(raw);
     };
     expect((await getArgs('Всё'))[0]).toMatch(/\/api\/export\/csv$/);

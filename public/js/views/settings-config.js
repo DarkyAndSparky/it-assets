@@ -17,24 +17,24 @@
 // ── Вкладка: Конфиг ───────────────────────────────────────────────────────────
 function _renderConfigPanel(isAdmin) {
   return `
-    <div class="card" style="max-width:600px;margin-bottom:14px">
+    <div class="card u-max-w-600 u-mb-14">
       <div class="section-title">${t('cfg_export_title')}</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">
+      <div class="u-text-12 u-text-muted u-mb-12 u-lh-16">
         ${t('cfg_export_hint')}
       </div>
       <button class="btn btn-secondary" data-action="downloadConfigExport">${t('btn_download_config')}</button>
     </div>
 
-    <div class="card" style="max-width:600px">
+    <div class="card u-max-w-600">
       <div class="section-title">${t('cfg_import_title')}</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">
+      <div class="u-text-12 u-text-muted u-mb-12 u-lh-16">
         ${t('cfg_import_hint')}
       </div>
       ${isAdmin ? `
-      <input type="file" id="cfg-import-file" accept=".json" style="font-size:13px;width:100%;margin-bottom:8px"/>
+      <input type="file" id="cfg-import-file" accept=".json" class="u-text-13 u-w-100 u-mb-8"/>
       <button class="btn btn-primary" data-action="startConfigImport">${t('btn_check_and_import')}</button>
-      <div id="cfg-import-result" style="margin-top:12px"></div>
-      ` : `<div style="color:var(--muted);font-size:13px">${t('msg_edit_mode_only')}</div>`}
+      <div id="cfg-import-result" class="u-mt-12"></div>
+      ` : `<div class="u-text-muted u-text-13">${t('msg_edit_mode_only')}</div>`}
     </div>`;
 }
 
@@ -59,17 +59,17 @@ async function startConfigImport() {
   const file = document.getElementById('cfg-import-file')?.files[0];
   if (!file) return toast(t('msg_select_file'),'error');
   const result = document.getElementById('cfg-import-result');
-  result.innerHTML = `<div style="color:var(--muted);font-size:13px">${t('msg_analyzing')}</div>`;
+  result.innerHTML = `<div class="u-text-muted u-text-13">${t('msg_analyzing')}</div>`;
 
   let incoming;
   try { incoming = JSON.parse(await file.text()); }
-  catch(e) { result.innerHTML = `<div style="color:var(--danger-text)">${t('msg_invalid_json', { msg: e.message })}</div>`; return; }
+  catch(e) { result.innerHTML = `<div class="u-text-danger">${t('msg_invalid_json', { msg: e.message })}</div>`; return; }
 
   const r = await fetch(`${API}/api/config/import/diff`, {
     method:'POST', headers:ah(), body:JSON.stringify({ config: incoming })
   });
   const d = await r.json();
-  if (!r.ok) { result.innerHTML = `<div style="color:var(--danger-text)">❌ ${d.error}</div>`; return; }
+  if (!r.ok) { result.innerHTML = `<div class="u-text-danger">❌ ${d.error}</div>`; return; }
 
   _pendingImport = { incoming, clean: d.clean, conflicts: d.conflicts };
   _renderImportPreview(result, d);
@@ -89,41 +89,41 @@ function _renderImportPreview(container, { clean, conflicts }) {
     }).join('');
 
     const renameInput = c.options.includes('rename')
-      ? `<div id="res-rename-${idx}" style="display:none;margin-top:6px">
-          <input id="res-newname-${idx}" placeholder="${t('msg_new_unique_name')}" style="width:100%;font-size:13px"/>
+      ? `<div id="res-rename-${idx}" class="rename-input-box">
+          <input id="res-newname-${idx}" placeholder="${t('msg_new_unique_name')}" class="u-w-100 u-text-13"/>
          </div>`
       : '';
 
-    return `<div class="alert-card" id="conflict-${idx}" style="flex-direction:column;align-items:stretch;margin-bottom:8px">
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-        <span style="font-size:11px;background:var(--surface2);border-radius:4px;padding:2px 6px;color:var(--muted)">${c.level}</span>
-        <span style="font-size:12px;color:var(--warn-text);font-weight:600">${typeLabel}</span>
+    return `<div class="alert-card conflict-card u-mb-8" id="conflict-${idx}">
+      <div class="u-flex-gap-8 u-mb-6">
+        <span class="level-badge u-text-muted">${c.level}</span>
+        <span class="u-text-12 u-text-warn u-fw-600">${typeLabel}</span>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;font-size:12px">
-        <div style="background:var(--warn-bg);border-radius:6px;padding:8px;color:var(--warn-text)">
-          <div style="color:var(--muted);margin-bottom:3px">${t('lbl_importing_entry')}</div>
+      <div class="diff-grid u-mb-8 u-text-12">
+        <div class="diff-box-warn">
+          <div class="u-text-muted u-mb-3">${t('lbl_importing_entry')}</div>
           <b>${esc(c.incoming.name)}</b>${c.incoming.short_code ? ` <code>${esc(c.incoming.short_code)}</code>` : ''}
         </div>
-        <div style="background:var(--success-bg);border-radius:6px;padding:8px;color:var(--success-text)">
-          <div style="color:var(--muted);margin-bottom:3px">${t('lbl_current_entry')}</div>
+        <div class="diff-box-success">
+          <div class="u-text-muted u-mb-3">${t('lbl_current_entry')}</div>
           <b>${esc(c.current?.name||'—')}</b>${c.current?.short_code ? ` <code>${esc(c.current.short_code)}</code>` : ''}
         </div>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap" id="res-btns-${idx}">${optionsBtns}</div>
+      <div class="u-flex-wrap-gap-6" id="res-btns-${idx}">${optionsBtns}</div>
       ${renameInput}
     </div>`;
   }).join('');
 
   container.innerHTML = `
-    <div style="background:var(--success-bg);border:1px solid var(--success-border);border-radius:8px;padding:11px;margin-bottom:12px;font-size:13px;color:var(--success-text)">
+    <div class="success-callout u-p-11 u-mb-12">
       ${t('msg_clean_and_conflicts', { clean: cleanCount, conflicts: conflictCount })}
     </div>
-    ${conflictCount ? `<div style="font-size:13px;font-weight:600;margin-bottom:8px">${t('msg_resolve_conflicts')}</div>${conflictsHtml}` : ''}
-    <div id="import-apply-wrap" style="margin-top:12px">
+    ${conflictCount ? `<div class="u-text-13 u-fw-600 u-mb-8">${t('msg_resolve_conflicts')}</div>${conflictsHtml}` : ''}
+    <div id="import-apply-wrap" class="u-mt-12">
       <button class="btn btn-primary" data-action="applyConfigImport" ${conflictCount ? 'disabled id="apply-config-btn"' : ''}>
         ${t('btn_apply_import')}
       </button>
-      <div style="font-size:12px;color:var(--muted);margin-top:6px">
+      <div class="u-text-12 u-text-muted u-mt-6">
         ${conflictCount ? t('msg_resolve_all_to_apply') : t('msg_no_conflicts_apply_now')}
       </div>
     </div>`;
@@ -193,7 +193,7 @@ async function applyConfigImport() {
   const d = await r.json();
   if (r.ok) {
     const result = document.getElementById('cfg-import-result');
-    result.innerHTML = `<div style="background:var(--success-bg);border:1px solid var(--success-border);border-radius:8px;padding:14px;font-size:13px;color:var(--success-text)">
+    result.innerHTML = `<div class="success-callout u-p-14">
       ${t('msg_import_applied')}<br>
       ${t('msg_import_stats', { added: d.added.length, updated: d.updated.length, skipped: d.skipped.length })}
     </div>`;

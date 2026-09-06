@@ -24,15 +24,26 @@ function _togglePasswordReveal() {
 async function renderAccounts() {
   const app=document.getElementById('app');
   if (!canEdit()) {
-    app.innerHTML=`<div class="card" style="max-width:400px;text-align:center;padding:40px">
-      <div style="font-size:40px;margin-bottom:14px">🔑</div>
-      <div style="font-weight:700;font-size:16px;margin-bottom:8px">${t('section_protected')}</div>
-      <div style="color:var(--muted);margin-bottom:18px;font-size:14px">${t('msg_login_to_edit')}</div>
+    app.innerHTML=`<div class="card u-max-w-400 u-text-center u-p-40">
+      <div class="u-text-40 u-mb-14">🔑</div>
+      <div class="u-fw-700 u-text-16 u-mb-8">${t('section_protected')}</div>
+      <div class="u-text-muted u-mb-18 u-text-14">${t('msg_login_to_edit')}</div>
       <button class="btn btn-primary" data-action="toggleAuth">${t('btn_login')}</button></div>`;
     return;
   }
   app.innerHTML='<div class="spinner"></div>';
-  const accs=await fetch(`${API}/api/accounts`,{headers:ah()}).then(r=>r.json());
+  // r.ok проверяем ДО парсинга — иначе тело ошибки (429/500 и т.п.) успешно
+  // парсится как JSON, но это не массив, и .forEach() ниже падает с
+  // невнятным TypeError вместо понятного сообщения об ошибке загрузки.
+  let accs;
+  try {
+    const r = await fetch(`${API}/api/accounts`,{headers:ah()});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    accs = await r.json();
+  } catch(e) {
+    app.innerHTML = `<div class="card u-text-center u-p-40 u-text-muted">${t('msg_load_error', { msg: e.message })}</div>`;
+    return;
+  }
 
   // Группируем по category
   const groups = {};
@@ -51,47 +62,47 @@ async function renderAccounts() {
   };
 
   app.innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <div style="font-size:16px;font-weight:700">${t('modal_accounts_title', { n: accs.length })}</div>
+    <div class="u-flex-between u-mb-12">
+      <div class="u-text-16 u-fw-700">${t('modal_accounts_title', { n: accs.length })}</div>
       <button class="btn btn-primary btn-sm" data-action="showAddAccount">${t('btn_add')}</button>
     </div>
-    <div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid #6366f1;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:flex-start">
-      <span style="font-size:16px;flex-shrink:0">ℹ️</span>
+    <div class="acc-info-box u-text-muted u-flex-start">
+      <span class="u-text-16 u-shrink-0">ℹ️</span>
       <div>
         ${t('msg_accounts_info')}
       </div>
     </div>
     ${sortedGroups.map(cat => `
-    <div class="card" style="margin-bottom:14px;padding:0;overflow:hidden">
-      <div style="padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
-        <span style="font-size:16px">${catIcons[cat]||'🔑'}</span>
-        <span style="font-weight:700;font-size:14px">${esc(cat)}</span>
-        <span style="color:var(--muted);font-size:12px">(${groups[cat].length})</span>
+    <div class="card u-mb-14 u-p-0 u-overflow-hidden">
+      <div class="acc-cat-header">
+        <span class="u-text-16">${catIcons[cat]||'🔑'}</span>
+        <span class="u-fw-700 u-text-14">${esc(cat)}</span>
+        <span class="u-text-muted u-text-12">(${groups[cat].length})</span>
       </div>
       <div class="tbl-wrap"><table>
         <thead><tr><th>${t('field_name')}</th><th>${t('field_login')}</th><th>${t('field_password')}</th><th>${t('field_note')}</th><th></th></tr></thead>
         <tbody>${groups[cat].map(a=>`<tr>
           <td><b>${esc(a.name)}</b></td>
           <td class="mono">
-            ${a.login ? `<span style="display:inline-flex;align-items:center;gap:4px">
+            ${a.login ? `<span class="u-inline-flex-gap-4">
               ${esc(a.login)}
-              <button class="btn-icon" style="font-size:11px;padding:1px 4px" title="${t('tooltip_copy_login')}"
+              <button class="btn-icon u-text-11 u-p-1-4" title="${t('tooltip_copy_login')}"
                 data-action="copyToClipboard" data-args='${JSON.stringify([a.login, t('msg_login_copied')])}'>⎘</button>
-            </span>` : (a.has_login ? `<span title="${t('tooltip_no_access')}" style="color:var(--muted)">🔒</span>` : '—')}
+            </span>` : (a.has_login ? `<span title="${t('tooltip_no_access')}" class="u-text-muted">🔒</span>` : '—')}
           </td>
           <td>
-            <span style="display:inline-flex;align-items:center;gap:4px">
+            <span class="u-inline-flex-gap-4">
               ${a.password !== undefined ? `
               <span class="pw-mask mono" title="${t('tooltip_click_to_reveal')}"
                 data-action="_togglePasswordReveal"
                 data-v="${esc(a.password)}">${a.password?'••••••':'—'}</span>
-              ${a.password ? `<button class="btn-icon" style="font-size:11px;padding:1px 4px" title="${t('tooltip_copy_password')}"
+              ${a.password ? `<button class="btn-icon u-text-11 u-p-1-4" title="${t('tooltip_copy_password')}"
                 data-action="copyToClipboard" data-args='${JSON.stringify([a.password, t('msg_password_copied')])}'>⎘</button>` : ''}
-              ` : (a.has_password ? `<span title="${t('tooltip_no_access')}" style="color:var(--muted)">🔒</span>` : '—')}
+              ` : (a.has_password ? `<span title="${t('tooltip_no_access')}" class="u-text-muted">🔒</span>` : '—')}
             </span>
           </td>
-          <td style="color:var(--muted);font-size:12px">${esc(a.note)}</td>
-          <td style="white-space:nowrap">
+          <td class="u-text-muted u-text-12">${esc(a.note)}</td>
+          <td class="u-nowrap">
             <button class="btn-icon" data-action="showEditAccount" data-args='${JSON.stringify([a.id, esc(a.name), esc(a.login||""), esc(a.password!==undefined?a.password:""), esc(a.note), esc(a.category||""), a.password===undefined])}' title="${t('btn_edit')}">✏️</button>
             <button class="btn-icon" data-action="deleteAccount" data-args='${JSON.stringify([a.id])}' title="${t('btn_delete')}">🗑</button>
           </td></tr>`).join('')}
@@ -100,7 +111,7 @@ async function renderAccounts() {
 }
 
 function _accCategorySelect(selected='') {
-  return `<select id="ac-cat" style="width:100%">
+  return `<select id="ac-cat" class="u-w-100">
     <option value="">${t('opt_select_type')}</option>
     ${ACC_CATEGORIES.map(c=>`<option value="${c}" ${selected===c?'selected':''}>${c}</option>`).join('')}
   </select>`;
@@ -142,7 +153,7 @@ function showEditAccount(id,name,login,pwd,note,category,noAccess) {
       <div class="form-row"><label>${t('field_login')}</label><input id="ae-login" value="${login}" ${noAccess?`disabled placeholder="${t('msg_no_access_placeholder')}"`:''}/></div>
       <div class="form-row"><label>${t('field_password')}</label><input id="ae-pwd" type="text" value="${pwd}" ${noAccess?`disabled placeholder="${t('msg_no_access_placeholder')}"`:''}/></div>
     </div>
-    ${noAccess ? `<div style="font-size:11px;color:var(--muted);margin:-6px 0 8px">${t('msg_no_access_note')}</div>` : ''}
+    ${noAccess ? `<div class="u-text-11 u-text-muted u-neg-mt-6">${t('msg_no_access_note')}</div>` : ''}
     <div class="form-row"><label>${t('field_note')}</label><input id="ae-note" value="${note}"/></div>
     <div class="modal-actions">
       <button class="btn btn-primary" data-action="doEditAccount" data-args='${JSON.stringify([id])}'>${t('btn_save')}</button>

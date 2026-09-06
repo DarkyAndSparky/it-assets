@@ -13,15 +13,30 @@
 // ─── Состояние справочников (используется settings-refdata.js и asset-tab.js) ──
 let _settingsTab = 'general'; // 'general' | 'orgs' | 'filials' | 'locations' | 'config'
 let _orgsCache = [], _filialsCache = [], _locsCache = [];
+// PROD-1/PROD-2: карта type_code (для резолва type-имени → код) и схема
+// типизированных полей по коду — грузятся вместе с остальным ref-data,
+// используются в meta-fields.js::getMetaFieldDefs().
+let _typeCodesCache = [], _fieldSchemasCache = {};
 let _refDataLoaded = false;
 
 async function ensureRefData() {
   if (_refDataLoaded) return;
   try {
-    [_orgsCache, _filialsCache, _locsCache] = await Promise.all([
-      fetch(`${API}/api/orgs`).then(r=>r.json()).catch(()=>[]),
-      fetch(`${API}/api/filials`).then(r=>r.json()).catch(()=>[]),
-      fetch(`${API}/api/locations`).then(r=>r.json()).catch(()=>[]),
+    // r.ok проверяем ДО r.json() — иначе тело ошибки (например 429 от
+    // apiRateLimit.js: {error:"..."}) успешно парсится как JSON и тихо
+    // становится "результатом" вместо ожидаемого массива/объекта: .catch()
+    // ниже его не ловит, потому что промис не отклонился, он просто
+    // resolve'ился не тем типом. Итог без этой проверки — оно молча
+    // подставлялось в _orgsCache и т.п., а дальше падало в других местах
+    // с непонятным "X.map is not a function", не показывая связи со
+    // сбоем самого запроса.
+    const asJson = r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status));
+    [_orgsCache, _filialsCache, _locsCache, _typeCodesCache, _fieldSchemasCache] = await Promise.all([
+      fetch(`${API}/api/orgs`).then(asJson).catch(()=>[]),
+      fetch(`${API}/api/filials`).then(asJson).catch(()=>[]),
+      fetch(`${API}/api/locations`).then(asJson).catch(()=>[]),
+      fetch(`${API}/api/type-codes`).then(asJson).catch(()=>[]),
+      fetch(`${API}/api/field-schemas`).then(asJson).catch(()=>({})),
     ]);
     _refDataLoaded = true;
   } catch(e) { console.warn('ensureRefData failed', e); }
@@ -39,36 +54,36 @@ async function createBackup() {
 async function loadBackupList() {
   const el = document.getElementById('backup-list');
   if (!el) return;
-  el.innerHTML = `<div style="color:var(--muted)">${t('msg_loading')}</div>`;
+  el.innerHTML = `<div class="u-text-muted">${t('msg_loading')}</div>`;
   const r = await fetch(`${API}/api/backup/list`, { headers:ah() });
   const list = await r.json();
-  if (!list.length) { el.innerHTML = `<div style="color:var(--muted)">${t('msg_no_backups')}</div>`; return; }
+  if (!list.length) { el.innerHTML = `<div class="u-text-muted">${t('msg_no_backups')}</div>`; return; }
   el.innerHTML = `
-    <table style="width:100%;font-size:12px;border-collapse:collapse">
-      <thead><tr style="color:var(--muted)">
-        <th style="text-align:left;padding:3px 6px">${t('th_file')}</th>
-        <th style="padding:3px 6px">${t('th_type')}</th>
-        <th style="text-align:right;padding:3px 6px">${t('th_size')}</th>
-        <th style="text-align:right;padding:3px 6px">${t('th_date_col')}</th>
-        <th style="padding:3px 6px"></th>
+    <table class="backup-table">
+      <thead><tr class="u-text-muted">
+        <th class="u-text-left u-p-3-6">${t('th_file')}</th>
+        <th class="u-p-3-6">${t('th_type')}</th>
+        <th class="u-text-right u-p-3-6">${t('th_size')}</th>
+        <th class="u-text-right u-p-3-6">${t('th_date_col')}</th>
+        <th class="u-p-3-6"></th>
       </tr></thead>
       <tbody>${list.map(b => `
-        <tr style="border-top:1px solid var(--border)">
-          <td style="padding:4px 6px;font-family:monospace;font-size:11px">${esc(b.name)}</td>
-          <td style="padding:4px 6px;text-align:center">
+        <tr class="u-border-top">
+          <td class="u-p-4-6 u-font-mono u-text-11">${esc(b.name)}</td>
+          <td class="u-p-4-6 u-text-center">
             <span title="${b.full ? t('tooltip_full_backup') : t('tooltip_db_only')}"
-              style="font-size:13px">${b.full ? '🔒' : '⚠️'}</span>
+              class="u-text-13">${b.full ? '🔒' : '⚠️'}</span>
           </td>
-          <td style="padding:4px 6px;text-align:right;color:var(--muted)">${(b.size/1024).toFixed(1)} ${t('lbl_kb')}</td>
-          <td style="padding:4px 6px;text-align:right;color:var(--muted)">${fd(b.mtime)}</td>
-          <td style="padding:4px 6px;white-space:nowrap">
-            <a href="${API}/api/backup/download/${esc(b.name)}" class="btn-icon" title="${t('tooltip_download')}" style="text-decoration:none">⬇</a>
+          <td class="u-p-4-6 u-text-right u-text-muted">${(b.size/1024).toFixed(1)} ${t('lbl_kb')}</td>
+          <td class="u-p-4-6 u-text-right u-text-muted">${fd(b.mtime)}</td>
+          <td class="u-p-4-6 u-nowrap">
+            <a href="${API}/api/backup/download/${esc(b.name)}" class="btn-icon u-no-underline" title="${t('tooltip_download')}">⬇</a>
             <button class="btn-icon" title="${t('tooltip_restore')}" data-action="restoreBackup" data-args='${JSON.stringify([b.name, b.full])}'>↩</button>
           </td>
         </tr>`).join('')}
       </tbody>
     </table>
-    <div style="margin-top:8px;font-size:11px;color:var(--muted)">
+    <div class="u-mt-8 u-text-11 u-text-muted">
       ${t('lbl_full_legend')} &nbsp;·&nbsp; ${t('lbl_db_only_legend')}
     </div>`;
 }

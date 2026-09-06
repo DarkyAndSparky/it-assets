@@ -48,17 +48,15 @@ function _empFilterList(list, q) {
 }
 
 function _empRenderRows(list) {
-  if (!list.length) return `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">${t('msg_no_records')}</td></tr>`;
+  if (!list.length) return `<tr><td colspan="6" class="no-records-cell">${t('msg_no_records')}</td></tr>`;
   return list.map(e => `
-    <tr class="clickable" data-action="showEmployeeDetail" data-args='${JSON.stringify([e.id])}'${e.active===false?' style="opacity:.6"':''}>
-      <td style="font-weight:600">${esc(e.name)}</td>
-      <td style="color:var(--muted)">${esc(e.dept||'—')}</td>
-      <td style="color:var(--muted)">${esc(e.filial||'—')}</td>
-      <td style="color:var(--muted)">${esc(e.phone||'—')}</td>
-      <td><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;
-          background:${e.active!==false?'var(--success-bg)':'var(--surface2)'};
-          color:${e.active!==false?'var(--success-text)':'var(--muted)'}">${e.active!==false?t('lbl_active'):t('lbl_dismissed')}</span></td>
-      <td style="white-space:nowrap" data-action="_noop">
+    <tr class="clickable${e.active===false?' row-inactive':''}" data-action="showEmployeeDetail" data-args='${JSON.stringify([e.id])}'>
+      <td class="u-fw-600">${esc(e.name)}</td>
+      <td class="u-text-muted">${esc(e.dept||'—')}</td>
+      <td class="u-text-muted">${esc(e.filial||'—')}</td>
+      <td class="u-text-muted">${esc(e.phone||'—')}</td>
+      <td><span class="emp-status-badge ${e.active!==false?'emp-status-active':'emp-status-dismissed'}">${e.active!==false?t('lbl_active'):t('lbl_dismissed')}</span></td>
+      <td class="u-nowrap" data-action="_noop">
         ${e.active!==false
           ? `<button class="btn-icon" data-action="showEditEmployeeModal" data-args='${JSON.stringify([e.id])}'>✏️</button>
              <button class="btn-icon" data-action="deleteEmployee" data-args='${JSON.stringify([e.id, esc(e.name)])}'>🗑</button>`
@@ -141,44 +139,44 @@ async function _renderEmployeesPanel() {
   _empPage = { active: 1, inactive: 1 };
 
   return `<div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div class="section-title" style="margin:0" id="emp-total">${t('lbl_employees_count', { n: _empData.length })}</div>
+    <div class="u-flex-between u-mb-14">
+      <div class="section-title u-m-0" id="emp-total">${t('lbl_employees_count', { n: _empData.length })}</div>
       <button class="btn btn-primary btn-sm" data-action="showCreateEmployeeModal">${t('btn_add')}</button>
     </div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
+    <div class="u-text-12 u-text-muted u-mb-12">
       ${t('msg_used_for_autocomplete_note')}
     </div>
 
-    <div style="margin-bottom:15px">
+    <div class="u-mb-15">
       <input type="text" id="emp-search-input"
         placeholder="${t('msg_search_employees_placeholder')}"
-        style="width:100%;padding:8px 12px;border:1px solid var(--surface2);border-radius:6px;background:var(--surface1);color:var(--text);font-size:13px"
+        class="emp-search-input"
         data-oninput-action="_empRefreshTables">
     </div>
 
     ${_empSectionHtml('active',   t('lbl_active_section'))}
     ${_empSectionHtml('inactive', t('lbl_dismissed_section'))}
 
-    <div id="emp-empty" style="display:none;color:var(--muted);text-align:center;padding:20px">${t('msg_nothing_found')}</div>
+    <div id="emp-empty" class="emp-empty-state">${t('msg_nothing_found')}</div>
   </div>`;
 }
 
 function _empSectionHtml(key, label) {
   return `
   <div id="emp-section-${key}">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin:15px 0 8px">
-      <h3 id="emp-head-${key}" style="margin:0;font-size:14px">${label}</h3>
-      <div class="emp-show-all-wrap" style="display:none">
-        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+    <div class="section-subheader">
+      <h3 id="emp-head-${key}" class="u-m-0 u-text-14">${label}</h3>
+      <div class="emp-show-all-wrap u-hidden">
+        <label class="checkbox-label u-text-12">
           <input type="checkbox" id="emp-show-all" data-onchange-action="_empRefreshTables">
           ${t('lbl_show_all')}
         </label>
       </div>
     </div>
-    <div class="emp-pager" style="display:none;gap:5px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+    <div class="emp-pager emp-pager-base">
       <button class="btn btn-sm emp-prev2" data-action="_empChangePage" data-args='${JSON.stringify([key, -9999])}'>⏮</button>
       <button class="btn btn-sm emp-prev"  data-action="_empChangePage" data-args='${JSON.stringify([key, -1])}'>◀</button>
-      <span class="emp-page-info" style="font-size:12px;min-width:90px;text-align:center">${t('lbl_page_of', { page: 1, count: 1 })}</span>
+      <span class="emp-page-info u-text-12 u-minw-90 u-text-center">${t('lbl_page_of', { page: 1, count: 1 })}</span>
       <button class="btn btn-sm emp-next"  data-action="_empChangePage" data-args='${JSON.stringify([key, 1])}'>▶</button>
       <button class="btn btn-sm emp-next2" data-action="_empChangePage" data-args='${JSON.stringify([key, 9999])}'>⏭</button>
     </div>
@@ -271,45 +269,45 @@ async function showReassignAssetsModal(empId, empName, assets) {
   const otherEmps = allEmps.filter(e => e.id !== empId);
   
   const modalContent = `
-    <div style="padding:20px;">
+    <div class="u-p-20">
       <h2>${t('modal_move_equipment_dismissal')}</h2>
-      <p style="margin-top:10px;opacity:.8">
+      <p class="u-mt-10 u-opacity-8">
         ${t('msg_employee_has_equipment', { name: esc(empName), n: assets.length })}
       </p>
-      <div style="margin:20px 0;max-height:300px;overflow-y:auto;border:1px solid var(--surface2);border-radius:8px;padding:10px;">
+      <div class="assets-scroll-box">
         ${assets.map((a,i) => `
-          <div style="padding:8px;border-bottom:1px solid var(--surface1)${i === assets.length-1 ? ';border:none' : ''}">
-            <div style="font-weight:500">${a.type} ${a.model}</div>
-            <div style="font-size:12px;opacity:.6">${t('msg_serial_label')}: ${a.serial || '—'} | ${t('msg_inv_label')}: ${a.inv || '—'}</div>
+          <div class="asset-list-item${i === assets.length-1 ? ' asset-list-item-last' : ''}">
+            <div class="u-fw-500">${a.type} ${a.model}</div>
+            <div class="u-text-12 u-opacity-6">${t('msg_serial_label')}: ${a.serial || '—'} | ${t('msg_inv_label')}: ${a.inv || '—'}</div>
           </div>
         `).join('')}
       </div>
       
-      <p style="margin-top:20px;margin-bottom:10px;">${t('msg_choose_action')}</p>
-      <div style="display:flex;gap:10px;flex-direction:column;">
-        <div style="border:1px solid var(--surface2);border-radius:8px;padding:10px;cursor:pointer;transition:.2s" 
+      <p class="u-mt-20 u-mb-10">${t('msg_choose_action')}</p>
+      <div class="u-flex-col-gap-10">
+        <div class="option-box" 
           id="leave-unassigned-opt"
           onmouseover="this.style.background='var(--surface1)'" 
           onmouseout="this.style.background=''">
-          <div style="font-weight:600;margin-bottom:5px">${t('opt_leave_unassigned_title')}</div>
-          <div style="font-size:12px;opacity:.7">${t('msg_will_remain_in_org', { org: empName })}</div>
-          <button class="btn btn-primary" style="margin-top:10px;width:100%" 
+          <div class="u-fw-600 u-mb-5">${t('opt_leave_unassigned_title')}</div>
+          <div class="u-text-12 u-opacity-7">${t('msg_will_remain_in_org', { org: empName })}</div>
+          <button class="btn btn-primary u-mt-10 u-w-100" 
             data-action="reassignEmployeeAssets" data-args='${JSON.stringify([empId, null])}'>${t('btn_leave_unassigned')}</button>
         </div>
         
         ${otherEmps.length > 0 ? `
-        <div style="border:1px solid var(--surface2);border-radius:8px;padding:10px;">
-          <div style="font-weight:600;margin-bottom:10px">${t('opt_move_to_other_title')}</div>
-          <select id="reassign-to-emp" style="width:100%;padding:8px;border:1px solid var(--surface2);border-radius:4px;background:var(--surface1);color:var(--text);margin-bottom:10px;">
+        <div class="option-box-static">
+          <div class="u-fw-600 u-mb-10">${t('opt_move_to_other_title')}</div>
+          <select id="reassign-to-emp" class="reassign-select">
             <option value="">${t('opt_choose_employee')}</option>
             ${otherEmps.map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join('')}
           </select>
-          <button class="btn btn-primary" style="width:100%" 
+          <button class="btn btn-primary u-w-100" 
             data-action="_doReassignToSelected" data-args='${JSON.stringify([empId])}'>${t('btn_move')}</button>
         </div>
         ` : ''}
         
-        <button class="btn btn-secondary" style="width:100%" data-action="closeModal">${t('btn_cancel')}</button>
+        <button class="btn btn-secondary u-w-100" data-action="closeModal">${t('btn_cancel')}</button>
       </div>
     </div>
   `;
@@ -351,21 +349,21 @@ async function showEmployeeDetail(id) {
     const assets = await fetch(`${API}/api/assets?search=${encodeURIComponent(emp.name)}`,{headers:ah()}).then(r=>r.json());
     const myAssets = (assets.items||[]).filter(a => a.responsible === emp.name);
     showModal(`<h2>🧑‍💼 ${esc(emp.name)}</h2>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:14px;font-size:13px">
-        ${emp.dept   ?`<div><div style="font-size:11px;color:var(--muted)">${t('lbl_dept_caps')}</div><b>${esc(emp.dept)}</b></div>`:''}
-        ${emp.filial ?`<div><div style="font-size:11px;color:var(--muted)">${t('lbl_filial_caps')}</div><b>${esc(emp.filial)}</b></div>`:''}
-        ${emp.phone  ?`<div><div style="font-size:11px;color:var(--muted)">${t('lbl_phone_caps')}</div><b>${esc(emp.phone)}</b></div>`:''}
-        ${emp.email  ?`<div><div style="font-size:11px;color:var(--muted)">EMAIL</div><b>${esc(emp.email)}</b></div>`:''}
+      <div class="emp-detail-grid">
+        ${emp.dept   ?`<div><div class="u-text-11 u-text-muted">${t('lbl_dept_caps')}</div><b>${esc(emp.dept)}</b></div>`:''}
+        ${emp.filial ?`<div><div class="u-text-11 u-text-muted">${t('lbl_filial_caps')}</div><b>${esc(emp.filial)}</b></div>`:''}
+        ${emp.phone  ?`<div><div class="u-text-11 u-text-muted">${t('lbl_phone_caps')}</div><b>${esc(emp.phone)}</b></div>`:''}
+        ${emp.email  ?`<div><div class="u-text-11 u-text-muted">EMAIL</div><b>${esc(emp.email)}</b></div>`:''}
       </div>
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px">${t('lbl_equipment_count', { n: myAssets.length })}</div>
-      ${myAssets.length ? `<div style="max-height:200px;overflow-y:auto">
-        ${myAssets.map(a=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
-          <span style="color:var(--muted)">${esc(a.type||'')}</span>
-          <b style="margin:0 6px">${esc(a.model)}</b>
-          ${a.inv?`<code style="font-size:11px;color:var(--accent)">${esc(a.inv)}</code>`:''}
+      <div class="u-text-13 u-fw-600 u-mb-8">${t('lbl_equipment_count', { n: myAssets.length })}</div>
+      ${myAssets.length ? `<div class="u-max-h-200">
+        ${myAssets.map(a=>`<div class="equip-list-item">
+          <span class="u-text-muted">${esc(a.type||'')}</span>
+          <b class="u-mx-6">${esc(a.model)}</b>
+          ${a.inv?`<code class="u-text-11 u-text-accent">${esc(a.inv)}</code>`:''}
         </div>`).join('')}
-      </div>` : `<div style="color:var(--muted);font-size:13px">${t('msg_no_equipment')}</div>`}
-      <div class="modal-actions" style="margin-top:14px">
+      </div>` : `<div class="u-text-muted u-text-13">${t('msg_no_equipment')}</div>`}
+      <div class="modal-actions u-mt-14">
         <button class="btn btn-primary btn-sm" data-action="_closeThenShowEditEmployee" data-args='${JSON.stringify([id])}'>✏️ ${t('btn_edit')}</button>
         <button class="btn btn-secondary" data-action="closeModal">${t('btn_close')}</button>
       </div>`);
@@ -381,9 +379,7 @@ function initEmployeeAutocomplete(inputId) {
   inp._empAcInited = true;
   const dd = document.createElement('div');
   dd.id = inputId + '-emp-dd';
-  dd.style.cssText = `position:absolute;z-index:9999;background:var(--card-bg);
-    border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);
-    max-height:220px;overflow-y:auto;display:none;min-width:260px;left:0;top:100%`;
+  dd.className = 'emp-ac-dd';
   inp.parentElement.style.position = 'relative';
   inp.parentElement.appendChild(dd);
 
@@ -429,11 +425,11 @@ async function _fetchEmpSuggestions(inputId) {
     ).slice(0, 8);
     if (!emps.length) { dd.style.display='none'; return; }
     dd.innerHTML = emps.map(e => `
-      <div class="emp-ac-item hover-surface2" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)"
+      <div class="emp-ac-item hover-surface2 emp-ac-item-inner"
         data-onmousedown-action="_preventDefault"
         data-action="_selectEmployee" data-args='${JSON.stringify([inputId, e.name])}'>
-        <div style="font-weight:600">${esc(e.name)}</div>
-        ${e.dept||e.filial ? `<div style="font-size:11px;color:var(--muted)">${[e.dept,e.filial].filter(Boolean).join(' · ')}</div>` : ''}
+        <div class="u-fw-600">${esc(e.name)}</div>
+        ${e.dept||e.filial ? `<div class="u-text-11 u-text-muted">${[e.dept,e.filial].filter(Boolean).join(' · ')}</div>` : ''}
       </div>`).join('');
     dd.style.display = 'block';
   } catch(e) { dd.style.display='none'; }

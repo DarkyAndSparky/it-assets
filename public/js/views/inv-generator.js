@@ -53,14 +53,14 @@ function openInvGenerator(targetId, orgSelectId, typeSelectId) {
 
   showModal(`
     <h2>${t('inv_gen_title')}</h2>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">
+    <div class="u-text-12 u-text-muted u-mb-14">
       ${t('inv_gen_format_hint')}
     </div>
-    ${hasPreset ? `<div style="background:var(--success-bg);border:1px solid var(--success-border);border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:12px;color:var(--success-text)">
+    ${hasPreset ? `<div class="inline-msg success-box u-text-success">
       ${t('msg_picked_from_form')}: <b>${preselectedOrg}</b> · <b>${preselectedType}</b>
-    </div>` : (preselectedOrg && !preselectedType) ? `<div style="background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:12px;color:var(--warn-text)">
+    </div>` : (preselectedOrg && !preselectedType) ? `<div class="inline-msg warn-box u-text-warn">
       ${t('msg_no_rule_for_type', { type: document.getElementById(typeSelectId)?.value||'?' })}
-      <button class="btn btn-primary btn-sm" style="margin-top:8px"
+      <button class="btn btn-primary btn-sm u-mt-8"
         data-action="createInvRuleFromGenerator" data-args='${JSON.stringify([preselectedOrg, document.getElementById(typeSelectId)?.value||''])}'>
         ${t('btn_create_rule_for_type')}
       </button>
@@ -75,12 +75,12 @@ function openInvGenerator(targetId, orgSelectId, typeSelectId) {
     </div>
     <div class="form-row">
       <label>${t('field_preview')}</label>
-      <div style="display:flex;gap:7px;align-items:center">
-        <input id="ig-preview" style="flex:1;font-weight:700;font-size:14px;font-family:monospace;background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe" readonly/>
+      <div class="u-flex-gap-7">
+        <input id="ig-preview" class="inv-preview inv-preview-ok" readonly/>
         <button class="btn btn-secondary btn-sm" data-action="refreshInvPreview">${t('btn_refresh')}</button>
       </div>
     </div>
-    <div id="ig-note" style="font-size:12px;color:var(--muted);margin-top:4px"></div>
+    <div id="ig-note" class="u-text-12 u-text-muted u-mt-4"></div>
     <div class="modal-actions">
       <button class="btn btn-primary" data-action="applyInvNumber" data-args='${JSON.stringify([targetId])}'>${t('btn_apply')}</button>
       <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
@@ -108,8 +108,8 @@ async function refreshInvPreview() {
       // Нет правила для этой пары орг+тип
       if (el) { el.value = ''; el.style.background='var(--warn-bg)'; el.style.color='var(--warn-text)'; }
       if (note) note.innerHTML = `
-        <span style="color:var(--warn-text)">${t('msg_no_rule_for_pair', { org, type })}</span>
-        <button id="ig-create-rule-btn" class="btn btn-primary btn-sm" style="margin-left:8px"
+        <span class="u-text-warn">${t('msg_no_rule_for_pair', { org, type })}</span>
+        <button id="ig-create-rule-btn" class="btn btn-primary btn-sm u-ml-8"
           data-action="createInvRuleFromGenerator" data-args='${JSON.stringify([org,""])}'>
           ${t('btn_create_rule')}
         </button>`;
@@ -151,25 +151,25 @@ async function createInvRuleFromGenerator(orgCode, typeName) {
   const note = document.getElementById('ig-note');
   if (!note) return;
   note.innerHTML = `
-    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-top:8px">
-      <div style="font-size:12px;font-weight:600;color:#0369a1;margin-bottom:8px">
+    <div class="info-callout">
+      <div class="info-callout-title">
         ${t('msg_new_rule_for', { org: orgCode })}
       </div>
-      <div class="two-col" style="gap:8px">
+      <div class="two-col u-gap-8">
         <div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:3px">${t('field_type_code_required')}</div>
+          <div class="u-text-11 u-text-muted u-mb-3">${t('field_type_code_required')}</div>
           <input id="igcr-code" value="${autoCode}" placeholder="NB" maxlength="6"
-            style="width:100%;font-size:13px" data-oninput-action="forceUppercase"/>
+            class="u-w-100 u-text-13" data-oninput-action="forceUppercase"/>
         </div>
         <div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:3px">${t('field_type_name_required_short')}</div>
-          <input id="igcr-name" value="${autoName}" placeholder="${t('msg_type_name_placeholder')}" style="width:100%;font-size:13px"/>
+          <div class="u-text-11 u-text-muted u-mb-3">${t('field_type_name_required_short')}</div>
+          <input id="igcr-name" value="${autoName}" placeholder="${t('msg_type_name_placeholder')}" class="u-w-100 u-text-13"/>
         </div>
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px;margin-bottom:8px">
+      <div class="u-text-11 u-text-muted u-mt-6 u-mb-8">
         ${t('msg_inv_number_will_be')} <code>${orgCode}-[${t('lbl_code_placeholder')}]-00001</code>
       </div>
-      <div style="display:flex;gap:6px">
+      <div class="u-flex-gap-6">
         <button class="btn btn-primary btn-sm" data-action="submitInvRuleFromGenerator" data-args='${JSON.stringify([org.id,orgCode])}'>${t('btn_create_and_apply')}</button>
         <button class="btn btn-secondary btn-sm" data-action="refreshInvPreview">${t('btn_cancel')}</button>
       </div>

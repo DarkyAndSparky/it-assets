@@ -17,6 +17,7 @@
 'use strict';
 
 const { z } = require('zod');
+const { META_KEYS } = require('../db/sqlite');
 
 // ─── Пользователи системы ──────────────────────────────────────────────────
 
@@ -263,6 +264,29 @@ const setTypeCodesSchema = z.object({
   codes: z.array(typeCodeEntrySchema, { message: 'Array expected' }).max(500, 'Слишком много типов'),
 });
 
+// PROD-1: схема типизированных полей по type_code. key ограничен набором
+// META_KEYS (server/db/sqlite.js) — физическое хранилище остаётся
+// фиксированным набором meta_* колонок, схема управляет только тем,
+// какое подмножество полей показывать для типа и как их рендерить/
+// валидировать (тип поля, подпись, варианты для select, обязательность).
+const FIELD_TYPES = ['text', 'number', 'select', 'boolean', 'ip', 'date'];
+
+const fieldSchemaEntrySchema = z.object({
+  key:      z.enum(META_KEYS, { message: `key должен быть одним из: ${META_KEYS.join(', ')}` }),
+  type:     z.enum(FIELD_TYPES, { message: `type должен быть одним из: ${FIELD_TYPES.join(', ')}` }),
+  label:    freeTextOpt(100, 'Слишком длинная подпись'),
+  options:  z.array(z.string().trim().max(100, 'Слишком длинный вариант'), { message: 'Array expected' })
+              .max(50, 'Слишком много вариантов').optional(),
+  required: z.boolean().optional(),
+}).refine(
+  f => f.type !== 'select' || (Array.isArray(f.options) && f.options.length > 0),
+  { message: 'Для type=select нужен непустой options', path: ['options'] }
+);
+
+const setFieldSchemaSchema = z.object({
+  fields: z.array(fieldSchemaEntrySchema, { message: 'Array expected' }).max(META_KEYS.length, 'Слишком много полей'),
+});
+
 const reserveInvSchema = z.object({
   org_id: freeTextOpt(100, 'Некорректный org_id'),
   org:    freeTextOpt(20, 'Некорректный org'),
@@ -383,6 +407,7 @@ module.exports = {
   updateLocationSchema,
   setCategoriesSchema,
   setTypeCodesSchema,
+  setFieldSchemaSchema,
   reserveInvSchema,
   putStylesSchema,
   putLogoSvgSchema,

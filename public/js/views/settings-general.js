@@ -18,26 +18,26 @@
 
 function _renderGeneralPanel(isAdmin, db_company_name='', db_logo_svg='', db_version='') {
   return `
-        <div class="card" style="max-width:520px;margin-bottom:14px">
+        <div class="card settings-card">
       <div class="section-title">${t('company_name_logo_title')}</div>
       <div class="form-row"><label>${t('field_company_name')}</label>
         <input id="company-name-inp" placeholder="IT ASSETS"
           value="${db_company_name||''}" ${!isAdmin?'disabled':''}/>
       </div>
-      ${isAdmin ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      ${isAdmin ? `<div class="u-flex-gap-8 u-wrap">
         <button class="btn btn-primary btn-sm" data-action="saveCompanyName">${t('btn_save_name')}</button>
         <button class="btn btn-ghost btn-sm" data-action="resetCompanyName">${t('btn_reset')}</button>
       </div>` : ''}
-      <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
-        <div style="font-size:13px;font-weight:600;margin-bottom:6px">${t('lbl_logo')}</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">
+      <div class="settings-divider-top">
+        <div class="u-text-13 u-fw-600 u-mb-6">${t('lbl_logo')}</div>
+        <div class="u-text-12 u-text-muted u-mb-10 u-lh-16">
           ${t('msg_logo_hint')}
         </div>
-        <div id="logo-preview" style="margin-bottom:10px;min-height:50px;background:var(--surface);border:1px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;padding:6px 12px">
-          <span style="font-size:12px;color:var(--muted)">${t('msg_logo_not_set')}</span>
+        <div id="logo-preview" class="logo-preview-box">
+          <span class="u-text-12 u-text-muted">${t('msg_logo_not_set')}</span>
         </div>
-        ${isAdmin ? `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <input type="file" id="logo-svg-file" accept=".svg,.png,.jpg,.jpeg,.webp,image/*" style="font-size:12px;flex:1;min-width:0"/>
+        ${isAdmin ? `<div class="u-flex-gap-8 u-wrap">
+          <input type="file" id="logo-svg-file" accept=".svg,.png,.jpg,.jpeg,.webp,image/*" class="u-text-12 u-flex-1-minw-0"/>
           <button class="btn btn-primary btn-sm" data-action="saveLogoSvg">${t('btn_upload')}</button>
           <button class="btn btn-ghost btn-sm" data-action="clearLogoSvg">${t('btn_remove')}</button>
         </div>` : ''}
@@ -45,89 +45,87 @@ function _renderGeneralPanel(isAdmin, db_company_name='', db_logo_svg='', db_ver
     </div>
 
     ${isAdmin ? `
-    <div class="card" style="max-width:520px;margin-bottom:14px">
+    <div class="card settings-card">
       <div class="section-title">${t('accent_color_title')}</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+      <div class="u-text-12 u-text-muted u-mb-14 u-lh-16">
         ${t('msg_accent_color_hint')}
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="accent-grid">
         <!-- Светлая тема -->
         <div>
-          <div style="font-size:12px;font-weight:600;margin-bottom:8px;opacity:.7">${t('lbl_light_theme')}</div>
-          <div id="preview-light" style="margin-bottom:10px;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.15)"></div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <input type="color" id="st-accent-light" value="#e94560" style="width:40px;height:32px;padding:2px;border-radius:6px;border:1px solid var(--border);cursor:pointer"
+          <div class="u-text-12 u-fw-600 u-mb-8 u-opacity-7">${t('lbl_light_theme')}</div>
+          <div id="preview-light" class="theme-preview-box theme-preview-shadow-light"></div>
+          <div class="u-flex-gap-8">
+            <input type="color" id="st-accent-light" value="#e94560" class="accent-color-input"
               data-oninput-action="_livePreview"/>
-            <label style="font-size:12px;color:var(--muted)">${t('lbl_accent')}</label>
+            <label class="u-text-12 u-text-muted">${t('lbl_accent')}</label>
           </div>
         </div>
         <!-- Тёмная тема -->
         <div>
-          <div style="font-size:12px;font-weight:600;margin-bottom:8px;opacity:.7">${t('lbl_dark_theme')}</div>
-          <div id="preview-dark" style="margin-bottom:10px;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <input type="color" id="st-accent-dark" value="#e94560" style="width:40px;height:32px;padding:2px;border-radius:6px;border:1px solid var(--border);cursor:pointer"
+          <div class="u-text-12 u-fw-600 u-mb-8 u-opacity-7">${t('lbl_dark_theme')}</div>
+          <div id="preview-dark" class="theme-preview-box theme-preview-shadow-dark"></div>
+          <div class="u-flex-gap-8">
+            <input type="color" id="st-accent-dark" value="#e94560" class="accent-color-input"
               data-oninput-action="_livePreview"/>
-            <label style="font-size:12px;color:var(--muted)">${t('lbl_accent')}</label>
+            <label class="u-text-12 u-text-muted">${t('lbl_accent')}</label>
           </div>
         </div>
       </div>
-      <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="u-mt-14 u-flex-gap-8 u-wrap">
         <button class="btn btn-primary btn-sm" data-action="saveStyleSettings">${t('btn_save_style')}</button>
         <button class="btn btn-ghost btn-sm" data-action="_resetStyles">${t('btn_reset_icon')}</button>
-        <span style="font-size:11px;color:var(--muted)">${t('msg_applies_immediately')}</span>
+        <span class="u-text-11 u-text-muted">${t('msg_applies_immediately')}</span>
       </div>
     </div>` : ''}
 
 
 
-    <div class="card" style="max-width:520px;margin-bottom:14px">
-
-    <div class="card" style="max-width:520px;margin-bottom:14px">
+    <div class="card settings-card">
       <div class="section-title">${t('backup_title')}</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">
+      <div class="u-text-12 u-text-muted u-mb-10 u-lh-16">
         ${t('msg_autobackup_hint')}
       </div>
       ${isAdmin ? `
-      <div style="display:flex;gap:8px;margin-bottom:12px">
+      <div class="u-flex-gap-8 u-mb-12">
         <button class="btn btn-primary btn-sm" data-action="createBackup">${t('btn_create_backup')}</button>
         <button class="btn btn-ghost btn-sm" data-action="loadBackupList">${t('btn_refresh_list')}</button>
       </div>
-      <div id="backup-list" style="font-size:12px">
-        <div style="color:var(--muted)">${t('msg_click_refresh_list')}</div>
-      </div>` : `<div style="color:var(--muted);font-size:13px">${t('msg_admin_only')}</div>`}
+      <div id="backup-list" class="u-text-12">
+        <div class="u-text-muted">${t('msg_click_refresh_list')}</div>
+      </div>` : `<div class="u-text-muted u-text-13">${t('msg_admin_only')}</div>`}
     </div>
 
       <div class="section-title">${t('csv_import_title')}</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.6">
+      <div class="u-text-12 u-text-muted u-mb-8 u-lh-16">
         ${t('msg_csv_import_hint')}
       </div>
       ${isAdmin ? `
-      <input type="file" id="csv-file" accept=".csv" style="margin-bottom:8px;font-size:13px;width:100%"
+      <input type="file" id="csv-file" accept=".csv" class="csv-file-input"
         data-onchange-action="detectImportType"/>
-      <div id="import-type-hint" style="font-size:12px;color:var(--muted);margin-bottom:8px;display:none"></div>
-      <div id="import-csv-options" style="display:none;margin-bottom:10px;font-size:12px">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:4px">
+      <div id="import-type-hint" class="u-text-12 u-text-muted u-mb-8 u-hidden"></div>
+      <div id="import-csv-options" class="u-hidden u-mb-10 u-text-12">
+        <label class="checkbox-label u-mb-4">
           <input type="checkbox" id="import-create-orgs" checked/> ${t('lbl_create_new_orgs')}
         </label>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <label class="checkbox-label">
           <input type="checkbox" id="import-create-employees" checked/> ${t('lbl_create_new_employees')}
         </label>
       </div>
       <button class="btn btn-success" id="import-btn" data-action="importAuto" disabled>${t('btn_import')}</button>
-      <div id="import-progress" style="display:none;margin-top:10px">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px" id="import-progress-label">${t('msg_preparing')}</div>
-        <div style="background:var(--border);border-radius:6px;height:8px;overflow:hidden">
-          <div id="import-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#3b82f6,#6366f1);border-radius:6px;transition:width 0.2s ease"></div>
+      <div id="import-progress" class="u-hidden u-mt-10">
+        <div class="u-text-12 u-text-muted u-mb-4" id="import-progress-label">${t('msg_preparing')}</div>
+        <div class="progress-track-sm">
+          <div id="import-progress-bar" class="progress-fill-anim"></div>
         </div>
       </div>
-      <div id="import-result" style="margin-top:8px;font-size:13px"></div>`
-      : `<div style="color:var(--muted);font-size:13px">${t('msg_edit_mode_only')}</div>`}
+      <div id="import-result" class="u-mt-8 u-text-13"></div>`
+      : `<div class="u-text-muted u-text-13">${t('msg_edit_mode_only')}</div>`}
     </div>
 
-    <div class="card" style="max-width:520px;margin-bottom:14px">
+    <div class="card settings-card">
       <div class="section-title">${t('export_data_title')}</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <div class="u-flex-gap-6 u-wrap">
         <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv`, "IT_assets.csv"])}'>${t('btn_export_all')}</button>
         <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=os`, "IT_assets_os.csv"])}'>⬇ ${t('tab_os')}</button>
         <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=small`, "IT_assets_small.csv"])}'>⬇ ${t('tab_small')}</button>
@@ -135,38 +133,38 @@ function _renderGeneralPanel(isAdmin, db_company_name='', db_logo_svg='', db_ver
       </div>
     </div>
 
-    <div class="card" style="max-width:520px;margin-bottom:14px">
+    <div class="card settings-card">
       <div class="section-title">${t('diag_title')}</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <div class="u-flex-gap-8 u-wrap">
         <button class="btn btn-ghost btn-sm" data-action="runDiag">${t('btn_check_state')}</button>
         ${isAdmin ? `<button class="btn btn-secondary btn-sm" data-action="runMigration">${t('btn_recalc_categories')}</button>` : ''}
       </div>
-      <div id="diag-result" style="margin-top:10px;font-size:12px;line-height:1.9"></div>
+      <div id="diag-result" class="u-mt-10 u-text-12 u-lh-19"></div>
     </div>
 
-    <div class="card" style="max-width:520px">
+    <div class="card settings-card-last">
       <div class="section-title">${t('about_system_title')}</div>
-      <div style="font-size:12px;color:var(--muted);line-height:2">
-        <div>${t('lbl_version')}: <b id="app-version-detail" style="color:var(--text)">${db_version || '…'}</b></div>
+      <div class="u-text-12 u-text-muted u-lh-2">
+        <div>${t('lbl_version')}: <b id="app-version-detail" class="u-text-base">${db_version || '…'}</b></div>
         <div>${t('lbl_db')}: <code>data/db.json</code> + <code>data/config.json</code> + <code>data/it-assets.sqlite</code></div>
         <div>${t('lbl_server')}: Node.js + Express + lowdb + SQLite</div>
         <div>HTTP: <code>:3000</code> (${t('lbl_redirect')}) · HTTPS: <code>:3443</code></div>
-        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <div class="divider-top-sm">
           ${t('msg_developed_for')}<br>
           ${t('lbl_author')}: <a href="https://github.com/DarkyAndSparky" target="_blank" rel="noopener"
-            style="color:var(--accent)">DarkyAndSparky</a>
+            class="u-text-accent">DarkyAndSparky</a>
         </div>
-        <div style="margin-top:8px">
+        <div class="u-mt-8">
           <a href="https://github.com/DarkyAndSparky/it-assets" target="_blank" rel="noopener"
-            style="color:var(--accent);display:inline-flex;align-items:center;gap:4px">
+            class="u-text-accent u-inline-flex-gap-4">
             ${t('lbl_github_repo')}
           </a>
         </div>
       </div>
       ${isAdmin ? `
-      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+      <div class="divider-top-lg">
         <button class="btn btn-ghost btn-sm" data-action="loadSystemInfo">${t('btn_admin_diag')}</button>
-        <div id="system-info-result" style="margin-top:10px;font-size:12px;line-height:1.9"></div>
+        <div id="system-info-result" class="u-mt-10 u-text-12 u-lh-19"></div>
       </div>` : ''}
     </div>`;
 }
@@ -181,7 +179,7 @@ let _sysInfoEnvTimer = null;
 async function loadSystemInfo() {
   const box = document.getElementById('system-info-result');
   if (!box) return;
-  box.innerHTML = `<span style="color:var(--muted)">${t('msg_loading')}</span>`;
+  box.innerHTML = `<span class="u-text-muted">${t('msg_loading')}</span>`;
   clearInterval(_sysInfoEnvTimer);
 
   try {
@@ -199,7 +197,7 @@ async function loadSystemInfo() {
       } catch (e) { /* тихо — авто-обновление необязательно */ }
     }, 10000);
   } catch (e) {
-    box.innerHTML = `<span style="color:var(--danger, #e94560)">${t('msg_load_error', { msg: e.message })}</span>`;
+    box.innerHTML = `<span class="u-text-danger-fallback">${t('msg_load_error', { msg: e.message })}</span>`;
   }
 }
 
@@ -225,76 +223,76 @@ function _fmtUptime(sec) {
 
 function _renderEnvRows(s) {
   return `
-    <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px;align-items:baseline">
-      <span style="color:var(--muted)">Node.js</span><span style="font-family:monospace">${esc(s.node.version)}</span>
-      <span style="color:var(--muted)">${t('lbl_platform')}</span><span style="font-family:monospace">${esc(s.node.platform)} / ${esc(s.node.arch)}</span>
-      <span style="color:var(--muted)">${t('lbl_uptime2')}</span><span>${_fmtUptime(s.node.uptime_sec)}</span>
-      <span style="color:var(--muted)">${t('lbl_process_memory')}</span><span>${s.node.memory_rss_mb} MB</span>
-      <span style="color:var(--muted)">PID</span><span style="font-family:monospace">${s.node.pid}</span>
-      <span style="color:var(--muted)">${t('lbl_db_size')}</span><span>${_fmtBytes(s.storage.sqlite_bytes + s.storage.db_json_bytes + s.storage.config_json_bytes)}</span>
-      <span style="color:var(--muted)">${t('lbl_last_backup2')}</span><span>${s.storage.backups.last ? _fmtDate(s.storage.backups.last.mtime) : t('lbl_no_backups2')}</span>
+    <div class="env-grid">
+      <span class="u-text-muted">Node.js</span><span class="u-font-mono">${esc(s.node.version)}</span>
+      <span class="u-text-muted">${t('lbl_platform')}</span><span class="u-font-mono">${esc(s.node.platform)} / ${esc(s.node.arch)}</span>
+      <span class="u-text-muted">${t('lbl_uptime2')}</span><span>${_fmtUptime(s.node.uptime_sec)}</span>
+      <span class="u-text-muted">${t('lbl_process_memory')}</span><span>${s.node.memory_rss_mb} MB</span>
+      <span class="u-text-muted">PID</span><span class="u-font-mono">${s.node.pid}</span>
+      <span class="u-text-muted">${t('lbl_db_size')}</span><span>${_fmtBytes(s.storage.sqlite_bytes + s.storage.db_json_bytes + s.storage.config_json_bytes)}</span>
+      <span class="u-text-muted">${t('lbl_last_backup2')}</span><span>${s.storage.backups.last ? _fmtDate(s.storage.backups.last.mtime) : t('lbl_no_backups2')}</span>
     </div>`;
 }
 
 function _renderSystemInfoCards(s) {
   const about = s.about || { name: 'it-assets', version: s.version, description: '', license: t('lbl_none'), author: t('lbl_none'), repository: '' };
   const deps = Object.entries(s.dependencies || {})
-    .map(([name, v]) => `<div>${esc(name)}: <code>${esc(v.installed)}</code> <span style="opacity:.6">(${esc(v.required)})</span></div>`)
+    .map(([name, v]) => `<div>${esc(name)}: <code>${esc(v.installed)}</code> <span class="u-opacity-6">(${esc(v.required)})</span></div>`)
     .join('');
   const techRows = (s.techStack || []).map(t2 => `
       <div>
-        <div style="font-weight:600;font-size:13px">${esc(t2.name)}</div>
-        <div style="font-size:11px;color:var(--muted)">${esc(t2.role)}</div>
+        <div class="u-fw-600 u-text-13">${esc(t2.name)}</div>
+        <div class="u-text-11 u-text-muted">${esc(t2.role)}</div>
       </div>`).join('');
   const changes = (s.recentChanges || []);
 
   return `
-    <div class="card" style="margin-bottom:14px;padding:12px">
-      <div style="font-weight:700;margin-bottom:8px">${t('about_program_title')} ${esc(about.name)}</div>
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px;align-items:baseline">
-        <span style="color:var(--muted)">${t('lbl_version')}</span><span style="font-family:monospace;font-weight:600">${esc(about.version)}</span>
-        <span style="color:var(--muted)">${t('lbl_description')}</span><span>${esc(about.description) || t('lbl_none')}</span>
-        <span style="color:var(--muted)">${t('lbl_license')}</span><span>${esc(about.license) || t('lbl_none')}</span>
-        <span style="color:var(--muted)">${t('lbl_author2')}</span><span>${esc(about.author) || t('lbl_none')}</span>
-        <span style="color:var(--muted)">${t('lbl_repository')}</span><span>${about.repository ? `<a href="${esc(about.repository)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(about.repository)}</a>` : t('lbl_none')}</span>
+    <div class="card info-card">
+      <div class="u-fw-700 u-mb-8">${t('about_program_title')} ${esc(about.name)}</div>
+      <div class="env-grid">
+        <span class="u-text-muted">${t('lbl_version')}</span><span class="u-font-mono u-fw-600">${esc(about.version)}</span>
+        <span class="u-text-muted">${t('lbl_description')}</span><span>${esc(about.description) || t('lbl_none')}</span>
+        <span class="u-text-muted">${t('lbl_license')}</span><span>${esc(about.license) || t('lbl_none')}</span>
+        <span class="u-text-muted">${t('lbl_author2')}</span><span>${esc(about.author) || t('lbl_none')}</span>
+        <span class="u-text-muted">${t('lbl_repository')}</span><span>${about.repository ? `<a href="${esc(about.repository)}" target="_blank" rel="noopener" class="u-text-accent">${esc(about.repository)}</a>` : t('lbl_none')}</span>
       </div>
     </div>
 
-    <div class="card" style="margin-bottom:14px;padding:12px" id="about-env-card">
-      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
-        <div style="font-weight:700">${t('about_env_title')}</div>
-        <div style="font-size:10px;color:var(--muted)">${t('about_env_refresh_note')}</div>
+    <div class="card info-card" id="about-env-card">
+      <div class="u-flex-baseline-gap-8-mb-8">
+        <div class="u-fw-700">${t('about_env_title')}</div>
+        <div class="u-text-10 u-text-muted">${t('about_env_refresh_note')}</div>
       </div>
       <div id="about-env-card-body">${_renderEnvRows(s)}</div>
     </div>
 
-    <div class="card" style="margin-bottom:14px;padding:12px">
-      <div style="font-weight:700;margin-bottom:8px">${t('about_tech_title')}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px">${techRows}</div>
+    <div class="card info-card">
+      <div class="u-fw-700 u-mb-8">${t('about_tech_title')}</div>
+      <div class="tech-grid">${techRows}</div>
     </div>
 
     ${changes.length ? `
-    <details class="card" style="margin-bottom:14px;padding:0">
-      <summary style="cursor:pointer;padding:12px;font-weight:700;list-style:none;display:flex;align-items:center;gap:8px">
+    <details class="card info-card-flush">
+      <summary class="changes-summary">
         ${t('about_changes_title')}
-        <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:auto">${t('about_changes_note')}</span>
+        <span class="u-text-10 u-text-muted u-fw-400 u-ml-auto">${t('about_changes_note')}</span>
       </summary>
-      <div style="padding:0 12px 12px">
-        <ul style="margin:0;padding-left:18px;font-size:12px;color:var(--muted);line-height:1.7">
+      <div class="changes-body">
+        <ul class="changes-list">
           ${changes.map(c => `<li>${esc(c)}</li>`).join('')}
         </ul>
       </div>
     </details>` : ''}
 
-    <div class="card" style="padding:12px">
-      <div style="font-weight:700;margin-bottom:8px">${t('about_data_title')}</div>
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px;align-items:baseline">
-        <span style="color:var(--muted)">${t('lbl_records')}</span><span>${t('lbl_assets_short')} ${s.counts.assets ?? '?'} · ${t('lbl_history_short')} ${s.counts.history ?? '?'} · ${t('lbl_employees_short')} ${s.counts.employees ?? '?'} · ${t('lbl_users_short')} ${s.counts.users ?? '?'}</span>
-        <span style="color:var(--muted)">${t('lbl_backups')}</span><span>${s.storage.backups.count} ${t('lbl_pcs_last')}: ${s.storage.backups.last ? esc(s.storage.backups.last.file) : t('lbl_no_backups2')}</span>
+    <div class="card info-card-noMb">
+      <div class="u-fw-700 u-mb-8">${t('about_data_title')}</div>
+      <div class="env-grid">
+        <span class="u-text-muted">${t('lbl_records')}</span><span>${t('lbl_assets_short')} ${s.counts.assets ?? '?'} · ${t('lbl_history_short')} ${s.counts.history ?? '?'} · ${t('lbl_employees_short')} ${s.counts.employees ?? '?'} · ${t('lbl_users_short')} ${s.counts.users ?? '?'}</span>
+        <span class="u-text-muted">${t('lbl_backups')}</span><span>${s.storage.backups.count} ${t('lbl_pcs_last')}: ${s.storage.backups.last ? esc(s.storage.backups.last.file) : t('lbl_no_backups2')}</span>
       </div>
-      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-        <div style="font-weight:600;font-size:12px;margin-bottom:6px">${t('lbl_dependencies')}</div>
-        <div style="max-height:160px;overflow:auto;font-size:12px">${deps}</div>
+      <div class="divider-top-sm">
+        <div class="u-fw-600 u-text-12 u-mb-6">${t('lbl_dependencies')}</div>
+        <div class="deps-box">${deps}</div>
       </div>
     </div>`;
 }
@@ -325,17 +323,17 @@ async function runDiag() {
   el.innerHTML = t('msg_checking');
   try {
     const d = await fetch(`${API}/api/diag`).then(r=>r.json());
-    const ok = c => `<span style="color:#059669;font-weight:600">${c}</span>`;
-    const err = c => `<span style="color:var(--danger-text);font-weight:600">${c}</span>`;
+    const ok = c => `<span class="u-text-059669 u-fw-600">${c}</span>`;
+    const err = c => `<span class="u-text-danger u-fw-600">${c}</span>`;
     const mb = (d.fileSize/1024).toFixed(1);
     const last = d.lastWrite ? new Date(d.lastWrite).toLocaleString(_lang === 'en' ? 'en-US' : 'ru-RU') : '—';
     el.innerHTML = `
       <div>${d.writable ? ok(t('msg_db_writable')) : err(t('msg_db_not_writable'))}</div>
       <div>${d.writeOk  ? ok(t('msg_test_write_ok')) : err(t('msg_test_write_fail'))}</div>
-      <div>📁 ${t('lbl_path')}: <code style="font-size:11px">${d.dbPath}</code></div>
+      <div>📁 ${t('lbl_path')}: <code class="u-text-11">${d.dbPath}</code></div>
       <div>📦 ${t('lbl_size')}: ${mb} KB | ${t('lbl_last_change')}: ${last}</div>
       <div>📋 ${t('lbl_in_db')}: ${t('lbl_devices_count', { n: d.assets })}, ${t('lbl_history_records', { n: d.history })}</div>
-      <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
+      <div class="divider-top-xs">
         ${d.backup?.last
           ? ok(t('msg_last_backup', {
               name: d.backup.last.file.replace(/^backup_\w+_/,'').replace(/\.zip|\.json/,''),
@@ -343,14 +341,14 @@ async function runDiag() {
               full: d.backup.last.full ? t('lbl_backup_full') : t('lbl_backup_db_only')
             }))
           : err(t('msg_no_backups_found'))}
-        <span style="color:var(--muted);font-size:12px"> ${t('lbl_total_count', { n: d.backup?.count ?? 0 })}</span>
+        <span class="u-text-muted u-text-12"> ${t('lbl_total_count', { n: d.backup?.count ?? 0 })}</span>
       </div>
-      ${!d.writable||!d.writeOk ? `<div style="margin-top:8px;padding:8px;background:var(--noInv-bg);border-radius:6px;color:var(--danger-text)">
+      ${!d.writable||!d.writeOk ? `<div class="diag-warn-box">
         ${t('msg_move_folder_warning')}
       </div>` : ''}
     `;
   } catch(e) {
-    document.getElementById('diag-result').innerHTML = `<span style="color:var(--danger-text)">${t('msg_diag_error', { msg: e.message })}</span>`;
+    document.getElementById('diag-result').innerHTML = `<span class="u-text-danger">${t('msg_diag_error', { msg: e.message })}</span>`;
   }
 }
 
@@ -380,7 +378,7 @@ function _updateLogoEl(name, logoData) {
       logoSvg.style.display = 'block';
       logoEmoji.style.display = 'none';
     } else if (isImgUrl) {
-      logoSvg.innerHTML = `<img src="${logoData}" style="height:36px;width:auto;object-fit:contain" alt="logo"/>`;
+      logoSvg.innerHTML = `<img src="${logoData}" class="logo-svg-img" alt="logo"/>`;
       logoSvg.style.display = 'block';
       logoEmoji.style.display = 'none';
     } else {
@@ -396,8 +394,8 @@ function _livePreview() {
   const ad = document.getElementById('st-accent-dark')?.value  || '#e94560';
   const pl = document.getElementById('preview-light');
   const pd = document.getElementById('preview-dark');
-  if (pl) pl.innerHTML = _renderStylePreview(false, al);
-  if (pd) pd.innerHTML = _renderStylePreview(true,  ad);
+  if (pl) { pl.innerHTML = _renderStylePreview(false, al); _applyPreviewAccent(pl); }
+  if (pd) { pd.innerHTML = _renderStylePreview(true,  ad); _applyPreviewAccent(pd); }
 }
 
 function _resetStyles() {
@@ -439,7 +437,7 @@ function _loadLogoPreview(logoData) {
   const preview = document.getElementById('logo-preview');
   if (!preview) return;
   if (!logoData || !logoData.trim()) {
-    preview.innerHTML = `<span style="font-size:12px;color:var(--muted)">${t('msg_logo_not_set')}</span>`;
+    preview.innerHTML = `<span class="u-text-12 u-text-muted">${t('msg_logo_not_set')}</span>`;
     return;
   }
   if (logoData.trim().toLowerCase().startsWith('<svg')) {
@@ -449,9 +447,9 @@ function _loadLogoPreview(logoData) {
     if (el) { el.style.height='36px'; el.style.width='auto'; el.removeAttribute('width'); el.removeAttribute('height'); }
   } else if (logoData.startsWith('data:') || logoData.startsWith('http')) {
     // base64 или URL
-    preview.innerHTML = `<img src="${logoData}" style="height:36px;width:auto;object-fit:contain" alt="logo"/>`;
+    preview.innerHTML = `<img src="${logoData}" class="logo-svg-img" alt="logo"/>`;
   } else {
-    preview.innerHTML = `<span style="font-size:12px;color:var(--muted)">${t('msg_logo_not_set')}</span>`;
+    preview.innerHTML = `<span class="u-text-12 u-text-muted">${t('msg_logo_not_set')}</span>`;
   }
 }
 
@@ -558,40 +556,44 @@ function _previewAccent(inputId, previewId) {
 }
 
 function _renderStylePreview(isDark, accent) {
-  const bg      = isDark ? '#0f1117' : '#f0f2f5';
-  const card    = isDark ? '#1a1b23' : '#ffffff';
-  const text    = isDark ? '#e8eaf0' : '#1a1a2e';
-  const muted   = isDark ? '#6b7280' : '#64748b';
-  const border  = isDark ? '#2d2f3e' : '#e2e8f0';
-  const navBg   = isDark ? '#1a1b23' : '#ffffff';
-  const headerG = isDark
-    ? 'linear-gradient(135deg,#0a0b0f,#13141c,#1a1b23)'
-    : 'linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)';
+  const th = isDark ? 'dark' : 'light';
   const navTabs = [t('nav_dashboard').replace(/^\S+\s/, ''), t('tab_os'), t('tab_small'), t('tab_infra')];
   const contentTabs = [t('nav_os'), t('nav_small'), t('nav_infra')];
   return `
-    <div style="width:100%;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.25);font-size:10px;user-select:none">
+    <div class="preview-shell">
       <!-- header -->
-      <div style="background:${headerG};color:#fff;padding:7px 10px;display:flex;align-items:center;gap:6px">
-        <div style="font-weight:800;font-size:11px">IT<span style="color:${accent}">ASSETS</span></div>
-        <div style="margin-left:auto;display:flex;gap:4px">
-          <div style="background:${accent};border-radius:10px;padding:1px 6px;font-size:9px;font-weight:600">0</div>
-          <div style="background:rgba(255,255,255,.2);border-radius:6px;padding:2px 7px;font-size:9px">admin</div>
+      <div class="preview-header preview-header-${th}">
+        <div class="preview-logo">IT<span data-accent-text="${accent}">ASSETS</span></div>
+        <div class="preview-badges-wrap">
+          <div class="preview-badge-count" data-accent-bg="${accent}">0</div>
+          <div class="preview-badge-user">admin</div>
         </div>
       </div>
       <!-- nav -->
-      <div style="background:${navBg};display:flex;gap:0;border-bottom:1px solid ${border};padding:0 8px">
+      <div class="preview-nav preview-nav-${th}">
         ${navTabs.map((tb,i) => `
-        <div style="padding:5px 7px;font-size:9px;font-weight:${i===0?700:500};color:${i===0?accent:muted};border-bottom:${i===0?`2px solid ${accent}`:'2px solid transparent'}">${tb}</div>`).join('')}
+        <div class="preview-nav-tab ${i===0?'preview-nav-tab-active':`preview-nav-tab-inactive preview-nav-tab-inactive-${th}`}"
+          ${i===0?`data-accent-text="${accent}" data-accent-border-bottom="${accent}"`:''}>${tb}</div>`).join('')}
       </div>
       <!-- content -->
-      <div style="background:${bg};padding:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px">
+      <div class="preview-content preview-content-${th}">
         ${contentTabs.map(tb => `
-        <div style="background:${card};border-radius:6px;padding:6px 8px;box-shadow:0 1px 4px rgba(0,0,0,.1);border-left:3px solid ${accent}">
-          <div style="font-size:10px;font-weight:700;color:${text}">${tb}</div>
-          <div style="font-size:14px;font-weight:800;color:${accent};margin-top:2px">—</div>
-          <div style="font-size:8px;color:${muted}">${t('lbl_devices_word')}</div>
+        <div class="preview-card preview-card-${th}" data-accent-border-left="${accent}">
+          <div class="preview-card-title preview-card-title-${th}">${tb}</div>
+          <div class="preview-card-num" data-accent-text="${accent}">—</div>
+          <div class="preview-card-sub preview-card-sub-${th}">${t('lbl_devices_word')}</div>
         </div>`).join('')}
       </div>
     </div>`;
+}
+
+// CSP-21: accent — произвольный цвет из color-picker (не конечный
+// перечень) — назначается точечно после вставки превью в DOM, как и
+// остальные "истинно динамические" случаи в треке (dashboard.js и т.д.).
+function _applyPreviewAccent(container) {
+  if (!container) return;
+  container.querySelectorAll('[data-accent-bg]').forEach(el => { el.style.background = el.dataset.accentBg; });
+  container.querySelectorAll('[data-accent-text]').forEach(el => { el.style.color = el.dataset.accentText; });
+  container.querySelectorAll('[data-accent-border-bottom]').forEach(el => { el.style.borderBottom = `2px solid ${el.dataset.accentBorderBottom}`; });
+  container.querySelectorAll('[data-accent-border-left]').forEach(el => { el.style.borderLeft = `3px solid ${el.dataset.accentBorderLeft}`; });
 }

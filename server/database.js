@@ -43,6 +43,10 @@ db.getCategories  = settingsRepo.getCategories;
 db.setCategories  = settingsRepo.setCategories;
 db.getTypeCodes   = settingsRepo.getTypeCodes;
 db.setTypeCodes   = settingsRepo.setTypeCodes;
+// PROD-1
+db.getFieldSchemas = settingsRepo.getFieldSchemas;
+db.getFieldSchema  = settingsRepo.getFieldSchema;
+db.setFieldSchema  = settingsRepo.setFieldSchema;
 
 // ─── db.config — методы для справочников ──────────────────────────────────────
 

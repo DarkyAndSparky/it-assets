@@ -24,7 +24,16 @@ function _onFilialSelectChange(locSelectId) {
 // Аналогично: data-onchange-action="_onCategorySelectChange" data-onchange-args='${JSON.stringify([tab, "a-meta"])}' —
 // value ПОСЕРЕДИНЕ аргументов.
 function _onCategorySelectChange(tab, containerId) {
-  updateMetaForm(tab, this.value, containerId);
+  const typeSel = document.getElementById(containerId === 'a-meta' ? 'a-type' : 'e-type');
+  updateMetaForm(tab, this.value, containerId, typeSel ? typeSel.value : '');
+}
+
+// PROD-2: смена типа устройства тоже должна перерисовать meta-форму (у
+// разных типов может быть своя схема полей, см. PROD-1/types-admin.js) —
+// раньше форма реагировала только на смену категории.
+function _onTypeSelectChange(containerId) {
+  const catSel = document.getElementById(containerId === 'a-meta' ? 'a-cat' : 'e-cat');
+  updateMetaForm(null, catSel ? catSel.value : '', containerId, this.value);
 }
 
 // Было data-action="_closeThenShowMove" data-args='${JSON.stringify([id])}' — два оператора подряд.
@@ -48,19 +57,18 @@ const _photoBlobUrls = new Set(); // отслеживаем, чтобы осво
 
 function _renderPhotoGrid(assetId, photos) {
   if (!photos.length) {
-    return `<div style="color:var(--muted);font-size:12px;padding:8px 0">${t('msg_no_photos')}</div>`;
+    return `<div class="u-text-muted u-text-12 u-p-8-0">${t('msg_no_photos')}</div>`;
   }
-  return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px">
+  return `<div class="photo-grid">
     ${photos.map((p,i) => `
-      <div style="position:relative">
-        <div class="photo-thumb-wrap" data-action="_openPhotoLightboxAt" data-args='${JSON.stringify([assetId, photos, i])}'
-          style="aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--surface);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center">
-          <img id="photo-thumb-${p.id}" style="width:100%;height:100%;object-fit:cover;display:none"/>
-          <span id="photo-thumb-spinner-${p.id}" style="font-size:11px;color:var(--muted)">…</span>
+      <div class="u-relative">
+        <div class="photo-thumb-wrap photo-thumb-frame" data-action="_openPhotoLightboxAt" data-args='${JSON.stringify([assetId, photos, i])}'>
+          <img id="photo-thumb-${p.id}" class="photo-thumb-img"/>
+          <span id="photo-thumb-spinner-${p.id}" class="u-text-11 u-text-muted">…</span>
         </div>
         ${canEdit()?`
         <button class="btn-icon" title="${t('tooltip_delete_photo')}" data-action="_deleteAssetPhoto" data-args='${JSON.stringify([assetId, p.id])}'
-          style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.55);color:#fff;border-radius:6px;width:20px;height:20px;font-size:11px;line-height:1;padding:0">🗑</button>`:''}
+          class="photo-del-btn">🗑</button>`:''}
       </div>`).join('')}
   </div>`;
 }
@@ -177,14 +185,14 @@ async function _openPhotoLightboxAt(assetId, photos, index) {
     _photoBlobUrls.add(url);
     const hasMultiple = photos.length > 1;
     showModal(`
-      <div style="text-align:center;position:relative;display:flex;align-items:center;justify-content:center;gap:8px">
-        ${hasMultiple?`<button class="btn-icon" data-action="_openPhotoLightboxAt" data-args='${JSON.stringify([assetId, photos, index-1])}' style="font-size:22px;flex-shrink:0">‹</button>`:''}
-        <img src="${url}" style="max-width:100%;max-height:65vh;border-radius:8px;flex:1;min-width:0"/>
-        ${hasMultiple?`<button class="btn-icon" data-action="_openPhotoLightboxAt" data-args='${JSON.stringify([assetId, photos, index+1])}' style="font-size:22px;flex-shrink:0">›</button>`:''}
+      <div class="lightbox-frame">
+        ${hasMultiple?`<button class="btn-icon" data-action="_openPhotoLightboxAt" data-args='${JSON.stringify([assetId, photos, index-1])}' class="u-text-22 u-shrink-0">‹</button>`:''}
+        <img src="${url}" class="lightbox-img"/>
+        ${hasMultiple?`<button class="btn-icon" data-action="_openPhotoLightboxAt" data-args='${JSON.stringify([assetId, photos, index+1])}' class="u-text-22 u-shrink-0">›</button>`:''}
       </div>
-      ${hasMultiple?`<div style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px">${index+1} / ${photos.length}${photo.original_name?' · '+esc(photo.original_name):''}</div>`
-        :(photo.original_name?`<div style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px">${esc(photo.original_name)}</div>`:'')}
-      <div class="modal-actions" style="margin-top:14px">
+      ${hasMultiple?`<div class="u-text-center u-text-12 u-text-muted u-mt-8">${index+1} / ${photos.length}${photo.original_name?' · '+esc(photo.original_name):''}</div>`
+        :(photo.original_name?`<div class="u-text-center u-text-12 u-text-muted u-mt-8">${esc(photo.original_name)}</div>`:'')}
+      <div class="modal-actions u-mt-14">
         <button class="btn btn-secondary" data-action="closeModal">${t('btn_close')}</button>
       </div>`);
   } catch (e) {
@@ -215,20 +223,20 @@ async function showDetail(id) {
     const org = _orgsCache.find(o => o.id === a.org_id);
     if (org) a.org = org.name;
   }
-  const mf=getMetaFields(a.category);
+  const mf=getMetaFieldDefs(a.category, a.type).map(f=>f.key);
   const metaRows=mf.filter(k=>a.meta?.[k]).map(k=>`
     <div><div class="detail-lbl">${metaLabel(k)}</div>
     <div class="detail-val ${k==='password'?'pw-mask mono':'mono'}" ${k==='password'?`data-action="_revealMaskedValue" data-args='${JSON.stringify([esc(a.meta[k] || '')])}'`:''}>
       ${k==='password'?(a.meta[k]?'••••••':'—'):esc(a.meta[k])}</div></div>`).join('');
 
   showModal(`
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+    <div class="detail-header">
       <div>
-        <div style="font-size:26px">${ic(a.type)}</div>
-        <div style="font-weight:800;font-size:17px">${esc(a.model)}</div>
-        <div style="color:var(--muted);font-size:12px">${esc(a.type)} · <span class="badge-cat">${esc(a.category)}</span></div>
+        <div class="u-text-26">${ic(a.type)}</div>
+        <div class="u-fw-800 u-text-17">${esc(a.model)}</div>
+        <div class="u-text-muted u-text-12">${esc(a.type)} · <span class="badge-cat">${esc(a.category)}</span></div>
       </div>
-      <div style="display:flex;gap:6px;align-items:center">
+      <div class="u-flex-gap-6">
         <span class="badge-s ${sc(a.status)}">${a.status}</span>
         <button class="btn btn-ghost btn-sm" data-action="closeModal">✕</button>
       </div>
@@ -243,57 +251,56 @@ async function showDetail(id) {
     ${metaRows?`<hr class="sep"/><div class="section-title">${t('section_meta')}</div>
       <div class="meta-grid">${metaRows}</div>`:''}
     <hr class="sep"/>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+    <div class="photo-section-header">
       ${photos.length?`
-        <button id="asset-photos-toggle-${id}" class="btn btn-secondary btn-sm" style="margin:0"
+        <button id="asset-photos-toggle-${id}" class="btn btn-secondary btn-sm u-m-0"
           data-action="_togglePhotoSection" data-args='${JSON.stringify([id, photos])}'>${t('btn_show_photos', { n: photos.length })}</button>
-      `:`<div class="section-title" style="margin:0">${t('section_photos')}</div>`}
+      `:`<div class="section-title u-m-0">${t('section_photos')}</div>`}
       ${canEdit()?`
-        <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0">
+        <label class="btn btn-secondary btn-sm u-cursor-pointer u-m-0">
           ${t('btn_add_photo')}
           <input type="file" accept="image/*" capture="environment" multiple
-            style="display:none" data-onchange-action="_onAssetPhotoInputChange" data-onchange-args='${JSON.stringify([id])}'/>
+            class="u-hidden" data-onchange-action="_onAssetPhotoInputChange" data-onchange-args='${JSON.stringify([id])}'/>
         </label>` : ''}
     </div>
-    <div id="asset-photos-box-${id}" style="display:none">
+    <div id="asset-photos-box-${id}" class="u-hidden">
       <div id="asset-photos-grid-${id}">${_renderPhotoGrid(id, photos)}</div>
     </div>
     ${hist.length?`<hr class="sep"/>
-    <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:10px;letter-spacing:.5px">
+    <div class="u-text-11 u-fw-600 u-text-muted u-mb-10 u-ls-05">
       ${t('section_history_count', { n: hist.length })}
     </div>
-    <div style="position:relative;padding-left:20px">
-      <div style="position:absolute;left:7px;top:0;bottom:0;width:2px;background:var(--border);border-radius:2px"></div>
+    <div class="timeline-rail">
+      <div class="timeline-line"></div>
       ${hist.map((h,i)=>{
         const isMove    = h.action_type==='move'   || h.from_who || h.to_who;
         const isCreate  = h.action_type==='create' || h.action_type==='import';
         const isRetire  = h.action_type==='retire' || h.action_type==='delete';
         const icon  = isRetire?'🗑':isCreate?'✨':isMove?'→':'📝';
         const color = isRetire?'#dc2626':isCreate?'#059669':isMove?'#6366f1':'var(--warn-text)';
-        return `<div style="position:relative;margin-bottom:${i<hist.length-1?'12':'4'}px">
-          <div style="position:absolute;left:-16px;top:2px;width:10px;height:10px;border-radius:50%;
-            background:${color};border:2px solid #fff;box-shadow:0 0 0 1px ${color}"></div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">${fd(h.date)}
-            ${h.changed_by?`<span style="color:var(--muted)"> · ${esc(h.changed_by)}</span>`:''}
+        return `<div class="u-relative ${i<hist.length-1?'u-mb-12':'u-mb-4'}">
+          <div class="timeline-dot" data-dot-color="${color}"></div>
+          <div class="u-text-11 u-text-muted u-mb-2">${fd(h.date)}
+            ${h.changed_by?`<span class="u-text-muted"> · ${esc(h.changed_by)}</span>`:''}
           </div>
-          ${(h.from_who||h.to_who)?`<div style="font-size:12px;margin-bottom:2px">
-            ${h.from_who?`<span style="color:var(--muted)">${esc(h.from_who)}</span> `:''}
-            ${h.from_who&&h.to_who?'<span style="color:var(--muted)">→</span> ':''}
+          ${(h.from_who||h.to_who)?`<div class="u-text-12 u-mb-2">
+            ${h.from_who?`<span class="u-text-muted">${esc(h.from_who)}</span> `:''}
+            ${h.from_who&&h.to_who?'<span class="u-text-muted">→</span> ':''}
             ${h.to_who?`<b>${esc(h.to_who)}</b>`:''}
           </div>`:''}
-          ${h.filial||h.location?`<div style="font-size:11px;color:var(--muted)">
+          ${h.filial||h.location?`<div class="u-text-11 u-text-muted">
             📍 ${esc(h.filial||'')}${h.location?' · '+esc(h.location):''}
           </div>`:''}
-          ${h.reason?`<div style="font-size:11px;margin-top:2px">
-            <span class="badge-cat" style="font-size:10px">${esc(h.reason)}</span>
+          ${h.reason?`<div class="u-text-11 u-mt-2">
+            <span class="badge-cat u-text-10">${esc(h.reason)}</span>
           </div>`:''}
         </div>`;
       }).join('')}
     </div>`:''}
     <hr class="sep"/>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0">
-      <div id="detail-qr-${id}" style="line-height:0;border-radius:8px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.12)"></div>
-      <div style="font-size:11px;color:var(--muted);text-align:center;max-width:200px;line-height:1.4">${buildQrText(a).replace(/\n/g, ' · ')}</div>
+    <div class="u-flex-col-center-gap-8 u-p-8-0">
+      <div id="detail-qr-${id}" class="qr-frame"></div>
+      <div class="u-text-11 u-text-muted u-text-center u-max-w-200 u-lh-14">${buildQrText(a).replace(/\n/g, ' · ')}</div>
       <button class="btn btn-secondary btn-sm" data-action="printAsset" data-args='${JSON.stringify([a])}'>${t('btn_print_card')}</button>
     </div>
     <div class="modal-actions">
@@ -305,6 +312,15 @@ async function showDetail(id) {
     </div>`);
   currentDetailAsset = a;
   requestAnimationFrame(() => renderQrInto('detail-qr-' + id, buildQrText(a)));
+  // CSP-16: цвет точки таймлайна — 4 фиксированных значения (retire/create/
+  // move/edit), задаём через data-dot-color + точечный style после вставки,
+  // как в alerts.js/dashboard.js. background и box-shadow используют один
+  // цвет, поэтому классом на 4 значения выразить нельзя без дублирования.
+  document.querySelectorAll('.timeline-dot[data-dot-color]').forEach(el => {
+    const c = el.dataset.dotColor;
+    el.style.background = c;
+    el.style.boxShadow = `0 0 0 1px ${c}`;
+  });
   // Фото больше НЕ грузятся сразу при открытии карточки — секция свёрнута,
   // миниатюры (байты изображений) подгружаются лениво по клику на кнопку
   // «Показать фото» (см. _togglePhotoSection выше).
@@ -321,12 +337,12 @@ async function showMoveModal(id) {
   const filialOpts = _filialsCache.filter(f=>f.status==='active')
     .map(f=>`<option value="${esc(f.name)}" ${a.filial===f.name?'selected':''}>${esc(f.name)}</option>`).join('');
   showModal(`<h2>${t('modal_move_title')}</h2>
-    <div style="background:#f8fafc;border-radius:8px;padding:11px;margin-bottom:14px;font-size:13px">
+    <div class="move-summary-box">
       ${ic(a.type||'')} <b>${esc(a.type||'')} · ${esc(a.model||'')}</b><br>
-      <span style="color:var(--muted)">SN: ${esc(a.serial)||'—'}</span>
+      <span class="u-text-muted">SN: ${esc(a.serial)||'—'}</span>
     </div>
     <div class="form-row"><label>${t('lbl_current_responsible')}</label>
-      <div style="font-size:13px;color:var(--muted);padding:5px 0">${esc(a.responsible)||'—'}</div></div>
+      <div class="u-text-13 u-text-muted u-p-5-0">${esc(a.responsible)||'—'}</div></div>
     <div class="form-row"><label>${t('lbl_new_responsible')}</label>
       <input id="m-resp" value="${esc((!a.responsible||a.responsible==='?')?'':a.responsible)}" placeholder="${t('msg_full_name_placeholder')}"/></div>
     <div class="two-col">
@@ -367,16 +383,33 @@ async function doMove(id) {
 }
 
 // ─── ADD/EDIT MODAL ───────────────────────────────────────────────────────────
-function metaFormRows(category, existing={}) {
-  const fields=getMetaFields(category);
-  return fields.map(k=>`<div class="form-row"><label>${metaLabel(k)}</label>
-    <input id="meta-${k}" value="${esc(existing[k]||'')}" placeholder="${metaLabel(k)}"
-      type="${k==='password'?'text':'text'}"/></div>`).join('');
+function metaFormRows(category, existing={}, typeName) {
+  const fields = getMetaFieldDefs(category, typeName);
+  return fields.map(f => {
+    const label = esc(f.label || metaLabel(f.key));
+    const val = existing[f.key] != null ? existing[f.key] : '';
+    const reqAttr = f.required ? 'required' : '';
+    if (f.type === 'boolean') {
+      const checked = (val === true || val === 'true' || val === '1') ? 'checked' : '';
+      return `<div class="form-row"><label class="checkbox-label"><input type="checkbox" id="meta-${f.key}" ${checked}/> ${label}</label></div>`;
+    }
+    if (f.type === 'select') {
+      const opts = (f.options||[]).map(o => `<option value="${esc(o)}" ${String(val)===o?'selected':''}>${esc(o)}</option>`).join('');
+      return `<div class="form-row"><label>${label}</label><select id="meta-${f.key}" ${reqAttr}><option value=""></option>${opts}</select></div>`;
+    }
+    const inputType = f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text';
+    return `<div class="form-row"><label>${label}</label>
+      <input id="meta-${f.key}" value="${esc(val)}" placeholder="${label}" type="${inputType}" ${reqAttr}/></div>`;
+  }).join('');
 }
-function collectMeta(category) {
-  const fields=getMetaFields(category);
-  const meta={};
-  fields.forEach(k=>{const el=document.getElementById('meta-'+k);if(el)meta[k]=el.value;});
+function collectMeta(category, typeName) {
+  const fields = getMetaFieldDefs(category, typeName);
+  const meta = {};
+  fields.forEach(f => {
+    const el = document.getElementById('meta-' + f.key);
+    if (!el) return;
+    meta[f.key] = f.type === 'boolean' ? (el.checked ? 'true' : 'false') : el.value;
+  });
   return meta;
 }
 
@@ -431,12 +464,12 @@ async function showAddModal(tab) {
       <div class="form-row"><label>${t('field_collection')}</label>
         <select id="a-cat" data-onchange-action="_onCategorySelectChange" data-onchange-args='${JSON.stringify([tab, "a-meta"])}'>${cats.map(c=>`<option>${c}</option>`).join('')}</select></div>
       <div class="form-row"><label>${t('field_type')}</label>
-        <select id="a-type">${types.map(typ=>`<option>${typ}</option>`).join('')}</select></div>
+        <select id="a-type" data-onchange-action="_onTypeSelectChange" data-onchange-args='["a-meta"]'>${types.map(typ=>`<option>${typ}</option>`).join('')}</select></div>
       <div class="form-row"><label>${t('field_model')} *</label><input id="a-model" placeholder="${t('field_model')}"/></div>
       <div class="form-row"><label>${t('field_serial')}</label><input id="a-serial" placeholder="SN"/></div>
       <div class="form-row"><label>${t('field_inv')}</label>
-        <div style="display:flex;gap:5px">
-          <input id="a-inv" placeholder="${t('msg_inv_example')}" style="flex:1"/>
+        <div class="u-flex-gap-5">
+          <input id="a-inv" placeholder="${t('msg_inv_example')}" class="u-flex-1"/>
           <button type="button" class="btn btn-secondary btn-sm" data-action="openInvGenerator" data-args='["a-inv","a-org","a-type"]' title="${t('tooltip_generator')}">🏷</button>
         </div>
       </div>
@@ -450,33 +483,34 @@ async function showAddModal(tab) {
     </div>
     <div class="form-row"><label>${t('field_note')}</label><textarea id="a-note"></textarea></div>
     <hr class="sep"/>
-    <div class="section-title" style="margin-bottom:8px">${t('section_meta')}</div>
-    <div id="a-meta" class="two-col">${metaFormRows(firstCat)}</div>
+    <div class="section-title u-mb-8">${t('section_meta')}</div>
+    <div id="a-meta" class="two-col">${metaFormRows(firstCat, {}, types[0])}</div>
     <div class="modal-actions">
       <button class="btn btn-primary" data-action="doAdd" data-args='${JSON.stringify([tab])}'>${t('btn_save')}</button>
       <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
 }
-function updateMetaForm(tab, category, containerId) {
-  document.getElementById(containerId).innerHTML = metaFormRows(category);
+function updateMetaForm(tab, category, containerId, typeName) {
+  document.getElementById(containerId).innerHTML = metaFormRows(category, {}, typeName);
 }
 async function doAdd(tab) {
   try {
 
   const filial=document.getElementById('a-filial').value.trim();
   const category=document.getElementById('a-cat').value.trim();
+  const type=document.getElementById('a-type').value.trim();
   const filialObj = _filialsCache.find(f=>f.name===filial);
   const data={tab,category,filial,address:filialObj?.address||'',
     location:document.getElementById('a-loc').value.trim(),
     responsible:document.getElementById('a-resp').value.trim(),
-    type:document.getElementById('a-type').value.trim(),
+    type,
     model:document.getElementById('a-model').value.trim(),
     serial:document.getElementById('a-serial').value.trim(),
     inv:   (document.getElementById('a-inv')||{}).value||'',
     status:document.getElementById('a-status').value.trim(),
     org:document.getElementById('a-org').value.trim(),
     note:document.getElementById('a-note').value.trim(),
-    meta:collectMeta(category)};
+    meta:collectMeta(category, type)};
   if (!data.model) return toast(t('msg_fill_model'),'error');
   const r=await fetch(`${API}/api/assets`,{method:'POST',headers:ah(),body:JSON.stringify(data)});
   if (r.ok){closeModal();toast(t('msg_added'),'success');render();}
@@ -495,12 +529,12 @@ async function showEditModal(id) {
   showModal(`<h2>${t('modal_edit_title')}</h2>
     <div class="two-col">
       <div class="form-row"><label>${t('field_type')}</label>
-        <select id="e-type">${types.map(typ=>`<option ${a.type===typ?'selected':''}>${typ}</option>`).join('')}</select></div>
+        <select id="e-type" data-onchange-action="_onTypeSelectChange" data-onchange-args='["e-meta"]'>${types.map(typ=>`<option ${a.type===typ?'selected':''}>${typ}</option>`).join('')}</select></div>
       <div class="form-row"><label>${t('field_model')}</label><input id="e-model" value="${esc(a.model)}"/></div>
       <div class="form-row"><label>${t('field_serial')}</label><input id="e-serial" value="${esc(a.serial)}"/></div>
       <div class="form-row"><label>${t('field_inv')}</label>
-        <div style="display:flex;gap:5px">
-          <input id="e-inv" value="${esc(a.inv||'')}" placeholder="LDV-NB-00001" style="flex:1"/>
+        <div class="u-flex-gap-5">
+          <input id="e-inv" value="${esc(a.inv||'')}" placeholder="LDV-NB-00001" class="u-flex-1"/>
           <button type="button" class="btn btn-secondary btn-sm" data-action="openInvGenerator" data-args='["e-inv","e-org","e-type"]' title="${t('tooltip_generator')}">🏷</button>
         </div>
       </div>
@@ -520,8 +554,8 @@ async function showEditModal(id) {
     </div>
     <div class="form-row"><label>${t('field_note')}</label><textarea id="e-note">${esc(a.note)}</textarea></div>
     <hr class="sep"/>
-    <div class="section-title" style="margin-bottom:8px">${t('section_meta')}</div>
-    <div id="e-meta" class="two-col">${metaFormRows(a.category, a.meta||{})}</div>
+    <div class="section-title u-mb-8">${t('section_meta')}</div>
+    <div id="e-meta" class="two-col">${metaFormRows(a.category, a.meta||{}, a.type)}</div>
     <div class="modal-actions">
       <button class="btn btn-primary" data-action="doEdit" data-args='${JSON.stringify([id])}'>${t('btn_save')}</button>
       <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
@@ -533,9 +567,10 @@ async function doEdit(id) {
 
   const filial=document.getElementById('e-filial').value.trim();
   const category=document.getElementById('e-cat').value.trim();
+  const type=document.getElementById('e-type').value.trim();
   const filialObj = _filialsCache.find(f=>f.name===filial);
   const data={
-    type:document.getElementById('e-type').value.trim(),
+    type,
     model:document.getElementById('e-model').value.trim(),
     serial:document.getElementById('e-serial').value.trim(),
     inv:   (document.getElementById('e-inv')||{}).value||'',
@@ -547,7 +582,7 @@ async function doEdit(id) {
     org:document.getElementById('e-org').value.trim(),
     status:document.getElementById('e-status').value.trim(),
     note:document.getElementById('e-note').value.trim(),
-    meta:collectMeta(category)};
+    meta:collectMeta(category, type)};
   const r=await fetch(`${API}/api/assets/${id}`,{method:'PUT',headers:ah(),body:JSON.stringify(data)});
   if (r.ok){closeModal();toast(t('msg_saved'),'success');render();}
   else toast(t('msg_error'),'error');
@@ -558,7 +593,7 @@ async function doEdit(id) {
 function confirmDelete(id) {
   const a=assetsCache.find(x=>x.id===id)||{};
   showModal(`<h2>${t('modal_retire_confirm_title')}</h2>
-    <p style="color:var(--muted);margin-bottom:18px;font-size:13px">
+    <p class="u-text-muted u-mb-18 u-text-13">
       ${ic(a.type)} <b>${esc(a.model)}</b> ${t('msg_retire_confirm_suffix')}</p>
     <div class="modal-actions">
       <button class="btn btn-danger" data-action="doDelete" data-args='${JSON.stringify([id])}'>${t('btn_confirm_retire')}</button>

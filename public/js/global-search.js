@@ -46,7 +46,7 @@ async function runGlobalSearch(q) {
   _gsLastQuery = q;
 
   resultsEl.style.marginTop = '12px';
-  resultsEl.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:4px 0">${t('msg_searching')}</div>`;
+  resultsEl.innerHTML = `<div class="u-text-muted u-text-13 u-p-4-0">${t('msg_searching')}</div>`;
   resultsEl.style.maxHeight = '60px';
 
   try {
@@ -57,7 +57,7 @@ async function runGlobalSearch(q) {
     if (q !== _gsLastQuery) return; // устаревший результат
 
     if (!items.length) {
-      resultsEl.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:6px 0">${t('msg_nothing_found_for', { q: esc(q) })}</div>`;
+      resultsEl.innerHTML = `<div class="u-text-muted u-text-13 u-p-6-0">${t('msg_nothing_found_for', { q: esc(q) })}</div>`;
       resultsEl.style.maxHeight = '60px';
       return;
     }
@@ -72,35 +72,35 @@ async function runGlobalSearch(q) {
       const hl = (s) => {
         if (!s) return '—';
         const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi');
-        return esc(s).replace(re, '<mark style="background:var(--mark-bg);border-radius:2px;padding:0 1px">$1</mark>');
+        return esc(s).replace(re, '<mark class="search-hit-mark">$1</mark>');
       };
-      return `<tr class="hover-surface" style="cursor:pointer" data-action="openAssetFromSearch" data-args='${JSON.stringify([a.tab, a.id])}'>
-        <td style="white-space:nowrap">
-          <span style="font-size:10px;padding:2px 6px;border-radius:10px;background:var(--surface);color:var(--muted)">${TAB_LABEL[a.tab]||a.tab}</span>
+      return `<tr class="hover-surface u-cursor-pointer" data-action="openAssetFromSearch" data-args='${JSON.stringify([a.tab, a.id])}'>
+        <td class="u-nowrap">
+          <span class="search-tab-badge">${TAB_LABEL[a.tab]||a.tab}</span>
         </td>
-        <td><code style="font-size:11px;color:var(--indigo)">${hl(a.inv||'—')}</code></td>
-        <td style="font-size:12px">${ic(a.type)} ${hl(a.type)}</td>
-        <td style="font-weight:600;font-size:13px">${hl(a.model)}</td>
-        <td style="font-size:12px;color:var(--muted)">${hl(a.serial||'—')}</td>
-        <td style="font-size:12px">${hl(a.responsible||'—')}</td>
-        <td style="font-size:12px;color:var(--muted)">${esc(a.org||'—')} · ${esc(a.filial||'—')}</td>
+        <td><code class="u-text-11 u-text-indigo">${hl(a.inv||'—')}</code></td>
+        <td class="u-text-12">${ic(a.type)} ${hl(a.type)}</td>
+        <td class="u-fw-600 u-text-13">${hl(a.model)}</td>
+        <td class="u-text-12 u-text-muted">${hl(a.serial||'—')}</td>
+        <td class="u-text-12">${hl(a.responsible||'—')}</td>
+        <td class="u-text-12 u-text-muted">${esc(a.org||'—')} · ${esc(a.filial||'—')}</td>
         <td><span class="badge-s ${a.status==='используется'?'s-used':a.status==='резерв'?'s-reserve':'s-off'}">${esc(a.status)}</span></td>
         <td><button class="btn-icon" data-action="showDetail" data-args='${JSON.stringify([a.id])}' data-stop="1" title="${t('tooltip_open_card')}">→</button></td>
       </tr>`;
     }).join('');
 
     const moreNote = items.length > 30
-      ? `<tr><td colspan="9" style="text-align:center;color:var(--muted);font-size:12px;padding:8px">
+      ? `<tr><td colspan="9" class="u-text-center u-text-muted u-text-12 u-p-8">
            ${t('msg_showing_first_30', { n: items.length })}
          </td></tr>`
       : '';
 
     resultsEl.innerHTML = `
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
+      <div class="u-text-12 u-text-muted u-mb-8">
         ${t('msg_found_records', { n: items.length, q: esc(q) })}
       </div>
-      <div class="tbl-wrap" style="border-radius:8px;border:1px solid var(--border)">
-        <table style="font-size:13px">
+      <div class="tbl-wrap search-results-wrap">
+        <table class="u-text-13">
           <thead><tr><th>${t('th_tab')}</th><th>${t('th_inv_no')}</th><th>${t('th_type')}</th><th>${t('th_model')}</th><th>${t('th_serial_no')}</th><th>${t('th_responsible')}</th><th>${t('th_org_filial')}</th><th>${t('th_status')}</th><th></th></tr></thead>
           <tbody>${rows}${moreNote}</tbody>
         </table>
@@ -108,7 +108,7 @@ async function runGlobalSearch(q) {
     resultsEl.style.maxHeight = '600px';
 
   } catch(e) {
-    resultsEl.innerHTML = `<div style="color:var(--noInv-text);font-size:13px">${t('msg_search_error', { msg: e.message })}</div>`;
+    resultsEl.innerHTML = `<div class="u-text-noinv u-text-13">${t('msg_search_error', { msg: e.message })}</div>`;
     resultsEl.style.maxHeight = '60px';
   }
 }

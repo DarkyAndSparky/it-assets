@@ -17,17 +17,24 @@ function mustChangePin(user) {
   const def = DEFAULT_PINS[user.id];
   return def != null && verifyPin(def, user.pin);
 }
-const { requireAdmin } = require('../middleware/auth');
+const { requireAdmin, requireLogin } = require('../middleware/auth');
 const { rateLimitLogin } = require('../middleware/rateLimit');
 const { validate } = require('../middleware/validate');
 const { createUserSchema, updateUserSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
+// BUG-5: раньше эта проверка была переписана вручную (`db.getUser(userId)?.active`)
+// вместо переиспользования requireLogin — по факту то же самое, но без общего
+// req.currentUser и без единообразия с остальными read-only роутами (INFRA-7
+// как раз ради этого и вводил requireLogin: "пользователь существует и активен",
+// без пароля/роли — то, что нужно здесь). requireAuth (как буквально предлагал
+// роадмап) сюда не подходит: он требует пароль и роль не ниже operator, а
+// значит заблокировал бы легитимного viewer от простого просмотра списка
+// пользователей — то самое поведение, которое requireLogin специально
+// избегает.
+router.get('/', requireLogin, (req, res) => {
   // Список пользователей (без PIN) — доступен всем залогиненным
-  const userId = req.headers['x-user-id'];
-  if (!db.getUser(userId)?.active) return res.status(401).json({ error: 'Unauthorized' });
   res.json(db.getUsers().map(u => ({ id:u.id, name:u.name, role:u.role, active:u.active, can_view_accounts:u.can_view_accounts })));
 });
 

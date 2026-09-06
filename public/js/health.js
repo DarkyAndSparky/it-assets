@@ -59,7 +59,7 @@ function renderHealthPanel(data) {
     ['disk',   t('health_disk'),   data.checks.disk],
   ];
   panel.innerHTML = `
-    <div style="font-weight:700;margin-bottom:6px">${t('health_title')}</div>
+    <div class="u-fw-700 u-mb-6">${t('health_title')}</div>
     ${rows.map(([key, label, c]) => `
       <div class="hp-row" title="${esc(c.detail)}">
         <span class="hp-dot health-${c.status}">●</span>

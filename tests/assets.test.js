@@ -57,7 +57,7 @@ describe('POST /api/assets', () => {
   test('созданный ассет доступен через GET /api/assets/:id', async () => {
     const create = await request(app).post('/api/assets').set(AUTH)
       .send({ model: 'HP ProBook', type: 'Ноутбук', tab: 'os' });
-    const get = await request(app).get(`/api/assets/${create.body.id}`);
+    const get = await request(app).get(`/api/assets/${create.body.id}`).set(AUTH);
     expect(get.status).toBe(200);
     expect(get.body.model).toBe('HP ProBook');
   });
@@ -88,18 +88,18 @@ describe('GET /api/assets — фильтрация', () => {
   });
 
   test('фильтр по tab=os', async () => {
-    const res = await request(app).get('/api/assets?tab=os');
+    const res = await request(app).get('/api/assets?tab=os').set(AUTH);
     expect(res.body.items.every(a => a.tab === 'os')).toBe(true);
   });
 
   test('фильтр по status=резерв', async () => {
-    const res = await request(app).get('/api/assets?status=резерв');
+    const res = await request(app).get('/api/assets?status=резерв').set(AUTH);
     expect(res.body.items.every(a => a.status === 'резерв')).toBe(true);
     expect(res.body.items.some(a => a.id === monId)).toBe(true);
   });
 
   test('GET /api/assets/:id → 404 для несуществующего', async () => {
-    const res = await request(app).get('/api/assets/non-existent-id');
+    const res = await request(app).get('/api/assets/non-existent-id').set(AUTH);
     expect(res.status).toBe(404);
   });
 });
@@ -118,7 +118,7 @@ describe('PUT /api/assets/:id', () => {
       .send({ model: 'Updated Model', status: 'резерв', note: 'Тест заметка' });
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
-    const get = await request(app).get(`/api/assets/${assetId}`);
+    const get = await request(app).get(`/api/assets/${assetId}`).set(AUTH);
     expect(get.body.model).toBe('Updated Model');
     expect(get.body.status).toBe('резерв');
     expect(get.body.note).toBe('Тест заметка');

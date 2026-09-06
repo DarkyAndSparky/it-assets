@@ -81,24 +81,24 @@ async function doLogin() {
 function _showForcedPinChange() {
   window._forcePinChangeMode = true;
   const html = `
-    <div style="padding:24px;max-width:420px">
-      <div style="font-size:22px;margin-bottom:12px">${t('loc_forced_pin_title')}</div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:18px">
+    <div class="u-p-24 u-max-w-420">
+      <div class="u-text-22 u-mb-12">${t('loc_forced_pin_title')}</div>
+      <div class="u-text-13 u-text-muted u-lh-17 u-mb-18">
         ${t('loc_forced_pin_body')}
       </div>
-      <div style="margin-bottom:12px">
-        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">${t('lbl_new_password')}</label>
+      <div class="u-mb-12">
+        <label class="u-text-12 u-text-muted u-block u-mb-4">${t('lbl_new_password')}</label>
         <input id="new-pin-inp" type="password" placeholder="${t('msg_min_4_chars')}" autofocus
-          style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface1);color:var(--text);font-size:14px;box-sizing:border-box"/>
+          class="form-input"/>
       </div>
-      <div style="margin-bottom:18px">
-        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">${t('lbl_repeat_password')}</label>
+      <div class="u-mb-18">
+        <label class="u-text-12 u-text-muted u-block u-mb-4">${t('lbl_repeat_password')}</label>
         <input id="new-pin-inp2" type="password" placeholder="${t('lbl_repeat_password')}"
-          style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface1);color:var(--text);font-size:14px;box-sizing:border-box"/>
+          class="form-input"/>
       </div>
-      <div id="forced-pin-error" style="display:none;color:var(--danger,#e5484d);font-size:12px;margin-bottom:12px"></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-primary" style="flex:1" data-action="doChangeDefaultPin">${t('btn_change_pin_continue')}</button>
+      <div id="forced-pin-error" class="field-error"></div>
+      <div class="u-flex-wrap-gap-8">
+        <button class="btn btn-primary u-flex-1" data-action="doChangeDefaultPin">${t('btn_change_pin_continue')}</button>
       </div>
     </div>`;
   showModal(html);

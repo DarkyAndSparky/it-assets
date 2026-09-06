@@ -30,12 +30,12 @@ async function renderAlerts() {
     fetch(`${API}/api/assets?stale_days=180&limit=500`, { headers: ah() }).then(r=>r.json()).then(toArr),
   ]);
 
-  const alertRow = (a, btn='') => `<div class="alert-card" style="cursor:pointer" data-action="showDetail" data-args='${JSON.stringify([a.id])}'>
-    <span style="font-size:20px">${ic(a.type)}</span>
-    <div style="flex:1">
-      <div style="font-weight:600;font-size:13px">${esc(a.type)} · ${esc(a.model)}</div>
-      <div style="font-size:12px;color:var(--muted)">${esc(a.filial||'—')} · ${esc(a.location||'—')} · ${esc(a.responsible||t('lbl_not_assigned'))}</div>
-      ${a.inv?`<div style="font-size:11px;color:var(--muted)">${t('field_inv')}: ${esc(a.inv)}</div>`:''}
+  const alertRow = (a, btn='') => `<div class="alert-card u-cursor-pointer" data-action="showDetail" data-args='${JSON.stringify([a.id])}'>
+    <span class="u-text-20">${ic(a.type)}</span>
+    <div class="u-flex-1">
+      <div class="u-fw-600 u-text-13">${esc(a.type)} · ${esc(a.model)}</div>
+      <div class="u-text-12 u-text-muted">${esc(a.filial||'—')} · ${esc(a.location||'—')} · ${esc(a.responsible||t('lbl_not_assigned'))}</div>
+      ${a.inv?`<div class="u-text-11 u-text-muted">${t('field_inv')}: ${esc(a.inv)}</div>`:''}
     </div>
     ${btn}
   </div>`;
@@ -44,14 +44,14 @@ async function renderAlerts() {
     const showAll = localStorage.getItem(`alerts-showAll-${title}`) === '1';
     const itemsToShow = showAll ? items : items.slice(0, 50);
     return `
-    <div class="card" style="margin-bottom:14px">
-      <div class="section-title" style="color:${color};display:flex;justify-content:space-between;align-items:center">
+    <div class="card u-mb-14">
+      <div class="section-title u-flex-between" data-color="${color}">
         <span>${icon} ${title} (${items.length})</span>
-        ${items.length>50?`<span style="font-size:11px;font-weight:400;color:var(--muted)">${items.length} ${t('lbl_records_short')}</span>`:''}
+        ${items.length>50?`<span class="u-text-11 u-fw-400 u-text-muted">${items.length} ${t('lbl_records_short')}</span>`:''}
       </div>
       ${itemsToShow.map(a=>alertRow(a,btn?btn(a):'')).join('')
-        || `<div style="color:var(--muted);font-size:13px;padding:6px 0">${emptyMsg}</div>`}
-      ${items.length>50?`<div style="padding:10px 0;text-align:center;border-top:1px solid var(--border);margin-top:10px">
+        || `<div class="u-text-muted u-text-13 u-p-6-0">${emptyMsg}</div>`}
+      ${items.length>50?`<div class="list-footer">
         ${showAll ? 
           `<button class="btn btn-ghost btn-sm" data-action="_toggleAlertsShowAll" data-args='${JSON.stringify([title, false])}'>${t('btn_collapse')}</button>` :
           `<button class="btn btn-ghost btn-sm" data-action="_toggleAlertsShowAll" data-args='${JSON.stringify([title, true])}'>▼ ${t('lbl_show_all')} (${items.length})</button>`
@@ -60,8 +60,8 @@ async function renderAlerts() {
     </div>`;
   };
 
-  app.innerHTML=`<div style="max-width:900px">
-    <div style="font-size:16px;font-weight:700;margin-bottom:14px">${t('page_title_alerts')}</div>
+  app.innerHTML=`<div class="u-max-w-900">
+    <div class="u-text-16 u-fw-700 u-mb-14">${t('page_title_alerts')}</div>
 
     ${section('❓',t('lbl_no_responsible'),'var(--red)', noResp,
       a => canEdit()?`<button class="btn btn-primary btn-sm" data-action="showMoveModal" data-args='${JSON.stringify([a.id])}' data-stop="1">${t('btn_assign_arrow')}</button>`:'',
@@ -81,4 +81,10 @@ async function renderAlerts() {
     ${section('📦',t('lbl_in_reserve_title'),'var(--amber)', reserved, null,
       t('msg_no_reserve'))}
   </div>`;
+
+  // CSP-7: динамический цвет заголовка секции — как в dashboard.js
+  // (data-w/data-bg): рендерим без style=, точечно назначаем после вставки.
+  app.querySelectorAll('.section-title[data-color]').forEach(el => {
+    el.style.color = el.dataset.color;
+  });
 }

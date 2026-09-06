@@ -21,11 +21,21 @@ if not exist "node_modules\@playwright\test" (
     echo.
 )
 
-if not exist "%USERPROFILE%\AppData\Local\ms-playwright" (
-    echo [INFO] Downloading Chromium for Playwright ^(first run only^)...
-    call npx playwright install chromium
-    echo.
-)
+REM Раньше здесь была проверка "if not exist %USERPROFILE%\...\ms-playwright"
+REM — она смотрела только на существование папки, а не на то, стоит ли внутри
+REM нужная версия браузера. Если папка уже существовала (от другого проекта,
+REM от предыдущей версии Playwright, или после частичной/неудачной установки),
+REM проверка проходила и установка молча пропускалась — а нужного бинарника
+REM внутри не было. Итог: "Executable doesn't exist at ...chrome-headless-shell.exe"
+REM прямо в момент запуска тестов, никак не предупредив заранее.
+REM Правильная проверка — не "существует ли папка", а "стоит ли то, что нужно
+REM именно этой версии Playwright" — и это как раз то, что делает сама команда
+REM playwright install: она идемпотентна, при уже установленном браузере
+REM отрабатывает за секунды без повторной загрузки, поэтому безопасно вызывать
+REM её каждый раз, а не только "на всякий случай при первом запуске".
+echo [INFO] Checking Playwright browser...
+call npx playwright install chromium
+echo.
 
 echo [RUN] Running E2E tests ^(this opens/runs a real browser^)...
 echo ----------------------------------------

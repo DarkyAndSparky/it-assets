@@ -63,9 +63,9 @@ async function render() {
     await renderAssetTab(currentTab);
   } catch(e) {
     console.error('render() error:', e);
-    document.getElementById('app').innerHTML = `<div class="card" style="max-width:500px">
-      <div style="color:var(--danger-text);font-weight:700;margin-bottom:8px">❌ Ошибка отображения</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:8px">${esc(String(e.message||e))}</div>
+    document.getElementById('app').innerHTML = `<div class="card u-max-w-500">
+      <div class="error-title u-mb-8">❌ Ошибка отображения</div>
+      <div class="u-text-13 u-text-muted u-mb-8">${esc(String(e.message||e))}</div>
       <button class="btn btn-primary" data-action="render">🔄 Обновить</button>
     </div>`;
   }

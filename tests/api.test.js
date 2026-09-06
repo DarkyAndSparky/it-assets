@@ -246,13 +246,13 @@ describe('GET /api/assets', () => {
 describe('GET /api/assets/search', () => {
   test('ищет по запросу', async () => {
     mockDb._addAsset({ model: 'HUAWEI MCLF-X', type: 'Ноутбук', serial: 'SN123TEST' });
-    const res = await request(app).get('/api/assets/search?q=HUAWEI');
+    const res = await request(app).get('/api/assets/search?q=HUAWEI').set(AUTH);
     expect(res.status).toBe(200);
     expect(res.body.some(a => a.model === 'HUAWEI MCLF-X')).toBe(true);
   });
 
   test('пустой запрос → 400', async () => {
-    const res = await request(app).get('/api/assets/search');
+    const res = await request(app).get('/api/assets/search').set(AUTH);
     expect(res.status).toBe(400);
   });
 });

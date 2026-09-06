@@ -85,9 +85,33 @@ function setTypeCodes(codes) {
   return getTypeCodes();
 }
 
+// PROD-1: схема типизированных полей по type_code. Хранится через общий
+// key/value settings-стор (та же таблица, что и обычные настройки) —
+// не заводим отдельную SQL-таблицу ради одного JSON-блоба, ровно тот же
+// подход, что уже используют getSetting/setSetting для прочих настроек.
+const FIELD_SCHEMAS_KEY = 'field_schemas';
+
+function getFieldSchemas() {
+  return getSetting(FIELD_SCHEMAS_KEY) || {};
+}
+
+function getFieldSchema(typeCode) {
+  const all = getFieldSchemas();
+  return all[typeCode] || null;
+}
+
+function setFieldSchema(typeCode, fields) {
+  const all = getFieldSchemas();
+  if (fields === null) delete all[typeCode];   // сброс на дефолт (категорийный fallback)
+  else all[typeCode] = fields;
+  setSetting(FIELD_SCHEMAS_KEY, all);
+  return all[typeCode] || null;
+}
+
 module.exports = {
   getOrgCodesMap, getTypeCodesMap,
   getSettings, getSetting, setSetting,
   getCategories, setCategories,
   getTypeCodes, setTypeCodes,
+  getFieldSchemas, getFieldSchema, setFieldSchema,
 };
