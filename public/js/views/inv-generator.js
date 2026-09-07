@@ -96,7 +96,7 @@ async function refreshInvPreview() {
   const el   = document.getElementById('ig-preview');
   const note = document.getElementById('ig-note');
   try {
-    const r = await fetch(`${API}/api/inv/next?org=${org}&type=${type}`);
+    const r = await fetch(`${API}/api/inv/next?org=${org}&type=${type}`, { headers: ah() });
     const d = await r.json();
     if (r.ok && d.inv) {
       if (el) { el.value = d.inv; el.style.background='#eff6ff'; el.style.color='#1d4ed8'; }
@@ -137,12 +137,12 @@ async function applyInvNumber(targetId) {
 
 async function createInvRuleFromGenerator(orgCode, typeName) {
   // Находим org_id по short_code
-  const orgs = await fetch(`${API}/api/orgs`).then(r=>r.json()).catch(()=>[]);
+  const orgs = await fetch(`${API}/api/orgs`, { headers: ah() }).then(r=>r.json()).catch(()=>[]);
   const org = orgs.find(o => o.short_code === orgCode);
   if (!org) return toast(t('msg_org_not_found', { org: orgCode }), 'error');
 
   // Автозаполняем type_code из имени если возможно
-  const typeCodes = await fetch(`${API}/api/type-codes`).then(r=>r.json()).catch(()=>[]);
+  const typeCodes = await fetch(`${API}/api/type-codes`, { headers: ah() }).then(r=>r.json()).catch(()=>[]);
   const matchedCode = typeCodes.find(tc => tc.name === typeName);
   const autoCode = matchedCode ? matchedCode.code : '';
   const autoName = typeName || '';
@@ -202,7 +202,7 @@ async function submitInvRuleFromGenerator(orgId, orgCode) {
   }
 
   // Обновляем глобальный кэш орг
-  _orgsCache = await fetch(`${API}/api/orgs`).then(r=>r.json()).catch(()=>_orgsCache);
+  _orgsCache = await fetch(`${API}/api/orgs`, { headers: ah() }).then(r=>r.json()).catch(()=>_orgsCache);
 
   // Перезапрашиваем номер
   await refreshInvPreview();

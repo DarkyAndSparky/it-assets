@@ -290,7 +290,7 @@ async function doLiquidateOrg(id) {
     if (!cr.ok) return toast(cd.error||t('msg_org_create_error'),'error');
     targetOrgId = cd.id;
     // Refresh cache so liquidate can find new org
-    _orgsCache = await fetch(`${API}/api/orgs`).then(r=>r.json()).catch(()=>_orgsCache);
+    _orgsCache = await fetch(`${API}/api/orgs`, { headers: ah() }).then(r=>r.json()).catch(()=>_orgsCache);
   }
 
   const r = await fetch(`${API}/api/orgs/${id}/liquidate`, {
@@ -349,12 +349,12 @@ async function doAddInvRule(orgId) {
   if (!type_code || !type_name) return toast(t('msg_fill_code_and_name'),'error');
   const r = await fetch(`${API}/api/orgs/${orgId}/inv-rules`, { method:'POST', headers:ah(), body:JSON.stringify({ type_code, type_name }) });
   const d = await r.json();
-  if (r.ok) { toast(t('msg_rule_added'),'success'); _orgsCache = await fetch(`${API}/api/orgs`).then(r=>r.json()); showInvRulesModal(orgId); }
+  if (r.ok) { toast(t('msg_rule_added'),'success'); _orgsCache = await fetch(`${API}/api/orgs`, { headers: ah() }).then(r=>r.json()); showInvRulesModal(orgId); }
   else toast(d.error||t('msg_error'),'error');
 }
 async function toggleInvRule(orgId, typeCode, newActive) {
   await fetch(`${API}/api/orgs/${orgId}/inv-rules/${typeCode}`, { method:'PATCH', headers:ah(), body:JSON.stringify({ active: newActive }) });
-  _orgsCache = await fetch(`${API}/api/orgs`).then(r=>r.json());
+  _orgsCache = await fetch(`${API}/api/orgs`, { headers: ah() }).then(r=>r.json());
   showInvRulesModal(orgId);
 }
 // Было onkeydown="if(event.key==='Enter')doRenameInvRule(...);if(event.key==='Escape')showInvRulesModal(...)"
@@ -378,7 +378,7 @@ async function doRenameInvRule(orgId, typeCode) {
   if (!type_name) return toast(t('msg_name_cant_be_empty'),'error');
   const r = await fetch(`${API}/api/orgs/${orgId}/inv-rules/${typeCode}`, { method:'PUT', headers:ah(), body:JSON.stringify({ type_name }) });
   const d = await r.json();
-  if (r.ok) { toast(t('msg_renamed'),'success'); _orgsCache = await fetch(`${API}/api/orgs`).then(r=>r.json()); showInvRulesModal(orgId); }
+  if (r.ok) { toast(t('msg_renamed'),'success'); _orgsCache = await fetch(`${API}/api/orgs`, { headers: ah() }).then(r=>r.json()); showInvRulesModal(orgId); }
   else toast(d.error||t('msg_error'),'error');
 }
 async function deleteInvRule(orgId, typeCode, counter) {
@@ -387,7 +387,7 @@ async function deleteInvRule(orgId, typeCode, counter) {
   if (!r.ok) return toast(d.error||t('msg_error'),'error');
   if (d.ok) {
     toast(t('msg_rule_deleted'),'success');
-    _orgsCache = await fetch(`${API}/api/orgs`).then(r=>r.json());
+    _orgsCache = await fetch(`${API}/api/orgs`, { headers: ah() }).then(r=>r.json());
     showInvRulesModal(orgId);
     return;
   }
@@ -437,7 +437,7 @@ async function doDeleteInvRuleForce(orgId, typeCode) {
   const d = await r.json();
   if (r.ok) {
     toast(t('msg_rule_deleted'),'success');
-    _orgsCache = await fetch(`${API}/api/orgs`).then(r=>r.json());
+    _orgsCache = await fetch(`${API}/api/orgs`, { headers: ah() }).then(r=>r.json());
     showInvRulesModal(orgId);
   } else toast(d.error||t('msg_error'),'error');
 }

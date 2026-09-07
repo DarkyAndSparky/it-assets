@@ -30,7 +30,7 @@ function _tabLabelsShort() {
 
 async function _renderTypesPanel() {
   let types = [];
-  try { types = await fetch(`${API}/api/type-codes`).then(r=>r.json()); } catch(e){}
+  try { types = await fetch(`${API}/api/type-codes`, { headers: ah() }).then(r=>r.json()); } catch(e){}
   _typesBuffer = types;
 
   const tabOptions = _tabOptions();
@@ -92,7 +92,7 @@ let _typesBuffer = null;
 
 async function _loadTypesBuffer() {
   if (!_typesBuffer) {
-    _typesBuffer = await fetch(`${API}/api/type-codes`).then(r=>r.json()).catch(()=>[]);
+    _typesBuffer = await fetch(`${API}/api/type-codes`, { headers: ah() }).then(r=>r.json()).catch(()=>[]);
   }
   return _typesBuffer;
 }
@@ -167,8 +167,8 @@ async function showFieldSchemaModal(typeCode) {
   let metaKeys = [], schema = null;
   try {
     const [keys, allSchemas] = await Promise.all([
-      fetch(`${API}/api/meta-keys`).then(r=>r.json()),
-      fetch(`${API}/api/field-schemas`).then(r=>r.json()),
+      fetch(`${API}/api/meta-keys`, { headers: ah() }).then(r=>r.json()),
+      fetch(`${API}/api/field-schemas`, { headers: ah() }).then(r=>r.json()),
     ]);
     metaKeys = keys;
     schema = allSchemas[typeCode] || null;

@@ -322,7 +322,7 @@ async function runDiag() {
   const el = document.getElementById('diag-result');
   el.innerHTML = t('msg_checking');
   try {
-    const d = await fetch(`${API}/api/diag`).then(r=>r.json());
+    const d = await fetch(`${API}/api/diag`, { headers: ah() }).then(r=>r.json());
     const ok = c => `<span class="u-text-059669 u-fw-600">${c}</span>`;
     const err = c => `<span class="u-text-danger u-fw-600">${c}</span>`;
     const mb = (d.fileSize/1024).toFixed(1);

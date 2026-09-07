@@ -30,13 +30,20 @@ async function ensureRefData() {
     // подставлялось в _orgsCache и т.п., а дальше падало в других местах
     // с непонятным "X.map is not a function", не показывая связи со
     // сбоем самого запроса.
+    // headers: ah() — все пять эндпойнтов защищены requireLogin
+    // (orgs/filials/locations/type-codes/field-schemas), раньше здесь не
+    // передавались вообще никакие заголовки: функционально работало, потому
+    // что сам факт 401 тихо проглатывался catch(()=>[]) и подменялся пустым
+    // массивом — но постоянным потоком 401 в консоли на КАЖДЫЙ вызов этой
+    // функции (а её вызывают многократно — при рендере вкладок активов, для
+    // выпадающих списков филиала/локации).
     const asJson = r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status));
     [_orgsCache, _filialsCache, _locsCache, _typeCodesCache, _fieldSchemasCache] = await Promise.all([
-      fetch(`${API}/api/orgs`).then(asJson).catch(()=>[]),
-      fetch(`${API}/api/filials`).then(asJson).catch(()=>[]),
-      fetch(`${API}/api/locations`).then(asJson).catch(()=>[]),
-      fetch(`${API}/api/type-codes`).then(asJson).catch(()=>[]),
-      fetch(`${API}/api/field-schemas`).then(asJson).catch(()=>({})),
+      fetch(`${API}/api/orgs`, { headers: ah() }).then(asJson).catch(()=>[]),
+      fetch(`${API}/api/filials`, { headers: ah() }).then(asJson).catch(()=>[]),
+      fetch(`${API}/api/locations`, { headers: ah() }).then(asJson).catch(()=>[]),
+      fetch(`${API}/api/type-codes`, { headers: ah() }).then(asJson).catch(()=>[]),
+      fetch(`${API}/api/field-schemas`, { headers: ah() }).then(asJson).catch(()=>({})),
     ]);
     _refDataLoaded = true;
   } catch(e) { console.warn('ensureRefData failed', e); }
