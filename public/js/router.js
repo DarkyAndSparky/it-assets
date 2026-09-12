@@ -49,7 +49,19 @@ async function render() {
     }
   } catch(e) {}
   try {
-    if (!catsCache.os) {
+    // requireLogin на /api/categories и /api/inv/codes (INFRA-7) — а
+    // render() вызывается один раз безусловно при загрузке страницы
+    // (bootstrap.js), ДО какого-либо логина. Раньше здесь стоял просто
+    // `if (!catsCache.os)`: этот самый первый вызов улетал неавторизованным
+    // (currentUser ещё null), получал 401 на оба запроса, но .catch()
+    // всё равно резолвил catsCache/invCodes дефолтными значениями — и
+    // флаг catsCache.os становился truthy НАВСЕГДА, так что после
+    // реального логина повторного запроса с нормальной авторизацией уже
+    // не происходило (кэш "успешно" стоял, просто на дефолтах). Добавили
+    // `&& currentUser` — без логина не дёргаем вообще, а `catsCache = {}`
+    // при успешном логине (см. auth.js) заставляет самый первый
+    // пост-логинный render() запросить их по-настоящему.
+    if (!catsCache.os && currentUser) {
       [catsCache, invCodes] = await Promise.all([
         fetch(`${API}/api/categories`, { headers: ah() }).then(r=>r.json()).catch(()=>({os:['Оборудование пользователей','Оргтехника','Мини ПК'],small:['Периферия','Гарнитуры','Колонки'],infra:['Сетевое оборудование','Wi-Fi','Принтеры','Видеонаблюдение','ИБП','Серверы']})),
         fetch(`${API}/api/inv/codes`, { headers: ah() }).then(r=>r.json()).catch(()=>({orgs:{},types:{}}))

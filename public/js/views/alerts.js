@@ -22,13 +22,22 @@ async function renderAlerts() {
   app.innerHTML='<div class="spinner"></div>';
 
   const toArr = r => Array.isArray(r) ? r : (r?.items || []);
-  const [noResp, reserved, noInv, noSerial, stale] = await Promise.all([
+  const [noResp, reserved, noInv, noSerial, stale, warrExpired, warrExpiring] = await Promise.all([
     fetch(`${API}/api/assets?no_responsible=1&limit=500`, { headers: ah() }).then(r=>r.json()).then(toArr),
     fetch(`${API}/api/assets?status=резерв&limit=500`, { headers: ah() }).then(r=>r.json()).then(toArr),
     fetch(`${API}/api/assets?no_inv=1&limit=500`, { headers: ah() }).then(r=>r.json()).then(toArr),
     fetch(`${API}/api/assets?no_serial=1&limit=500`, { headers: ah() }).then(r=>r.json()).then(toArr),
     fetch(`${API}/api/assets?stale_days=180&limit=500`, { headers: ah() }).then(r=>r.json()).then(toArr),
+    // PROD-5: warranty_expiring_days=0 — включает всё с датой <= сейчас
+    // (просроченное); отдельно фильтруем < now на клиенте ниже, чтобы
+    // разделить на "уже истекла" и "истекает в ближайшие 30 дней" — сервер
+    // отдаёт одним списком "<= cutoff", разбивка на два визуально более
+    // срочных блока делается уже тут.
+    fetch(`${API}/api/assets?warranty_expiring_days=0&limit=500`, { headers: ah() }).then(r=>r.json()).then(toArr),
+    fetch(`${API}/api/assets?warranty_expiring_days=30&limit=500`, { headers: ah() }).then(r=>r.json()).then(toArr),
   ]);
+  const expiredIds = new Set(warrExpired.map(a=>a.id));
+  const warrExpiringOnly = warrExpiring.filter(a => !expiredIds.has(a.id));
 
   const alertRow = (a, btn='') => `<div class="alert-card u-cursor-pointer" data-action="showDetail" data-args='${JSON.stringify([a.id])}'>
     <span class="u-text-20">${ic(a.type)}</span>
@@ -36,6 +45,7 @@ async function renderAlerts() {
       <div class="u-fw-600 u-text-13">${esc(a.type)} · ${esc(a.model)}</div>
       <div class="u-text-12 u-text-muted">${esc(a.filial||'—')} · ${esc(a.location||'—')} · ${esc(a.responsible||t('lbl_not_assigned'))}</div>
       ${a.inv?`<div class="u-text-11 u-text-muted">${t('field_inv')}: ${esc(a.inv)}</div>`:''}
+      ${a.meta?.warranty?`<div class="u-text-11 u-text-muted">${t('meta_warranty')}: ${esc(a.meta.warranty)}</div>`:''}
     </div>
     ${btn}
   </div>`;
@@ -80,6 +90,12 @@ async function renderAlerts() {
 
     ${section('📦',t('lbl_in_reserve_title'),'var(--amber)', reserved, null,
       t('msg_no_reserve'))}
+
+    ${section('⛔',t('lbl_warranty_expired'),'var(--danger-text)', warrExpired, null,
+      t('msg_no_warranty_expired'))}
+
+    ${section('⏳',t('lbl_warranty_expiring'),'var(--warn-text)', warrExpiringOnly, null,
+      t('msg_no_warranty_expiring'))}
   </div>`;
 
   // CSP-7: динамический цвет заголовка секции — как в dashboard.js

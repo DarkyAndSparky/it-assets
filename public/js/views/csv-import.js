@@ -82,8 +82,11 @@ async function importCSV() {
     'филиал':'filial','расположение':'location','ответственный':'responsible',
     'тип':'type','модель':'model','серийный №':'serial','статус':'status',
     'организация':'org','примечание':'note','ip':'ip','mac':'mac',
-    'подсеть':'subnet','winbox/url':'winbox','логин':'login','пароль':'password',
-    'hostname':'hostname','картриджи':'cartridge','прошивка':'firmware','инв шкаф':'cabinet'};
+    'подсеть':'subnet','сеть':'network','winbox/url':'winbox','контроллер':'controller',
+    'логин':'login','пароль':'password',
+    'hostname':'hostname','картриджи':'cartridge','прошивка':'firmware','инв шкаф':'cabinet',
+    'доп. описание':'note2',
+    'гарантия/то':'warranty','дата покупки':'purchase_date','стоимость':'cost'};
   // ── Загружаем маппинг тип→коллекция с сервера ────────────────────────────────
   let _typeTabMap = {};
   let _typeNormMap = {};
@@ -224,10 +227,21 @@ async function importCSV() {
     const orgsHtml = d.created_orgs && d.created_orgs.length
       ? `<div class="u-text-11 u-text-info u-mt-4">${t('msg_orgs_created', { n: d.created_orgs.length, list: d.created_orgs.join(', ') })}</div>`
       : '';
+    // IDEA-2: fuzzy-дубли серийников — только предупреждение, импорт их
+    // уже пропустил через exact-match дедуп (если совпадали ТОЧНО) либо
+    // добавил как новые активы (если совпадали только после нормализации
+    // формата) — здесь просто информируем, что стоит перепроверить руками.
+    const fuzzyList = d.fuzzy_duplicate_serials || [];
+    const fuzzyHtml = fuzzyList.length
+      ? `<div class="u-mt-4">
+          <div class="u-text-11 u-text-warn">${t('msg_fuzzy_dup_warning', { n: fuzzyList.length })}</div>
+          <div class="u-text-11 u-text-muted">${fuzzyList.slice(0,10).map(f=>`«${esc(f.serial)}» ≈ «${esc(f.matched_with)}»`).join(', ')}${fuzzyList.length>10?'…':''}</div>
+        </div>`
+      : '';
     document.getElementById('import-result').innerHTML=`
       <div class="u-flex-gap-6 u-text-success u-fw-600">
         ${t('msg_added_count', { n: d.added })}
-      </div>${invHtml}${orgsHtml}${skipHtml}`;
+      </div>${invHtml}${orgsHtml}${skipHtml}${fuzzyHtml}`;
     toast(t('msg_imported_count', { n: d.added }),'success');
     setTimeout(()=>{ if(currentTab==='dashboard') renderDashboard(); },800);
   } else {

@@ -125,6 +125,18 @@ const bulkAssignInvSchema = z.object({
   type_code: z.string().trim().min(1, 'org_id и type_code обязательны').max(20, 'Слишком длинный код типа'),
 });
 
+// PROD-19: bulk-редактирование meta — ключи ограничены тем же META_KEYS,
+// что и схема полей (PROD-1), значения свободные (сама типизация
+// проверяется по схеме КАЖДОГО ассета отдельно в репозитории — там же,
+// где и для одиночного create/update, PROD-3), здесь только форма запроса.
+const bulkUpdateMetaSchema = z.object({
+  ids:  idsArray,
+  meta: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+        .refine(o => Object.keys(o).length > 0, { message: 'meta не должен быть пустым' })
+        .refine(o => Object.keys(o).every(k => META_KEYS.includes(k)),
+          { message: `key должен быть одним из: ${META_KEYS.join(', ')}` }),
+});
+
 // ─── Учётные записи («Учётные записи» — хранилище логинов/паролей от
 // оборудования, см. SEC-4) ─────────────────────────────────────────────
 
@@ -387,6 +399,7 @@ module.exports = {
   moveAssetSchema,
   bulkMoveAssetsSchema,
   bulkAssignInvSchema,
+  bulkUpdateMetaSchema,
   createAccountSchema,
   updateAccountSchema,
   createEmployeeSchema,

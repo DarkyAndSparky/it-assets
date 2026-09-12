@@ -109,7 +109,7 @@ async function renderDashboard() {
   </div>
   ` : ''}
 
-  ${currentUser && (stats.noInv > 0 || stats.noSerial > 0 || stats.noResp > 0) ? `
+  ${currentUser && (stats.noInv > 0 || stats.noSerial > 0 || stats.noResp > 0 || stats.warrantyExpired > 0 || stats.warrantyExpiring > 0) ? `
   <div class="card amber-card">
     <div class="section-title">${t('section_needs_attention')}</div>
     <div class="stats-grid-fit">
@@ -127,6 +127,16 @@ async function renderDashboard() {
           data-action="switchTab" data-args='["alerts"]'>
         <div class="u-text-22 u-fw-700 u-text-noserial">${stats.noSerial}</div>
         <div class="u-text-12 u-text-5b21b6">${t('lbl_no_serial')}</div>
+      </div>` : ''}
+      ${stats.warrantyExpired > 0 ? `<div class="stat-box-danger"
+          data-action="switchTab" data-args='["alerts"]'>
+        <div class="u-text-22 u-fw-700 u-text-danger-strong">${stats.warrantyExpired}</div>
+        <div class="u-text-12 u-text-danger-strong u-opacity-8">${t('lbl_warranty_expired')}</div>
+      </div>` : ''}
+      ${stats.warrantyExpiring > 0 ? `<div class="stat-box-warn"
+          data-action="switchTab" data-args='["alerts"]'>
+        <div class="u-text-22 u-fw-700 u-text-warn">${stats.warrantyExpiring}</div>
+        <div class="u-text-12 u-text-warn u-opacity-8">${t('lbl_warranty_expiring')}</div>
       </div>` : ''}
     </div>
   </div>` : ''}

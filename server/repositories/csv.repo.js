@@ -41,14 +41,30 @@ function exportCsv(tab) {
   let items = assetsRepo.getAllAssets().filter(a => a.status !== 'списан');
   if (tab) items = items.filter(a => a.tab === tab);
   items.sort((a,b) => (a.filial||'').localeCompare(b.filial||''));
+  // IDEA-1: экспорт должен быть СИММЕТРИЧЕН импорту — раньше не был:
+  // (1) meta.network отсутствовал целиком (нет ни в заголовках, ни в
+  //     значениях) — при экспорте-затем-импорте это поле молча терялось;
+  // (2) meta.winbox и meta.controller схлопывались в ОДНУ колонку
+  //     `r.meta?.winbox||r.meta?.controller||''` — если было заполнено
+  //     ОБА поля, controller терялся безвозвратно, а при реимпорте
+  //     значение всегда попадало обратно именно в winbox, даже если
+  //     исходно было в controller;
+  // (3) meta.warranty/purchase_date/cost (PROD-5/PROD-18, добавлены
+  //     позже исходного экспорта) вообще не попадали в CSV.
+  // Заголовки ниже и MAP в csv-import.js::MAP должны совпадать по
+  // русским названиям — при добавлении новой meta-колонки трогать оба
+  // места.
   const headers = ['Инв. номер','Вкладка','Коллекция','Филиал','Расположение','Ответственный',
                    'Тип','Модель','Серийный №','Статус','Организация','Примечание',
-                   'IP','MAC','Подсеть','WinBox/URL','Логин','Пароль','Hostname','Картриджи','Прошивка','ИНВ шкаф'];
+                   'IP','MAC','Подсеть','Сеть','WinBox/URL','Контроллер','Логин','Пароль','Hostname',
+                   'Картриджи','Прошивка','ИНВ шкаф','Доп. описание','Гарантия/ТО','Дата покупки','Стоимость'];
   const csv = [headers, ...items.map(r => [
     r.inv||'',r.tab,r.category,r.filial,r.location,r.responsible,r.type,r.model,r.serial,r.status,r.org,r.note,
-    r.meta?.ip||'',r.meta?.mac||'',r.meta?.subnet||'',r.meta?.winbox||r.meta?.controller||'',
+    r.meta?.ip||'',r.meta?.mac||'',r.meta?.subnet||'',r.meta?.network||'',
+    r.meta?.winbox||'',r.meta?.controller||'',
     r.meta?.login||'',r.meta?.password||'',r.meta?.hostname||'',
-    r.meta?.cartridge||'',r.meta?.firmware||'',r.meta?.cabinet||r.meta?.inv||''
+    r.meta?.cartridge||'',r.meta?.firmware||'',r.meta?.cabinet||r.meta?.inv||'',r.meta?.note2||'',
+    r.meta?.warranty||'',r.meta?.purchase_date||'',r.meta?.cost||''
   ])].map(r => r.map(csvCell).join(';')).join('\n');
   return '\uFEFF' + csv;
 }
@@ -171,6 +187,18 @@ function importHistory(rows, changedByStr) {
   return { ok:true, added, skipped, matched };
 }
 
+// IDEA-2: fuzzy-нормализация серийника для нечёткого сравнения — только
+// буквы/цифры, без учёта регистра. Ловит самый частый на практике случай
+// расхождения ("SN-12345" vs "SN12345" vs "sn 12345"), не полноценный
+// edit-distance: тот потребовал бы O(n²) сравнений по всей базе, что при
+// потолке в 5000 строк за импорт (SEC-8) может быть медленно и рискованно
+// по ложным совпадениям на действительно разных серийниках, случайно
+// похожих по написанию — нормализация даёт основную пользу почти без
+// этого риска.
+function _normalizeSerial(s) {
+  return (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
 function previewCsvImport(rows) {
   if (!Array.isArray(rows) || !rows.length) { const e = new Error('No data'); e.badRequest = true; throw e; }
 
@@ -189,7 +217,45 @@ function previewCsvImport(rows) {
     unknownOrgs.get(key).count++;
   });
 
-  return { ok: true, unknown_orgs: [...unknownOrgs.values()], total_rows: rows.length };
+  // IDEA-2: возможные дубли серийников — не точное совпадение (то уже
+  // ловит importCsv и молча пропускает строку), а РАСХОЖДЕНИЕ в
+  // написании при совпадении по нормализованной форме. Только
+  // информационно — preview ничего не блокирует и не пропускает сам,
+  // решение оставляем человеку, симметрично unknown_orgs выше.
+  const existingBySerialNorm = new Map();
+  assetsRepo.getAllAssets().forEach(a => {
+    const norm = _normalizeSerial(a.serial);
+    if (norm) existingBySerialNorm.set(norm, a);
+  });
+  const seenInBatch = new Map(); // norm -> первая строка с таким серийником в этом же файле
+  const possibleDuplicateSerials = [];
+  rows.forEach((r, i) => {
+    const raw = (r.serial || '').trim();
+    if (!raw) return;
+    const norm = _normalizeSerial(raw);
+    if (!norm) return;
+
+    const existing = existingBySerialNorm.get(norm);
+    if (existing && existing.serial !== raw) {
+      possibleDuplicateSerials.push({
+        row: i, raw, matched_with: existing.serial,
+        matched_asset: `${existing.type||''} ${existing.model||''}`.trim(), source: 'existing',
+      });
+    }
+    const prevRow = seenInBatch.get(norm);
+    if (prevRow !== undefined && rows[prevRow].serial !== raw) {
+      possibleDuplicateSerials.push({
+        row: i, raw, matched_with: rows[prevRow].serial, matched_row: prevRow, source: 'batch',
+      });
+    } else if (prevRow === undefined) {
+      seenInBatch.set(norm, i);
+    }
+  });
+
+  return {
+    ok: true, unknown_orgs: [...unknownOrgs.values()], total_rows: rows.length,
+    possible_duplicate_serials: possibleDuplicateSerials,
+  };
 }
 
 function importCsv(rows, options, changedByStr) {
@@ -357,6 +423,19 @@ function importCsv(rows, options, changedByStr) {
   }
 
   const toAdd = [];
+  // IDEA-2: fuzzy-предупреждение о вероятных дублях серийника — не
+  // блокирует импорт (в отличие от exact-match дедупа выше), просто
+  // собирается в отдельный список для сообщения после импорта. Ловит
+  // расхождения в написании ("SN-12345" vs "SN12345"), которые exact-match
+  // не поймал бы и молча создал бы отдельный актив.
+  const existingBySerialNorm = new Map();
+  allAssetsNow.forEach(a => {
+    const norm = _normalizeSerial(a.serial);
+    if (norm) existingBySerialNorm.set(norm, a.serial);
+  });
+  const seenNormInBatch = new Map(); // norm -> исходный serial первой добавленной строки с ним
+  const fuzzyDuplicates = [];
+
   rows.forEach(r => {
     if (!r.model) { skipped++; skipReasons.no_model++; return; }
     if (r.serial && existingBySerial.has(r.serial)) { skipped++; skipReasons.dupe_serial++; return; }
@@ -366,6 +445,22 @@ function importCsv(rows, options, changedByStr) {
       existingByKey.add(key);
     }
     if (r.serial) existingBySerial.add(r.serial);
+
+    if (r.serial) {
+      const norm = _normalizeSerial(r.serial);
+      if (norm) {
+        const matchExisting = existingBySerialNorm.get(norm);
+        if (matchExisting && matchExisting !== r.serial) {
+          fuzzyDuplicates.push({ serial: r.serial, matched_with: matchExisting, source: 'existing' });
+        }
+        const matchBatch = seenNormInBatch.get(norm);
+        if (matchBatch && matchBatch !== r.serial) {
+          fuzzyDuplicates.push({ serial: r.serial, matched_with: matchBatch, source: 'batch' });
+        } else if (!matchBatch) {
+          seenNormInBatch.set(norm, r.serial);
+        }
+      }
+    }
 
     const filial_id   = resolveFilial(r.filial);
     const location_id = resolveLocation(r.location, filial_id);
@@ -380,9 +475,12 @@ function importCsv(rows, options, changedByStr) {
       responsible:r.responsible||'', type:r.type||'', model:r.model,
       serial:r.serial||'', status:r.status||'используется',
       org:r.org||'', note:r.note||'',
-      meta:{ ip:r.ip||'', mac:r.mac||'', subnet:r.subnet||'',
+      meta:{ ip:r.ip||'', mac:r.mac||'', subnet:r.subnet||'', network:r.network||'',
+             winbox:r.winbox||'', controller:r.controller||'',
              login:r.login||'', password:r.password||'',
-             hostname:r.hostname||'', firmware:r.firmware||'', cabinet:r.cabinet||'' },
+             hostname:r.hostname||'', cartridge:r.cartridge||'', firmware:r.firmware||'', cabinet:r.cabinet||'',
+             note2:r.note2||'',
+             warranty:r.warranty||'', purchase_date:r.purchase_date||'', cost:r.cost||'' },
       created_at:now, updated_at:now };
 
     if (!asset.serial) {
@@ -405,6 +503,7 @@ function importCsv(rows, options, changedByStr) {
 
   return {
     ok: true, added, skipped, skipReasons, inv_assigned, created_orgs,
+    fuzzy_duplicate_serials: fuzzyDuplicates,
     message: skipped > 0
       ? `Добавлено: ${added}. Пропущено: ${skipped} (серийник уже есть: ${skipReasons.dupe_serial}, дубль без серийника: ${skipReasons.dupe_key}, нет модели: ${skipReasons.no_model})`
       : `Успешно добавлено: ${added} единиц оборудования`

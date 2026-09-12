@@ -26,6 +26,8 @@ function toggleAuth() {
     toast(t('msg_logged_out'));
     stopHealthPolling();
     if (typeof refreshHealth === 'function') refreshHealth(); // прячет точку
+    stopNotifPolling();
+    if (typeof refreshNotifications === 'function') refreshNotifications(); // прячет колокольчик
     render(); return;
   }
   _showLoginModal();
@@ -62,9 +64,15 @@ async function doLogin() {
     if (r.ok) {
       currentUser  = d.user;
       authPassword = pwd;
+      // До логина render() уже мог сходить за /api/categories и
+      // /api/inv/codes неавторизованным (см. комментарий в router.js) и
+      // "успешно" закэшировать дефолты через .catch() — сбрасываем, чтобы
+      // ближайший render() ниже подтянул их по-настоящему с авторизацией.
+      catsCache = {};
       _updateAuthUI();
       toast(t('msg_welcome', { name: currentUser.name }), 'success');
       startHealthPolling();
+      startNotifPolling();
       render();
       // Обязательная смена дефолтного пароля — блокирует остальной интерфейс,
       // сервер всё равно откажет во всех действиях, кроме смены своего пароля

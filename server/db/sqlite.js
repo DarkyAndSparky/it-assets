@@ -387,11 +387,38 @@ sqlite.exec(`
     meta_hostname  TEXT,
     meta_cartridge TEXT,
     meta_firmware  TEXT,
-    meta_note2     TEXT
+    meta_note2     TEXT,
+    meta_warranty  TEXT,
+    meta_purchase_date TEXT,
+    meta_cost      TEXT
   );
 `);
 sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_assets_status ON assets(status);`);
 sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_assets_org_id ON assets(org_id);`);
+
+// PROD-5: гарантия/ТО — 15-й meta-ключ, appended не в середину списка, а в
+// конец (см. META_KEYS ниже) — старые базы созданы до этого поля,
+// CREATE TABLE IF NOT EXISTS их не тронет, добавляем отдельно тем же
+// защищённым паттерном, что уже применялся для can_view_accounts выше.
+try {
+  const assetCols = sqlite.prepare(`PRAGMA table_info(assets)`).all();
+  if (!assetCols.some(c => c.name === 'meta_warranty')) {
+    sqlite.exec(`ALTER TABLE assets ADD COLUMN meta_warranty TEXT`);
+  }
+} catch (e) { logger.error('DB', 'add meta_warranty column failed', e.message); }
+
+// PROD-18: дата покупки + стоимость — 16-й/17-й meta-ключи, тот же
+// защищённый паттерн (проверено дважды подряд — PROD-5 показал, что
+// расширение META_KEYS безопасно и недорого, см. SCHEMA.md).
+try {
+  const assetCols2 = sqlite.prepare(`PRAGMA table_info(assets)`).all();
+  if (!assetCols2.some(c => c.name === 'meta_purchase_date')) {
+    sqlite.exec(`ALTER TABLE assets ADD COLUMN meta_purchase_date TEXT`);
+  }
+  if (!assetCols2.some(c => c.name === 'meta_cost')) {
+    sqlite.exec(`ALTER TABLE assets ADD COLUMN meta_cost TEXT`);
+  }
+} catch (e) { logger.error('DB', 'add meta_purchase_date/meta_cost columns failed', e.message); }
 
 // ─── Фото активов ────────────────────────────────────────────────────────
 // Файлы данных не хранятся тут (BLOB), только метаданные — сами байты
@@ -438,7 +465,8 @@ sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_history_asset_id ON history(asset_id
 sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_history_date ON history(date);`);
 
 const META_KEYS = ['ip','mac','subnet','winbox','login','password','cabinet',
-  'controller','inv','network','hostname','cartridge','firmware','note2'];
+  'controller','inv','network','hostname','cartridge','firmware','note2','warranty',
+  'purchase_date','cost'];
 
 function migrateAssetsFromLowdb() {
   const row = sqlite.prepare('SELECT COUNT(*) AS c FROM assets').get();

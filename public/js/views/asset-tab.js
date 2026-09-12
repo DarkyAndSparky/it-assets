@@ -111,6 +111,7 @@ async function renderAssetTab(tab) {
     <span class="u-text-13 u-fw-700 u-text-accent">☑ ${t('lbl_selected')}: ${selectedIds.size}</span>
     <button class="btn btn-primary btn-sm" data-action="showBulkMoveModal" data-args='${JSON.stringify([tab])}'>→ ${t('btn_move')}</button>
     <button class="btn btn-secondary btn-sm" data-action="showBulkInvModal" data-args='${JSON.stringify([tab])}'>🏷 ${t('field_inv')}</button>
+    <button class="btn btn-secondary btn-sm" data-action="showBulkMetaModal" data-args='${JSON.stringify([tab])}'>🛠 ${t('btn_bulk_edit_field')}</button>
     <button class="btn btn-danger btn-sm" data-action="showBulkRetireModal" data-args='${JSON.stringify([tab])}'>🗑 ${t('btn_retire')}</button>
     <button class="btn btn-ghost btn-sm" data-action="clearSelection" data-args='${JSON.stringify([tab])}'>✕ ${t('btn_clear_selection')}</button>
   </div>` : ''}
@@ -394,6 +395,64 @@ async function doBulkAssignInv(tab) {
       (d.ids_failed || []).forEach(f => { reasons[f.reason] = (reasons[f.reason]||0) + 1; });
       const detail = Object.entries(reasons).map(([r,n]) => `${r}: ${n}`).join(', ');
       msg += `, ${t('msg_bulk_skipped_prefix')}: ${d.skipped}${detail ? ` (${detail})` : ''}`;
+    }
+    toast(msg, 'success');
+    selectedIds.clear();
+    renderAssetTab(tab);
+  } else toast(d.error || t('msg_error'), 'error');
+}
+
+// PROD-19: bulk-редактирование одного meta-поля сразу у нескольких
+// выбранных активов. Ключи — те же META_KEYS, что и в схеме полей
+// (PROD-1), берём с сервера через /api/meta-keys (единственный источник
+// истины, см. комментарий в types.routes.js), а не дублируем список.
+// Выбранные активы могут быть разных типов с разными схемами —
+// намеренно не делаем это поле "умным" (select/checkbox по типу первого
+// выбранного актива и т.п.): значение — простой текст, а какие активы
+// примут его, а какие отклонят по своей схеме — решает сервер
+// (bulkUpdateMeta → _validateMetaAgainstSchema на каждый ассет отдельно),
+// и результат по каждому видно в ids_failed.
+async function showBulkMetaModal(tab) {
+  if (!selectedIds.size) return toast(t('msg_nothing_selected'), 'error');
+  let metaKeys = [];
+  try { metaKeys = await fetch(`${API}/api/meta-keys`, { headers: ah() }).then(r=>r.json()); }
+  catch(e) { return toast(t('msg_error'), 'error'); }
+
+  const opts = metaKeys.map(k => `<option value="${k}">${esc(metaLabel(k))}</option>`).join('');
+  showModal(`<h2>${t('modal_bulk_meta_title')}</h2>
+    <div class="surface-note-box">
+      ${t('lbl_selected_devices')}: <b>${selectedIds.size}</b><br>
+      <span class="u-text-11 u-text-muted">${t('msg_bulk_meta_note')}</span>
+    </div>
+    <div class="form-row"><label>${t('lbl_field')}</label>
+      <select id="bm-key">${opts}</select></div>
+    <div class="form-row"><label>${t('lbl_value')}</label>
+      <input id="bm-value" placeholder="${t('lbl_value')}"/></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" data-action="doBulkUpdateMeta" data-args='${JSON.stringify([tab])}'>${t('btn_apply')}</button>
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
+    </div>`);
+}
+
+async function doBulkUpdateMeta(tab) {
+  const key = document.getElementById('bm-key')?.value;
+  const value = document.getElementById('bm-value')?.value ?? '';
+  if (!key) return toast(t('msg_select_field'), 'error');
+
+  const ids = [...selectedIds];
+  const r = await fetch(`${API}/api/assets/bulk-update-meta`, {
+    method: 'POST', headers: ah(),
+    body: JSON.stringify({ ids, meta: { [key]: value } })
+  });
+  const d = await r.json();
+  if (r.ok) {
+    closeModal();
+    let msg = `${t('msg_bulk_assigned_prefix')}: ${d.ok}`;
+    if (d.ids_failed?.length) {
+      const reasons = {};
+      d.ids_failed.forEach(f => { reasons[f.reason] = (reasons[f.reason]||0) + 1; });
+      const detail = Object.entries(reasons).map(([r,n]) => `${r}: ${n}`).join(', ');
+      msg += `, ${t('msg_bulk_skipped_prefix')}: ${d.ids_failed.length}${detail ? ` (${detail})` : ''}`;
     }
     toast(msg, 'success');
     selectedIds.clear();

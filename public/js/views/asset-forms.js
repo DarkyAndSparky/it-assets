@@ -40,6 +40,17 @@ function _onTypeSelectChange(containerId) {
 function _closeThenShowMove(id) { closeModal(); showMoveModal(id); }
 function _closeThenShowEdit(id) { closeModal(); showEditModal(id); }
 
+// PROD-17: "Показать всю историю" из карточки актива — переключает на
+// вкладку Истории и подставляет модель актива в её строку поиска (у
+// history.js нет отдельного UI-фильтра по конкретному asset_id, но
+// поиск там уже умеет искать по модели в поле equipment — используем
+// существующий механизм вместо того, чтобы заводить новый).
+function _openFullHistoryForAsset(model) {
+  closeModal();
+  if (typeof histFilters !== 'undefined') histFilters.search = model;
+  switchTab('history');
+}
+
 // Было (только для password-поля) самомодифицирующий onclick, показывающий
 // реальное значение при клике (маскированное поле).
 function _revealMaskedValue(realValue) {
@@ -214,7 +225,7 @@ async function _openAssetPhotosQuick(assetId) {
 async function showDetail(id) {
   const [a, histResp, photos] = await Promise.all([
     fetch(`${API}/api/assets/${id}`, { headers: ah() }).then(r=>r.json()),
-    fetch(`${API}/api/history?asset_id=${id}&limit=20`, { headers: ah() }).then(r=>r.json()),
+    fetch(`${API}/api/history?asset_id=${id}&limit=30`, { headers: ah() }).then(r=>r.json()),
     fetch(`${API}/api/assets/${id}/photos`, { headers: ah() }).then(r=>r.ok ? r.json() : []).catch(()=>[]),
   ]);
   const hist = Array.isArray(histResp) ? histResp : (histResp.items || []);
@@ -273,14 +284,28 @@ async function showDetail(id) {
     <div class="timeline-rail">
       <div class="timeline-line"></div>
       ${hist.map((h,i)=>{
-        const isMove    = h.action_type==='move'   || h.from_who || h.to_who;
-        const isCreate  = h.action_type==='create' || h.action_type==='import';
-        const isRetire  = h.action_type==='retire' || h.action_type==='delete';
-        const icon  = isRetire?'🗑':isCreate?'✨':isMove?'→':'📝';
-        const color = isRetire?'#dc2626':isCreate?'#059669':isMove?'#6366f1':'var(--warn-text)';
+        // PROD-17: различаем все 6 типов события (тот же набор, что и в
+        // dashboard.js/history.js — их иконка+цвет только продублированы
+        // здесь как inline-логика, а не переиспользованы напрямую, потому
+        // что там это JS-объекты внутри других функций модуля, не
+        // экспортируемая утилита; цвета взяты те же самые, чтобы одно и
+        // то же событие выглядело одинаково что на карточке актива, что
+        // в общем списке истории).
+        const ACTION_STYLE = {
+          add:           { icon: '✨', color: '#059669' },
+          move:          { icon: '→',  color: '#6366f1' },
+          retire:        { icon: '🗑', color: '#dc2626' },
+          import:        { icon: '📥', color: '#0ea5e9' },
+          reassign:      { icon: '👤', color: '#8b5cf6' },
+          status_change: { icon: '⚙️', color: '#f59e0b' },
+          edit:          { icon: '🛠', color: '#06b6d4' },
+        };
+        const st = ACTION_STYLE[h.action_type] || (h.from_who||h.to_who
+          ? ACTION_STYLE.move
+          : { icon: '📝', color: 'var(--warn-text)' });
         return `<div class="u-relative ${i<hist.length-1?'u-mb-12':'u-mb-4'}">
-          <div class="timeline-dot" data-dot-color="${color}"></div>
-          <div class="u-text-11 u-text-muted u-mb-2">${fd(h.date)}
+          <div class="timeline-dot" data-dot-color="${st.color}"></div>
+          <div class="u-text-11 u-text-muted u-mb-2">${st.icon} ${fd(h.date)}
             ${h.changed_by?`<span class="u-text-muted"> · ${esc(h.changed_by)}</span>`:''}
           </div>
           ${(h.from_who||h.to_who)?`<div class="u-text-12 u-mb-2">
@@ -296,7 +321,8 @@ async function showDetail(id) {
           </div>`:''}
         </div>`;
       }).join('')}
-    </div>`:''}
+    </div>
+    <button class="btn btn-ghost btn-sm u-mt-8" data-action="_openFullHistoryForAsset" data-args='${JSON.stringify([esc(a.model)])}'>${t('btn_show_full_history')}</button>`:''}
     <hr class="sep"/>
     <div class="u-flex-col-center-gap-8 u-p-8-0">
       <div id="detail-qr-${id}" class="qr-frame"></div>

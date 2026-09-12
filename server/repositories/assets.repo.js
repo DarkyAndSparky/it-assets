@@ -106,7 +106,7 @@ function normalizeAsset(a, maps) {
 
 function listAssets(query) {
   const { tab, category, org, filial, status, search,
-          no_responsible, no_inv, no_serial, stale_days, limit, page } = query;
+          no_responsible, no_inv, no_serial, stale_days, warranty_expiring_days, limit, page } = query;
   const maps = _buildNameMaps();
   let items = stmts.selectActive.all().map(rowToAsset).map(a => normalizeAsset(a, maps));
 
@@ -122,6 +122,18 @@ function listAssets(query) {
     const cutoff = new Date(Date.now() - parseInt(stale_days)*24*60*60*1000).toISOString();
     items = items.filter(a => !a.updated_at || a.updated_at < cutoff);
   }
+  // PROD-5: гарантия/ТО хранится в meta.warranty как строка-дата (тип
+  // ввода задаётся схемой типа, PROD-1) — включая уже истёкшие (< now),
+  // отдельно фильтровать "только истекающие, не истёкшие" тут не стали:
+  // на алерт-карточке нужны обе категории, а конкретно "просрочено" видно
+  // по самой дате в списке.
+  if (warranty_expiring_days) {
+    const cutoff = new Date(Date.now() + parseInt(warranty_expiring_days)*24*60*60*1000);
+    items = items.filter(a => {
+      const d = a.meta?.warranty ? new Date(a.meta.warranty) : null;
+      return d && !isNaN(d) && d <= cutoff;
+    });
+  }
   if (search) {
     const q = search.toLowerCase();
     items = items.filter(a => {
@@ -130,6 +142,24 @@ function listAssets(query) {
         .some(v => v && v.toLowerCase().includes(q)) || metaStr.includes(q);
     });
   }
+  // PROD-20: расширенный фильтр по типизированным meta-полям — любой
+  // query-параметр вида meta_<key> (key из META_KEYS) фильтрует по
+  // подстроке (регистронезависимо) в соответствующем meta-поле. В
+  // отличие от общего `search` выше (ищет по ЛЮБОМУ полю сразу), это —
+  // прицельный фильтр по конкретному полю, полезно когда несколько
+  // активов имеют совпадающие значения в других полях (например, у всех
+  // meta.network = 'LAN', а нужно найти именно с этим значением, не
+  // затрагивая остальные текстовые поля). Единообразно с остальными
+  // фильтрами этой функции — JS-фильтрация после полной загрузки, не
+  // SQL-запрос (см. находку PROD-16: SQL-индексы здесь всё равно не
+  // используются напрямую, весь список уже в памяти).
+  Object.keys(query || {}).forEach(qk => {
+    if (!qk.startsWith('meta_')) return;
+    const metaKey = qk.slice(5);
+    const val = String(query[qk] || '').trim().toLowerCase();
+    if (!val) return;
+    items = items.filter(a => String(a.meta?.[metaKey] ?? '').toLowerCase().includes(val));
+  });
   items.sort((a,b) =>
     (a.filial||'').localeCompare(b.filial||'') ||
     (a.location||'').localeCompare(b.location||'') ||
@@ -605,8 +635,62 @@ function bulkImportAssets(assetsArray, changedByStr) {
   }
 }
 
+// PROD-19: bulk-редактирование типизированных meta-полей. По той же
+// атомарной конвенции, что bulkMoveAssets/bulkAssignInv (BUG-2) — вся
+// пачка в одной транзакции, но "ожидаемые" отказы (ассет не найден,
+// значение не проходит схему ЕГО типа) идут в ids_failed с причиной, а не
+// рушат всю пачку. Валидация — та же _validateMetaAgainstSchema, что и
+// для create/update одного актива (PROD-3): каждый ассет в пачке может
+// быть своего типа со своей схемой, поэтому валидируем per-asset, а не
+// один раз для всей пачки.
+function bulkUpdateMeta(body, changedByStr) {
+  const { ids, meta } = body || {};
+  if (!Array.isArray(ids) || !ids.length) { const e = new Error('ids[] required'); e.badRequest = true; throw e; }
+  if (!meta || typeof meta !== 'object' || !Object.keys(meta).length) {
+    const e = new Error('meta обязателен и не должен быть пустым'); e.badRequest = true; throw e;
+  }
+
+  const now = new Date().toISOString();
+  const metaKeys = Object.keys(meta);
+  const results = { ok: 0, failed: [], ids_assigned: [], ids_failed: [] };
+
+  sqlite.exec('BEGIN');
+  try {
+    ids.forEach(id => {
+      const asset = stmts.selectOne.get(id);
+      if (!asset) { results.failed.push(id); results.ids_failed.push({ id, reason: 'Ассет не найден' }); return; }
+
+      const effectiveMeta = { ...rowToAsset(asset).meta, ...meta };
+      try {
+        _validateMetaAgainstSchema(asset.type, effectiveMeta);
+      } catch (ve) {
+        results.failed.push(id);
+        results.ids_failed.push({ id, reason: ve.message });
+        return;
+      }
+
+      const cols = metaKeys.map(k => `meta_${k} = ?`).concat('updated_at = ?');
+      const vals = metaKeys.map(k => meta[k] || null).concat(now);
+      sqlite.prepare(`UPDATE assets SET ${cols.join(', ')} WHERE id=?`).run(...vals, id);
+
+      stmts.historyInsert.run(uuidv7(), id, 'edit', now,
+        '', '', asset.filial || '', asset.location || '',
+        `${asset.type} ${asset.model}`, asset.model, asset.type, asset.serial,
+        `Массовое редактирование полей: ${metaKeys.join(', ')}`, changedByStr);
+
+      results.ok++;
+      results.ids_assigned.push(id);
+    });
+    sqlite.exec('COMMIT');
+  } catch (e) {
+    sqlite.exec('ROLLBACK');
+    throw e;
+  }
+  return results;
+}
+
 module.exports = {
   listAssets, searchAssets, getAssetById, createAsset, updateAsset,
-  retireAsset, moveAsset, bulkMoveAssets, bulkAssignInv, reassignEmployeeAssets,
+  retireAsset, moveAsset, bulkMoveAssets, bulkAssignInv, bulkUpdateMeta, reassignEmployeeAssets,
   getAllAssets, bulkImportAssets,
 };

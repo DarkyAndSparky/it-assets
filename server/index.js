@@ -144,6 +144,7 @@ app.use('/api/history', require('./routes/history.routes'));
 
 // ─── STATS (Фаза 4c рефакторинга) ────────────────────────────────────────────
 app.use('/api/stats', require('./routes/stats.routes'));
+app.use('/api/metrics', require('./routes/metrics.routes'));
 
 // ─── ACCOUNTS ─────────────────────────────────────────────────────────────────
 // ─── УЧЁТНЫЕ ЗАПИСИ (Фаза 3 рефакторинга) ────────────────────────────────────

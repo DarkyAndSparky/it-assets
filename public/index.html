@@ -31,6 +31,7 @@
 <script src="/js/views/types-admin.js"></script>
 <script src="/js/error-handler.js"></script>
 <script src="/js/health.js"></script>
+<script src="/js/notifications.js"></script>
 </head>
 <body>
 <div id="header">
@@ -45,12 +46,14 @@
     <button id="lang-toggle" data-action="toggleLang" title="Switch language / Переключить язык"
       class="header-btn-ghost header-btn-lang">EN</button>
     <span id="health-indicator" class="health-dot u-hidden" data-action="toggleHealthDetails" title="">●</span>
+    <span id="notif-bell" class="notif-bell u-hidden" data-action="toggleNotifPanel" title="">🔔<span id="notif-badge" class="notif-badge u-hidden">0</span></span>
     <span id="total-badge" class="hbadge">...</span>
     <span id="auth-status" class="header-auth-status">👁 Просмотр</span>
     <button class="auth-btn" id="auth-btn" data-action="toggleAuth">🔐 Войти</button>
   </div>
 </div>
 <div id="health-panel"></div>
+<div id="notif-panel"></div>
 <div id="nav">
   <button class="nav-btn active" data-tab="dashboard" data-action="switchTab" data-args='["dashboard"]'>📊 Дашборд</button>
   <button class="nav-btn nav-auth" data-tab="os"       data-action="switchTab" data-args='["os"]'>💻 ОС</button>

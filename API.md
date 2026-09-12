@@ -84,7 +84,7 @@
 | `/api/backup` | `/list`, `/create`, `/download/:name`, `/restore/:name` | |
 | `/api/config` | `/export`, `/import/diff`, `/import/apply` | Экспорт/импорт всей конфигурации разом (не то же самое, что бэкап БД) |
 | `/api/qr` | GET | Генерация QR для этикеток |
-| CSV | `/api/export/csv`, `/api/import/csv(/preview)`, `/api/import/history` | Симметричного обратного экспорта в формате импорта пока нет — см. IDEA-1 в роадмапе |
+| CSV | `/api/export/csv`, `/api/import/csv(/preview)`, `/api/import/history` | С IDEA-1 экспорт и импорт держат один и тот же полный набор meta-колонок (симметрично в обе стороны) |
 
 ## Коды ошибок
 

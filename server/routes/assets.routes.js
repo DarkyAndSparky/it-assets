@@ -13,7 +13,7 @@ const photosRepo = require('../repositories/photos.repo');
 const { requireAuth, requireLogin, changedBy } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { createAssetSchema, updateAssetSchema, moveAssetSchema,
-        bulkMoveAssetsSchema, bulkAssignInvSchema, addAssetPhotoSchema } = require('../validation/schemas');
+        bulkMoveAssetsSchema, bulkAssignInvSchema, bulkUpdateMetaSchema, addAssetPhotoSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
@@ -64,6 +64,12 @@ router.post('/bulk-move', requireAuth, validate(bulkMoveAssetsSchema), (req, res
 
 router.post('/bulk-assign-inv', requireAuth, validate(bulkAssignInvSchema), (req, res) => {
   try { res.json(assetsRepo.bulkAssignInv(req.body, changedBy(req))); }
+  catch(e) { res.status(e.badRequest ? 400 : 400).json({ error: e.message }); }
+});
+
+// PROD-19
+router.post('/bulk-update-meta', requireAuth, validate(bulkUpdateMetaSchema), (req, res) => {
+  try { res.json(assetsRepo.bulkUpdateMeta(req.body, changedBy(req))); }
   catch(e) { res.status(e.badRequest ? 400 : 400).json({ error: e.message }); }
 });
 

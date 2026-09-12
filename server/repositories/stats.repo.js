@@ -16,6 +16,15 @@ function getStats() {
   const noResp  = all.filter(a => !a.responsible||a.responsible==='?'||a.responsible==='—').length;
   const noInv   = all.filter(a => !a.inv || a.inv === '—').length;
   const noSerial= all.filter(a => !a.serial || a.serial === '—').length;
+  // PROD-5: гарантия/ТО (meta.warranty, дата — тип поля задаётся схемой
+  // типа, PROD-1). "Скоро истекает" — 30 дней вперёд, не включает уже
+  // истёкшие (те считаются отдельно, чтобы на дашборде было видно две
+  // разные по срочности категории, а не одну смешанную).
+  const now = Date.now();
+  const WARRANTY_SOON_MS = 30*24*60*60*1000;
+  const warrantyDates = all.map(a => a.meta?.warranty ? new Date(a.meta.warranty) : null).filter(d => d && !isNaN(d));
+  const warrantyExpired   = warrantyDates.filter(d => +d < now).length;
+  const warrantyExpiring  = warrantyDates.filter(d => +d >= now && +d <= now + WARRANTY_SOON_MS).length;
   const count   = arr => arr.reduce((m,a) => { m[a] = (m[a]||0)+1; return m; }, {});
   const toArr   = (obj, key) => Object.entries(obj).map(([k,n]) => ({[key]:k,n})).sort((a,b)=>b.n-a.n);
 
@@ -31,6 +40,7 @@ function getStats() {
 
   return {
     total:all.length, active, reserve, noResp, noInv, noSerial,
+    warrantyExpired, warrantyExpiring,
     byFilial:   toArr(count(all.map(a=>a.filial)),   'filial'),
     byOrg:      toArr(count(orgNames), 'org').filter(o=>o.org!=='—'),
     byType:     toArr(count(all.map(a=>a.type)),     'type').slice(0,10),

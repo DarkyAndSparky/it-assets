@@ -59,6 +59,26 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--te
 #health-panel .hp-dot{font-size:11px}
 #health-panel .hp-label{font-weight:600;min-width:70px}
 #health-panel .hp-detail{color:var(--muted,#64748b);font-size:11px}
+/* IDEA-4: колокольчик уведомлений — тот же визуальный паттерн, что у
+   health-indicator/panel выше, отдельные классы (не переиспользуем те же
+   #health-*, т.к. это разные независимые всплывающие панели, обе могут
+   быть в DOM одновременно). */
+.notif-bell{cursor:pointer;font-size:14px;line-height:1;user-select:none;position:relative;transition:transform .15s}
+.notif-bell:hover{transform:scale(1.15)}
+.notif-badge{position:absolute;top:-6px;right:-8px;background:var(--danger-text);color:#fff;
+  border-radius:9px;min-width:16px;height:16px;font-size:10px;font-weight:700;line-height:16px;
+  text-align:center;padding:0 3px}
+#notif-panel{position:absolute;top:52px;right:16px;background:var(--card-bg,#fff);color:var(--text,#1a1a2e);
+  border:1px solid var(--border,#e2e8f0);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);
+  padding:10px 14px;font-size:12px;min-width:240px;z-index:500;display:none}
+#notif-panel.open{display:block}
+#notif-panel .np-row{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:6px 0;cursor:pointer;border-bottom:1px solid var(--border)}
+#notif-panel .np-row:last-child{border-bottom:none}
+#notif-panel .np-row:hover{opacity:.75}
+#notif-panel .np-count{background:var(--danger-bg);color:var(--danger-text);border-radius:10px;
+  padding:1px 8px;font-weight:700;font-size:11px}
+#notif-panel .np-empty{color:var(--muted);text-align:center;padding:10px 0}
 .hml{margin-left:auto;display:flex;gap:8px;align-items:center}
 .auth-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 13px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600}
 .auth-btn:hover{background:rgba(255,255,255,.25)}
@@ -590,3 +610,8 @@ hr.sep{border:none;border-top:1px solid var(--border);margin:16px 0}
    файлов не встречался в исходном списке CSP-2..22 брифа, найдены только
    финальной сверкой grep по всему public/ перед CSP-23. */
 .inline-code-chip{background:var(--surface2);padding:2px 6px;border-radius:4px}
+
+/* PROD-5: гарантия/ТО — истёкшая (danger) отдельно от истекающей (warn,
+   уже есть .stat-box-warn). */
+.stat-box-danger{background:var(--danger-bg);border-radius:8px;padding:12px;cursor:pointer}
+.u-text-danger-strong{color:var(--danger-text)}
