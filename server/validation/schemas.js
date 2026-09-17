@@ -37,6 +37,9 @@ const createUserSchema = z.object({
   pin:   pinField.default(''),
   email: z.string().trim().max(200, 'Слишком длинный email').default(''),
   can_view_accounts: z.coerce.boolean().default(false),
+  // PROD-9 (лёгкая версия доступа по организации): null/отсутствие —
+  // без ограничения (видит/пишет по всем организациям, как раньше).
+  org_id: z.string().trim().max(100, 'Некорректный org_id').nullable().optional(),
 });
 
 const updateUserSchema = z.object({
@@ -47,6 +50,7 @@ const updateUserSchema = z.object({
   email: z.string().trim().max(200, 'Слишком длинный email').optional(),
   active: z.coerce.boolean().optional(),
   can_view_accounts: z.coerce.boolean().optional(),
+  org_id: z.string().trim().max(100, 'Некорректный org_id').nullable().optional(),
 });
 
 // ─── Активы ─────────────────────────────────────────────────────────────
@@ -348,6 +352,19 @@ const putPasswordSchema = z.object({
   newPassword: z.preprocess(v => v ?? '', z.string().trim().min(4, 'newPassword required (минимум 4 символа)').max(100, 'Слишком длинный пароль')),
 });
 
+// PROD-7: webhook_url/telegram_bot_token могут прийти МАСКИРОВАННЫМИ
+// (см. notify.js::resolveSecrets) — начинаются с "••••", поэтому не
+// валидируем их как строгий URL/формат токена здесь, только длину и тип.
+// Реальная проверка "похоже на URL" — на совести отправителя (админ сам
+// себе не враг, тот же уровень доверия, что у остальных admin-only полей).
+const notifyConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  webhook_url: z.string().max(500).optional(),
+  telegram_bot_token: z.string().max(200).optional(),
+  telegram_chat_id: z.string().max(100).optional(),
+  events: z.array(z.string()).max(10).optional(),
+});
+
 const importDiffSchema = z.object({
   config: z.record(z.string(), z.any(), { message: 'Ожидается { config: {...} }' }),
 }).superRefine((data, ctx) => {
@@ -427,6 +444,7 @@ module.exports = {
   addAssetPhotoSchema,
   putCompanyNameSchema,
   putPasswordSchema,
+  notifyConfigSchema,
   importDiffSchema,
   importApplySchema,
   importHistorySchema,

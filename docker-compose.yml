@@ -1,6 +1,12 @@
 services:
   it-assets:
     build: .
+    # OPS-8 (Track 9, найдено при аудите procure-it): тег с версией вместо
+    # безымянного build-образа — виден в `docker images`/`docker compose ps`,
+    # облегчает откат на предыдущую версию. Синхронизируется автоматически
+    # из VERSION через scripts/sync-version.js (см. INFRA-4), как и версия
+    # в README/docs/index.html — руками эту строку менять не нужно.
+    image: it-assets:beta-1-26w38-08
     container_name: it-assets
     restart: unless-stopped
     # OPS-1 (Track 9, найдено при аудите procure-it): дефолт Docker для

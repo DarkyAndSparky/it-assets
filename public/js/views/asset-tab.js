@@ -100,6 +100,7 @@ async function renderAssetTab(tab) {
     <div class="u-flex-gap-6">
       ${canEdit()?`<button class="btn btn-secondary btn-sm" data-action="showCatEditor" data-args='${JSON.stringify([tab])}' title="${t('tooltip_categories')}">📂 ${t('btn_categories')}</button>`:''}
       <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=${tab}`, `IT_assets_${tab}.csv`])}'>⬇ CSV</button>
+      <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/xlsx?tab=${tab}`, `IT_assets_${tab}.xlsx`])}'>⬇ XLSX</button>
       ${canEdit()?`<button class="btn btn-primary btn-sm" data-action="showAddModal" data-args='${JSON.stringify([tab])}'>${t('btn_add')}</button>`:''}
     </div>
   </div>

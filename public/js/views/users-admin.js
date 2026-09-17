@@ -20,9 +20,11 @@
 async function _renderUsersPanel() {
   let users = [];
   try { users = await fetch(`${API}/api/users`, {headers:ah()}).then(r=>r.json()); } catch(e){}
+  await ensureRefData(); // PROD-9: нужен _orgsCache для подписи организации
 
   const ROLE_LABEL = { admin:t('role_admin'), operator:t('role_operator'), viewer:t('role_viewer') };
   const ROLE_BADGE = { admin:'s-used', operator:'s-reserve', viewer:'s-off' };
+  const orgName = id => id ? (_orgsCache.find(o=>o.id===id)?.name || '—') : t('lbl_all_orgs');
 
   const rows = users.map(u => `
     <tr>
@@ -30,8 +32,9 @@ async function _renderUsersPanel() {
       <td><span class="badge-s ${ROLE_BADGE[u.role]||'s-off'}">${ROLE_LABEL[u.role]||u.role}</span></td>
       <td><span class="badge-s ${u.active!==false?'s-used':'s-off'}">${u.active!==false?t('lbl_active'):t('lbl_disabled')}</span></td>
       <td>${u.role!=='admin' ? (u.can_view_accounts?`<span class="badge-s s-used" title="${t('tooltip_sees_acct_pw')}">${t('lbl_cva_yes')}</span>`:`<span class="badge-s s-off">${t('lbl_cva_no')}</span>`) : `<span class="u-text-muted u-text-11">${t('lbl_always')}</span>`}</td>
+      <td class="u-text-12 u-text-muted">${esc(orgName(u.org_id))}</td>
       <td class="u-nowrap">
-        <button class="btn-icon" title="${t('tooltip_edit')}" data-action="showEditUserModal" data-args='${JSON.stringify([u.id, esc(u.name), u.role, esc(u.login||u.name), !!u.can_view_accounts])}'>✏️</button>
+        <button class="btn-icon" title="${t('tooltip_edit')}" data-action="showEditUserModal" data-args='${JSON.stringify([u.id, esc(u.name), u.role, esc(u.login||u.name), !!u.can_view_accounts, u.org_id||''])}'>✏️</button>
         ${u.id!=='sys-user-admin'?`
         <button class="btn-icon" title="${u.active!==false?t('tooltip_deactivate'):t('tooltip_activate')}"
           data-action="toggleUserActive" data-args='${JSON.stringify([u.id, u.active===false])}'>${u.active!==false?'🔒':'🔓'}</button>
@@ -51,7 +54,7 @@ async function _renderUsersPanel() {
       </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>${t('th_name')}</th><th>${t('th_role')}</th><th>${t('th_status')}</th><th>${t('th_acct_passwords')}</th><th></th></tr></thead>
+          <thead><tr><th>${t('th_name')}</th><th>${t('th_role')}</th><th>${t('th_status')}</th><th>${t('th_acct_passwords')}</th><th>${t('th_org')}</th><th></th></tr></thead>
           <tbody>${rows||`<tr><td colspan="5" class="u-text-muted u-text-center">${t('msg_no_users')}</td></tr>`}</tbody>
         </table>
       </div>
@@ -80,6 +83,13 @@ function showCreateUserModal() {
       </label>
       <div class="field-hint">${t('msg_cva_admin_note')}</div>
     </div>
+    <div class="form-row"><label>${t('field_org_restrict')}</label>
+      <select id="cu-org">
+        <option value="">${t('lbl_all_orgs')}</option>
+        ${_orgsCache.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join('')}
+      </select>
+      <div class="field-hint">${t('msg_org_restrict_note')}</div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-primary" data-action="doCreateUser">${t('btn_create')}</button>
       <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
@@ -92,11 +102,12 @@ async function doCreateUser() {
   const role  = document.getElementById('cu-role')?.value;
   const pin   = document.getElementById('cu-pin')?.value.trim();
   const can_view_accounts = !!document.getElementById('cu-cva')?.checked;
+  const org_id = document.getElementById('cu-org')?.value || null;
   if (!name)  return toast(t('msg_enter_name'), 'error');
   if (!login) return toast(t('msg_enter_login'), 'error');
   if (!pin || pin.length < 4) return toast(t('msg_password_min4_error'), 'error');
   const r = await fetch(`${API}/api/users`, {
-    method:'POST', headers:ah(), body:JSON.stringify({name, login, role, pin, can_view_accounts})
+    method:'POST', headers:ah(), body:JSON.stringify({name, login, role, pin, can_view_accounts, org_id})
   });
   const d = await r.json();
   if (r.ok) {
@@ -106,7 +117,7 @@ async function doCreateUser() {
   } else toast(d.error||t('msg_error'), 'error');
 }
 
-function showEditUserModal(id, name, role, login, canViewAccounts) {
+function showEditUserModal(id, name, role, login, canViewAccounts, orgId) {
   showModal(`<h2>${t('modal_edit_user_title')}</h2>
     <div class="form-row"><label>${t('th_name')}</label>
       <input id="eu-name" value="${esc(name)}"/></div>
@@ -127,6 +138,13 @@ function showEditUserModal(id, name, role, login, canViewAccounts) {
       </label>
       <div class="field-hint">${t('msg_cva_admin_note')}</div>
     </div>
+    <div class="form-row"><label>${t('field_org_restrict')}</label>
+      <select id="eu-org">
+        <option value="" ${!orgId?'selected':''}>${t('lbl_all_orgs')}</option>
+        ${_orgsCache.map(o=>`<option value="${o.id}" ${orgId===o.id?'selected':''}>${esc(o.name)}</option>`).join('')}
+      </select>
+      <div class="field-hint">${t('msg_org_restrict_note')}</div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-primary" data-action="doUpdateUser" data-args='${JSON.stringify([id])}'>${t('btn_save')}</button>
       <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
@@ -139,8 +157,9 @@ async function doUpdateUser(id) {
   const role  = document.getElementById('eu-role')?.value;
   const pin   = document.getElementById('eu-pin')?.value.trim();
   const can_view_accounts = !!document.getElementById('eu-cva')?.checked;
+  const org_id = document.getElementById('eu-org')?.value || null;
   if (!login) return toast(t('msg_login_empty_error'), 'error');
-  const body = {name, login, role, can_view_accounts};
+  const body = {name, login, role, can_view_accounts, org_id};
   if (pin) { if (pin.length < 4) return toast(t('msg_password_min4_error'), 'error'); body.pin = pin; }
   const r = await fetch(`${API}/api/users/${id}`, {
     method:'PUT', headers:ah(), body:JSON.stringify(body)

@@ -90,6 +90,54 @@ function _renderPhotoGrid(assetId, photos) {
 // фото», а не при каждом открытии карточки. Список метаданных фото
 // (без байтов, дёшево) всё равно приходит вместе с деталью актива — он
 // нужен для счётчика "(N)" на самой кнопке-переключателе.
+// PROD-10: версии уже пришли целиком вместе с деталью актива (не
+// paginated, разумный лимит — обычно единицы-десятки правок на актив за
+// его жизнь, не тысячи) — toggle просто прячет/показывает готовый HTML,
+// без отдельного запроса. Чисто classList.toggle — никакого inline
+// style.display: инлайн-стиль имеет более высокий приоритет, чем класс
+// .u-hidden{display:none}, смешивать их в одном переключателе — верный
+// способ поймать состояние, где элемент невозможно скрыть повторным
+// кликом (инлайн style:block остаётся сильнее класса).
+function _toggleVersionsSection(assetId) {
+  const box = document.getElementById(`asset-versions-box-${assetId}`);
+  if (box) box.classList.toggle('u-hidden');
+}
+
+// Поля снапшота, которые показываем в развёрнутом виде версии — то же,
+// что и на самой карточке (two-col блок) плюс meta, минус служебные
+// (id/org_id/filial_id/location_id/created_at/updated_at/tab/category —
+// либо не интересны для просмотра истории значений, либо дублируют то,
+// что уже видно в шапке версии).
+const _VERSION_FIELD_LABELS = {
+  model:'Модель', type:'Тип', serial:'S/N', inv:'Инв. номер',
+  status:'Статус', responsible:'Ответственный', filial:'Филиал',
+  location:'Расположение', org:'Организация', note:'Примечание',
+};
+function _renderVersionSnapshot(snap) {
+  const rows = Object.entries(_VERSION_FIELD_LABELS)
+    .filter(([k]) => snap[k])
+    .map(([k,label]) => `<div class="detail-lbl">${esc(label)}</div><div class="detail-val">${esc(snap[k])}</div>`);
+  const metaRows = Object.entries(snap.meta || {})
+    .filter(([,v]) => v)
+    .map(([k,v]) => `<div class="detail-lbl">${esc(metaLabel(k))}</div><div class="detail-val ${k==='password'?'mono':''}">${k==='password'?'••••••':esc(v)}</div>`);
+  return `<div class="two-col u-text-12">${rows.join('')}${metaRows.join('')}</div>`;
+}
+
+function _renderVersionsList(versions) {
+  return `<div class="timeline-rail">
+    <div class="timeline-line"></div>
+    ${versions.map(v => `
+      <div class="u-relative u-mb-12">
+        <div class="timeline-dot" data-dot-color="#6366f1"></div>
+        <div class="u-text-11 u-text-muted u-mb-4">
+          <b>v${v.version_no}</b> · ${fd(v.created_at)}
+          ${v.changed_by?` · ${esc(v.changed_by)}`:''}
+        </div>
+        ${_renderVersionSnapshot(v.snapshot)}
+      </div>`).join('')}
+  </div>`;
+}
+
 function _togglePhotoSection(assetId, photos) {
   const box = document.getElementById(`asset-photos-box-${assetId}`);
   const btn = document.getElementById(`asset-photos-toggle-${assetId}`);
@@ -223,10 +271,11 @@ async function _openAssetPhotosQuick(assetId) {
 }
 
 async function showDetail(id) {
-  const [a, histResp, photos] = await Promise.all([
+  const [a, histResp, photos, versions] = await Promise.all([
     fetch(`${API}/api/assets/${id}`, { headers: ah() }).then(r=>r.json()),
     fetch(`${API}/api/history?asset_id=${id}&limit=30`, { headers: ah() }).then(r=>r.json()),
     fetch(`${API}/api/assets/${id}/photos`, { headers: ah() }).then(r=>r.ok ? r.json() : []).catch(()=>[]),
+    fetch(`${API}/api/assets/${id}/versions`, { headers: ah() }).then(r=>r.ok ? r.json() : []).catch(()=>[]),
   ]);
   const hist = Array.isArray(histResp) ? histResp : (histResp.items || []);
   // Org lookup через справочник
@@ -323,6 +372,9 @@ async function showDetail(id) {
       }).join('')}
     </div>
     <button class="btn btn-ghost btn-sm u-mt-8" data-action="_openFullHistoryForAsset" data-args='${JSON.stringify([esc(a.model)])}'>${t('btn_show_full_history')}</button>`:''}
+    ${versions.length?`<hr class="sep"/>
+    <button class="btn btn-ghost btn-sm u-m-0" data-action="_toggleVersionsSection" data-args='${JSON.stringify([id])}'>${t('btn_show_versions', { n: versions.length })}</button>
+    <div id="asset-versions-box-${id}" class="u-hidden u-mt-8">${_renderVersionsList(versions)}</div>`:''}
     <hr class="sep"/>
     <div class="u-flex-col-center-gap-8 u-p-8-0">
       <div id="detail-qr-${id}" class="qr-frame"></div>

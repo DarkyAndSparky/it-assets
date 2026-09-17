@@ -18,6 +18,7 @@
 const { v7: uuidv7 } = require('uuid');
 const db = require('../database');
 const { sqlite, META_KEYS } = require('../db/sqlite');
+const notify = require('../lib/notify');
 
 const ASSET_COLS = ['id','tab','category','filial','address','location','responsible',
   'type','model','serial','status','org','note','inv','inv_prev',
@@ -30,6 +31,9 @@ const stmts = {
   selectOne:      sqlite.prepare('SELECT * FROM assets WHERE id = ?'),
   insert:         sqlite.prepare(`INSERT INTO assets (${ASSET_COLS.join(', ')}) VALUES (${ASSET_COLS.map(()=>'?').join(', ')})`),
   historyInsert:  sqlite.prepare(`INSERT INTO history (id, asset_id, action_type, date, from_who, to_who, filial, location, equipment, model, type, serial, reason, changed_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+  versionCount:   sqlite.prepare('SELECT COUNT(*) AS n FROM asset_versions WHERE asset_id = ?'),
+  versionInsert:  sqlite.prepare('INSERT INTO asset_versions (id, asset_id, version_no, snapshot, changed_by, created_at) VALUES (?, ?, ?, ?, ?, ?)'),
+  versionsForAsset: sqlite.prepare('SELECT id, version_no, snapshot, changed_by, created_at FROM asset_versions WHERE asset_id = ? ORDER BY version_no DESC'),
 };
 
 // Строка SQL -> объект актива с вложенным meta{} (только заданные ключи,
@@ -44,6 +48,25 @@ function rowToAsset(row) {
     delete rest[col];
   }
   return { ...rest, meta };
+}
+
+// PROD-10: снапшот ВСЕХ полей актива (включая meta) в asset_versions.
+// Вызывается ВНУТРИ той же транзакции, что и сама операция (BEGIN уже
+// открыт вызывающим кодом) — version_no считается через COUNT(*)+1 здесь
+// же, атомарность гарантирует сама транзакция SQLite (см. SCHEMA.md).
+// rawRow — уже прочитанная строка `assets` (до ИЛИ после изменения, в
+// зависимости от точки вызова — см. комментарии на местах вызова), ЛИБО
+// null, если снапшотим только что вставленную запись (тогда читаем сами).
+function _snapshotVersion(assetId, rawRow, changedByStr) {
+  const row = rawRow || stmts.selectOne.get(assetId);
+  if (!row) return; // не должно происходить, но не роняем транзакцию ради версии
+  const { n } = stmts.versionCount.get(assetId);
+  stmts.versionInsert.run(
+    uuidv7(), assetId, n + 1,
+    JSON.stringify(rowToAsset(row)),
+    changedByStr || '',
+    new Date().toISOString(),
+  );
 }
 
 // Собирает UPDATE SET-выражение из произвольного набора полей (включая
@@ -211,6 +234,44 @@ function getAssetById(id) {
   return normalizeAsset(a, _buildNameMaps());
 }
 
+// PROD-10: история снапшотов (не путать с history — журналом действий).
+// Новые версии первыми (DESC) — самое актуальное сверху, как и everywhere
+// else в проекте (history, alerts).
+function getAssetVersions(assetId) {
+  return stmts.versionsForAsset.all(assetId).map(row => ({
+    id: row.id,
+    version_no: row.version_no,
+    snapshot: JSON.parse(row.snapshot),
+    changed_by: row.changed_by,
+    created_at: row.created_at,
+  }));
+}
+
+// PROD-8: публичная (БЕЗ логина) карточка устройства по QR/инв.номеру/
+// серийнику — см. server/routes/public.routes.js. Ищет ТОЧНОЕ совпадение
+// (не подстроку, как searchAssets) по inv ИЛИ serial среди активных
+// (не списанных) активов — код с QR-наклейки уникален по построению.
+//
+// ВАЖНО (SEC): результат — заведомо БЕЗОПАСНОЕ подмножество полей, никогда
+// не meta.* целиком. Причина: meta хранит login/password/ip/mac/hostname —
+// сетевые креды и адреса оборудования. Публичный (без входа) эндпоинт,
+// потенциально достижимый кем угодно, кто физически нашёл или сфотографировал
+// QR-наклейку — это ДРУГОЙ уровень доверия, чем /api/assets (там минимум
+// viewer-логин). Поле `responsible` (ФИО сотрудника) тоже сознательно
+// исключено — не техническая, а персональная информация, не нужна для
+// идентификации "что это за устройство".
+function getPublicAssetInfo(code) {
+  const clean = String(code || '').trim().replace(/^(INV|SN):/i, '').trim();
+  if (!clean) return null;
+  const lc = clean.toLowerCase();
+  const maps = _buildNameMaps();
+  const found = stmts.selectActive.all().map(rowToAsset).map(a => normalizeAsset(a, maps))
+    .find(a => (a.inv||'').toLowerCase() === lc || (a.serial||'').toLowerCase() === lc);
+  if (!found) return null;
+  const { model, type, category, serial, inv, status, tab, filial, location } = found;
+  return { model, type, category, serial, inv, status, tab, filial, location };
+}
+
 function _lookupId(name, list) {
   if (!name) return null;
   const key = String(name).trim().toLowerCase();
@@ -316,11 +377,17 @@ function createAsset(body, changedByStr) {
       histEntry.from_who, histEntry.to_who, histEntry.filial, histEntry.location,
       histEntry.equipment, histEntry.model, histEntry.type, histEntry.serial,
       histEntry.reason, histEntry.changed_by);
+    // PROD-10: версия 1 — баланс сразу после создания.
+    _snapshotVersion(id, null, changedByStr);
     sqlite.exec('COMMIT');
   } catch (e) {
     sqlite.exec('ROLLBACK');
     throw e;
   }
+  // PROD-7: уведомление ПОСЛЕ успешного commit (не раньше — если транзакция
+  // откатится, событие фактически не произошло) и БЕЗ await — не должно
+  // задерживать ответ API.
+  notify.notifyEvent(histEntry);
   return { id, ok:true };
 }
 
@@ -345,12 +412,17 @@ function updateAsset(id, body, changedByStr) {
   };
   const newStatus = body && body.status;
   const needsHistory = newStatus && newStatus !== asset.status && newStatus !== 'списан';
+  let histEntry = null; // PROD-7: нужен после COMMIT для notify.notifyEvent()
 
   sqlite.exec('BEGIN');
   try {
+    // PROD-10: снапшот состояния ДО применения патча — "что было, прежде
+    // чем изменили". `asset` — сырая строка, прочитанная ДО UPDATE (см.
+    // самое начало функции), ровно то, что нужно.
+    _snapshotVersion(id, asset, changedByStr);
     sqlite.prepare(`UPDATE assets SET ${cols.join(', ')} WHERE id = ?`).run(...vals, id);
     if (needsHistory) {
-      const histEntry = {
+      histEntry = {
         id: uuidv7(), asset_id: id,
         action_type: 'status_change', date: now,
         from_who: asset.responsible || '',
@@ -372,6 +444,7 @@ function updateAsset(id, body, changedByStr) {
     sqlite.exec('ROLLBACK');
     throw e;
   }
+  if (histEntry) notify.notifyEvent(histEntry);
   return { ok:true };
 }
 
@@ -388,6 +461,8 @@ function retireAsset(id, changedByStr) {
 
   sqlite.exec('BEGIN');
   try {
+    // PROD-10: финальный снапшот — состояние ДО списания.
+    _snapshotVersion(id, asset, changedByStr);
     sqlite.prepare('UPDATE assets SET status = ?, updated_at = ? WHERE id = ?').run('списан', retireNow, id);
     stmts.historyInsert.run(retireHist.id, retireHist.asset_id, retireHist.action_type, retireHist.date,
       retireHist.from_who, retireHist.to_who, retireHist.filial, retireHist.location,
@@ -398,6 +473,7 @@ function retireAsset(id, changedByStr) {
     sqlite.exec('ROLLBACK');
     throw e;
   }
+  notify.notifyEvent(retireHist);
   return { ok:true };
 }
 
@@ -692,5 +768,5 @@ function bulkUpdateMeta(body, changedByStr) {
 module.exports = {
   listAssets, searchAssets, getAssetById, createAsset, updateAsset,
   retireAsset, moveAsset, bulkMoveAssets, bulkAssignInv, bulkUpdateMeta, reassignEmployeeAssets,
-  getAllAssets, bulkImportAssets,
+  getAllAssets, bulkImportAssets, getPublicAssetInfo, getAssetVersions,
 };

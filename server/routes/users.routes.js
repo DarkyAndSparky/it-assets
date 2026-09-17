@@ -35,7 +35,7 @@ const router = express.Router();
 // избегает.
 router.get('/', requireLogin, (req, res) => {
   // Список пользователей (без PIN) — доступен всем залогиненным
-  res.json(db.getUsers().map(u => ({ id:u.id, name:u.name, role:u.role, active:u.active, can_view_accounts:u.can_view_accounts })));
+  res.json(db.getUsers().map(u => ({ id:u.id, name:u.name, role:u.role, active:u.active, can_view_accounts:u.can_view_accounts, org_id:u.org_id||null })));
 });
 
 router.get('/list', (req, res) => {

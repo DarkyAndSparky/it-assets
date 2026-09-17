@@ -13,6 +13,7 @@ const { v7: uuidv7 } = require('uuid');
 const db = require('../database');
 const assetsRepo = require('./assets.repo');
 const { sqlite } = require('../db/sqlite');
+const xlsxWriter = require('../lib/xlsx-writer');
 
 const historyInsert = sqlite.prepare(
   `INSERT INTO history (id, asset_id, action_type, date, from_who, to_who, filial, location, equipment, model, type, serial, reason, changed_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -37,7 +38,12 @@ function csvCell(v) {
   return `"${padded.replace(/"/g, '""')}"`;
 }
 
-function exportCsv(tab) {
+// PROD-6: общий билдер данных отчёта (headers + сырые значения строк),
+// переиспользуется exportCsv() и exportXlsx() — единый источник истины
+// для набора колонок, чтобы CSV и XLSX не расходились по составу (тот же
+// урок, что уже был с IDEA-1: раньше экспорт и импорт расходились именно
+// из-за дублирования списка полей в нескольких местах).
+function buildReportData(tab) {
   let items = assetsRepo.getAllAssets().filter(a => a.status !== 'списан');
   if (tab) items = items.filter(a => a.tab === tab);
   items.sort((a,b) => (a.filial||'').localeCompare(b.filial||''));
@@ -53,20 +59,42 @@ function exportCsv(tab) {
   //     позже исходного экспорта) вообще не попадали в CSV.
   // Заголовки ниже и MAP в csv-import.js::MAP должны совпадать по
   // русским названиям — при добавлении новой meta-колонки трогать оба
-  // места.
+  // места (плюс headers ниже, теперь общие для CSV и XLSX).
   const headers = ['Инв. номер','Вкладка','Коллекция','Филиал','Расположение','Ответственный',
                    'Тип','Модель','Серийный №','Статус','Организация','Примечание',
                    'IP','MAC','Подсеть','Сеть','WinBox/URL','Контроллер','Логин','Пароль','Hostname',
                    'Картриджи','Прошивка','ИНВ шкаф','Доп. описание','Гарантия/ТО','Дата покупки','Стоимость'];
-  const csv = [headers, ...items.map(r => [
+  const rows = items.map(r => [
     r.inv||'',r.tab,r.category,r.filial,r.location,r.responsible,r.type,r.model,r.serial,r.status,r.org,r.note,
     r.meta?.ip||'',r.meta?.mac||'',r.meta?.subnet||'',r.meta?.network||'',
     r.meta?.winbox||'',r.meta?.controller||'',
     r.meta?.login||'',r.meta?.password||'',r.meta?.hostname||'',
     r.meta?.cartridge||'',r.meta?.firmware||'',r.meta?.cabinet||r.meta?.inv||'',r.meta?.note2||'',
     r.meta?.warranty||'',r.meta?.purchase_date||'',r.meta?.cost||''
-  ])].map(r => r.map(csvCell).join(';')).join('\n');
+  ]);
+  return { headers, rows };
+}
+
+function exportCsv(tab) {
+  const { headers, rows } = buildReportData(tab);
+  const csv = [headers, ...rows].map(r => r.map(csvCell).join(';')).join('\n');
   return '\uFEFF' + csv;
+}
+
+// PROD-6: тот же набор данных, что exportCsv(), в формате .xlsx —
+// server/lib/xlsx-writer.js (см. там подробное объяснение, почему без
+// npm xlsx-библиотек). `cost` — единственная колонка, которая в БД
+// реально числовая (остальное — исторически всё строки, включая
+// инв.номера с буквами) — пишем её как xlsx-число, чтобы в Excel сразу
+// можно было суммировать/сортировать по стоимости без "текст как число".
+function exportXlsx(tab) {
+  const { headers, rows } = buildReportData(tab);
+  const costIdx = headers.indexOf('Стоимость');
+  const numericRows = rows.map(r => r.map((v, i) => {
+    if (i === costIdx && v !== '' && v != null && Number.isFinite(Number(v))) return Number(v);
+    return v;
+  }));
+  return xlsxWriter.buildXlsx(headers, numericRows, tab ? `Активы (${tab})` : 'Активы');
 }
 
 // ─── Парсинг свободного текста "оборудование" из истории (Фаза: авто- ──────
@@ -510,4 +538,4 @@ function importCsv(rows, options, changedByStr) {
   };
 }
 
-module.exports = { exportCsv, importHistory, previewCsvImport, importCsv };
+module.exports = { exportCsv, exportXlsx, importHistory, previewCsvImport, importCsv };

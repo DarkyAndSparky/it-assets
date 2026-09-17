@@ -12,7 +12,8 @@ const { verifyPin } = require('../pin');
 const { requireAuth, requireAdmin, requireLogin } = require('../middleware/auth');
 const { rateLimitLogin } = require('../middleware/rateLimit');
 const { validate } = require('../middleware/validate');
-const { putStylesSchema, putLogoSvgSchema, putCompanyNameSchema, putPasswordSchema } = require('../validation/schemas');
+const { putStylesSchema, putLogoSvgSchema, putCompanyNameSchema, putPasswordSchema, notifyConfigSchema } = require('../validation/schemas');
+const notify = require('../lib/notify');
 const fs   = require('fs');
 const path = require('path');
 
@@ -122,6 +123,62 @@ const TECH_STACK = [
   { name: 'bcryptjs', role: 'Хеширование паролей' },
 ];
 
+
+// OPS-10 (Track 9, найдено при аудите net-monitor/procure-it): проверка
+// устаревших зависимостей ПО ТРЕБОВАНИЮ (кнопка в UI), не автоматически и
+// не при каждом /system-info — `npm outdated` реально ходит в реестр npm
+// по сети и может занимать несколько секунд, не годится держать это внутри
+// лёгкого и часто дёргаемого /system-info. Отдельный эндпоинт с более
+// строгим rate-limit'ом смысла нет заводить — общий write-лимит (60/мин,
+// см. OPS-4/apiRateLimit.js) уже достаточно сдерживает частоту кликов.
+router.post('/npm-outdated', requireAdmin, (req, res) => {
+  const { execFile } = require('child_process');
+  const projectRoot = path.join(__dirname, '..', '..');
+  // exit code 1 у `npm outdated` означает "есть что обновлять" — это НЕ
+  // ошибка выполнения, поэтому проверяем по наличию stdout, а не по
+  // отсутствию error. Таймаут 15с — если реестр npm недоступен/сеть
+  // медленная, не подвешиваем запрос навсегда (см. предупреждение в
+  // сетевых настройках контейнера — публичный npm-реестр может быть
+  // недоступен из некоторых изолированных окружений, это ожидаемо, не баг).
+  execFile('npm', ['outdated', '--json'], { cwd: projectRoot, timeout: 15000 }, (err, stdout) => {
+    if (!stdout || !stdout.trim()) {
+      // Пустой вывод + реальная ошибка (не просто "exit 1 из-за outdated
+      // пакетов") — значит команда не смогла выполниться вообще (нет сети,
+      // нет npm в PATH и т.п.)
+      if (err && err.code !== 1) {
+        return res.status(502).json({ error: 'npm_outdated_failed', detail: err.message });
+      }
+      return res.json({ outdated: [] }); // пустой вывод без ошибки = всё актуально
+    }
+    let parsed;
+    try { parsed = JSON.parse(stdout); }
+    catch (e) { return res.status(502).json({ error: 'npm_outdated_parse_failed', detail: e.message }); }
+    const outdated = Object.entries(parsed).map(([name, v]) => ({
+      name,
+      current: v.current || '—',
+      wanted: v.wanted || '—',
+      latest: v.latest || '—',
+      type: v.type || 'dependencies',
+    }));
+    res.json({ outdated });
+  });
+});
+
+// PROD-7: Webhook/Telegram-уведомления. requireAdmin — секреты (bot token),
+// та же чувствительность, что у прочих admin-only интеграций.
+router.get('/notify-config', requireAdmin, (req, res) => {
+  res.json(notify.getConfigMasked());
+});
+
+router.put('/notify-config', requireAdmin, validate(notifyConfigSchema), (req, res) => {
+  try { notify.setConfig(req.body || {}); res.json(notify.getConfigMasked()); }
+  catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/notify-test', requireAdmin, validate(notifyConfigSchema), async (req, res) => {
+  try { res.json(await notify.sendTest(req.body || {})); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // размер БД/бэкапов, счётчики сущностей. Тяжелее обычного /api/settings,
 // поэтому не отдаётся всем подряд — только requireAdmin.

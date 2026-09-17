@@ -127,6 +127,7 @@ function _renderGeneralPanel(isAdmin, db_company_name='', db_logo_svg='', db_ver
       <div class="section-title">${t('export_data_title')}</div>
       <div class="u-flex-gap-6 u-wrap">
         <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv`, "IT_assets.csv"])}'>${t('btn_export_all')}</button>
+        <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/xlsx`, "IT_assets.xlsx"])}'>⬇ XLSX</button>
         <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=os`, "IT_assets_os.csv"])}'>⬇ ${t('tab_os')}</button>
         <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=small`, "IT_assets_small.csv"])}'>⬇ ${t('tab_small')}</button>
         <button class="btn btn-secondary btn-sm" data-action="downloadWithAuth" data-args='${JSON.stringify([`${API}/api/export/csv?tab=infra`, "IT_assets_infra.csv"])}'>⬇ ${t('tab_infra')}</button>
@@ -142,6 +143,47 @@ function _renderGeneralPanel(isAdmin, db_company_name='', db_logo_svg='', db_ver
       <div id="diag-result" class="u-mt-10 u-text-12 u-lh-19"></div>
     </div>
 
+    ${isAdmin ? `
+    <div class="card settings-card">
+      <div class="section-title">${t('notify_title')}</div>
+      <div class="u-text-12 u-text-muted u-mb-8">${t('notify_hint')}</div>
+      <label class="u-flex-gap-6 u-mb-8">
+        <input type="checkbox" id="notify-enabled"> ${t('notify_enabled')}
+      </label>
+      <div class="form-row"><label>${t('notify_webhook_url')}</label>
+        <input type="text" id="notify-webhook-url" placeholder="https://example.com/hook">
+      </div>
+      <div class="u-flex-gap-8 u-wrap">
+        <div class="form-row"><label>${t('notify_tg_token')}</label>
+          <input type="text" id="notify-tg-token" placeholder="123456:ABC-DEF...">
+        </div>
+        <div class="form-row"><label>${t('notify_tg_chat')}</label>
+          <input type="text" id="notify-tg-chat" placeholder="-1001234567890">
+        </div>
+      </div>
+      <div class="form-row"><label>${t('notify_events')}</label>
+        <div class="u-flex-gap-6"><input type="checkbox" class="notify-event-cb" value="add"> ${t('notify_ev_add')}</div>
+        <div class="u-flex-gap-6"><input type="checkbox" class="notify-event-cb" value="status_change"> ${t('notify_ev_status')}</div>
+        <div class="u-flex-gap-6"><input type="checkbox" class="notify-event-cb" value="retire"> ${t('notify_ev_retire')}</div>
+      </div>
+      <div class="u-flex-gap-8 u-wrap">
+        <button class="btn btn-primary btn-sm" data-action="saveNotifyConfig">${t('btn_save')}</button>
+        <button class="btn btn-ghost btn-sm" data-action="testNotifyConfig">${t('btn_send_test')}</button>
+      </div>
+      <div id="notify-config-result" class="u-mt-8 u-text-12 u-lh-16"></div>
+    </div>` : ''}
+
+    <div class="card settings-card">
+      <div class="section-title">${t('apikeys_title')}</div>
+      <div class="u-text-12 u-text-muted u-mb-8">${t('apikeys_hint')}</div>
+      <div class="u-flex-gap-8 u-wrap u-mb-8">
+        <input type="text" id="apikey-new-name" placeholder="${t('apikeys_name_placeholder')}" style="flex:1; min-width:160px;">
+        <button class="btn btn-primary btn-sm" data-action="createApiKey">${t('apikeys_btn_create')}</button>
+      </div>
+      <div id="apikey-new-result" class="u-mb-8"></div>
+      <div id="apikey-list"></div>
+    </div>
+
     <div class="card settings-card-last">
       <div class="section-title">${t('about_system_title')}</div>
       <div class="u-text-12 u-text-muted u-lh-2">
@@ -149,6 +191,12 @@ function _renderGeneralPanel(isAdmin, db_company_name='', db_logo_svg='', db_ver
         <div>${t('lbl_db')}: <code>data/db.json</code> + <code>data/config.json</code> + <code>data/it-assets.sqlite</code></div>
         <div>${t('lbl_server')}: Node.js + Express + lowdb + SQLite</div>
         <div>HTTP: <code>:3000</code> (${t('lbl_redirect')}) · HTTPS: <code>:3443</code></div>
+        <div class="u-mt-8">
+          <a href="/scan.html" target="_blank" rel="noopener" class="u-text-accent u-inline-flex-gap-4">
+            📷 ${t('lbl_scan_page')}
+          </a>
+          <div class="u-text-11 u-text-muted u-mt-4">${t('hint_scan_page')}</div>
+        </div>
         <div class="divider-top-sm">
           ${t('msg_developed_for')}<br>
           ${t('lbl_author')}: <a href="https://github.com/DarkyAndSparky" target="_blank" rel="noopener"
@@ -291,10 +339,191 @@ function _renderSystemInfoCards(s) {
         <span class="u-text-muted">${t('lbl_backups')}</span><span>${s.storage.backups.count} ${t('lbl_pcs_last')}: ${s.storage.backups.last ? esc(s.storage.backups.last.file) : t('lbl_no_backups2')}</span>
       </div>
       <div class="divider-top-sm">
-        <div class="u-fw-600 u-text-12 u-mb-6">${t('lbl_dependencies')}</div>
+        <div class="u-flex-baseline-gap-8-mb-8">
+          <div class="u-fw-600 u-text-12">${t('lbl_dependencies')}</div>
+          <button class="btn btn-ghost btn-sm" data-action="checkNpmOutdated">${t('btn_check_outdated')}</button>
+        </div>
+        <div id="npm-outdated-result" class="u-mt-6 u-text-11 u-lh-16"></div>
         <div class="deps-box">${deps}</div>
       </div>
     </div>`;
+}
+
+// PROD-11: REST API-ключи — самообслуживание, видно ВСЕМ залогиненным
+// пользователям (не только admin — каждый управляет своими ключами).
+// Список подгружается при монтировании панели (см. settings-router.js).
+async function loadApiKeys() {
+  const box = document.getElementById('apikey-list');
+  if (!box) return;
+  try {
+    const r = await fetch(`${API}/api/api-keys`, { headers: ah() });
+    if (!r.ok) { box.innerHTML = ''; return; }
+    const keys = await r.json();
+    if (!keys.length) { box.innerHTML = `<div class="u-text-12 u-text-muted">${t('apikeys_empty')}</div>`; return; }
+    box.innerHTML = keys.map(k => `
+      <div class="u-flex-between u-py-6" style="border-bottom:1px solid var(--border)">
+        <div>
+          <div class="u-text-13 u-fw-600">${esc(k.name)} ${k.revoked ? `<span class="u-text-muted u-text-11">(${t('apikeys_revoked')})</span>` : ''}</div>
+          <div class="u-text-11 u-text-muted mono">${esc(k.key_prefix)}… · ${t('apikeys_created')} ${fd(k.created_at)}${k.last_used_at ? ' · ' + t('apikeys_last_used') + ' ' + fd(k.last_used_at) : ''}</div>
+        </div>
+        ${!k.revoked ? `<button class="btn btn-ghost btn-sm" data-action="revokeApiKey" data-args='${JSON.stringify([k.id])}'>${t('apikeys_btn_revoke')}</button>` : ''}
+      </div>`).join('');
+  } catch (e) { box.innerHTML = ''; }
+}
+
+async function createApiKey() {
+  const nameEl = document.getElementById('apikey-new-name');
+  const resultBox = document.getElementById('apikey-new-result');
+  const name = nameEl.value.trim();
+  if (!name) { toast(t('apikeys_name_required'), 'error'); return; }
+  try {
+    const r = await fetch(`${API}/api/api-keys`, {
+      method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    nameEl.value = '';
+    // Сырой ключ показывается ОДИН РАЗ, прямо здесь — сервер его больше
+    // никогда не отдаст (см. apikeys.repo.js::createApiKey). Явное
+    // предупреждение + кнопка копирования, чтобы не потерялся.
+    resultBox.innerHTML = `
+      <div class="u-p-10" style="background:var(--surface2); border:1px solid var(--accent); border-radius:8px;">
+        <div class="u-text-12 u-fw-600 u-mb-6">${t('apikeys_shown_once')}</div>
+        <div class="u-flex-gap-8">
+          <code id="apikey-raw-value" class="mono u-text-12" style="word-break:break-all;">${esc(d.key)}</code>
+          <button class="btn btn-ghost btn-sm" data-action="_copyApiKeyValue" data-args='${JSON.stringify([d.key])}'>${t('btn_copy')}</button>
+        </div>
+      </div>`;
+    loadApiKeys();
+  } catch (e) {
+    toast(t('msg_save_error', { msg: e.message }), 'error');
+  }
+}
+
+function _copyApiKeyValue(key) {
+  navigator.clipboard?.writeText(key).then(() => toast(t('msg_copied'), 'success')).catch(() => {});
+}
+
+async function revokeApiKey(id) {
+  if (!confirm(t('apikeys_confirm_revoke'))) return;
+  try {
+    const r = await fetch(`${API}/api/api-keys/${id}`, { method: 'DELETE', headers: ah() });
+    if (!r.ok) { const d = await r.json().catch(()=>({})); throw new Error(d.error || ('HTTP ' + r.status)); }
+    loadApiKeys();
+  } catch (e) {
+    toast(t('msg_save_error', { msg: e.message }), 'error');
+  }
+}
+
+// PROD-7: Webhook/Telegram-уведомления. Конфиг подгружается при монтировании
+// панели (см. settings-router.js) — секреты приходят МАСКИРОВАННЫМИ
+// (server/lib/notify.js::getConfigMasked), поля токена/URL остаются пустыми
+// при отсутствии значения и показывают "••••XXXX" при наличии — повторное
+// сохранение без изменения этих полей не затирает секрет (см. resolveSecrets
+// на бэкенде).
+async function loadNotifyConfig() {
+  try {
+    const r = await fetch(`${API}/api/settings/notify-config`, { headers: ah() });
+    if (!r.ok) return;
+    const cfg = await r.json();
+    const enabledEl = document.getElementById('notify-enabled');
+    const webhookEl = document.getElementById('notify-webhook-url');
+    const tokenEl   = document.getElementById('notify-tg-token');
+    const chatEl    = document.getElementById('notify-tg-chat');
+    if (!enabledEl) return; // панель уже могла смениться, пока шёл fetch
+    enabledEl.checked = !!cfg.enabled;
+    webhookEl.value = cfg.webhook_url || '';
+    tokenEl.value   = cfg.telegram_bot_token || '';
+    chatEl.value    = cfg.telegram_chat_id || '';
+    document.querySelectorAll('.notify-event-cb').forEach(cb => {
+      cb.checked = (cfg.events || []).includes(cb.value);
+    });
+  } catch (e) { /* тихо — панель просто останется с пустыми полями */ }
+}
+
+function _readNotifyConfigForm() {
+  return {
+    enabled: document.getElementById('notify-enabled').checked,
+    webhook_url: document.getElementById('notify-webhook-url').value.trim(),
+    telegram_bot_token: document.getElementById('notify-tg-token').value.trim(),
+    telegram_chat_id: document.getElementById('notify-tg-chat').value.trim(),
+    events: [...document.querySelectorAll('.notify-event-cb:checked')].map(cb => cb.value),
+  };
+}
+
+async function saveNotifyConfig() {
+  const box = document.getElementById('notify-config-result');
+  try {
+    const r = await fetch(`${API}/api/settings/notify-config`, {
+      method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(_readNotifyConfigForm()),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    toast(t('msg_saved'), 'success');
+    loadNotifyConfig(); // перечитать — секреты снова придут маскированными
+  } catch (e) {
+    if (box) box.innerHTML = `<span class="u-text-danger-fallback">${t('msg_save_error', { msg: e.message })}</span>`;
+  }
+}
+
+async function testNotifyConfig() {
+  const box = document.getElementById('notify-config-result');
+  if (box) box.innerHTML = `<span class="u-text-muted">${t('msg_loading')}</span>`;
+  try {
+    const r = await fetch(`${API}/api/settings/notify-test`, {
+      method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(_readNotifyConfigForm()),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    if (!d.webhook && !d.telegram) {
+      if (box) box.innerHTML = `<span class="u-text-warn">${t('msg_notify_nothing_configured')}</span>`;
+      return;
+    }
+    const parts = [];
+    if (d.webhook) parts.push(`Webhook: ${d.webhook}`);
+    if (d.telegram) parts.push(`Telegram: ${d.telegram}`);
+    if (box) box.innerHTML = `<span class="u-text-success">${parts.join(' · ')}</span>`;
+  } catch (e) {
+    if (box) box.innerHTML = `<span class="u-text-danger-fallback">${t('msg_load_error', { msg: e.message })}</span>`;
+  }
+}
+
+// OPS-10 (Track 9): по клику — не автоматически (npm outdated ходит в сеть
+// и может занимать несколько секунд). Результат рисуется прямо над списком
+// зависимостей, повторный клик перезапрашивает.
+async function checkNpmOutdated() {
+  const box = document.getElementById('npm-outdated-result');
+  if (!box) return;
+  box.innerHTML = `<span class="u-text-muted">${t('msg_loading')}</span>`;
+  try {
+    const r = await fetch(`${API}/api/settings/npm-outdated`, { method: 'POST', headers: ah() });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || d.error || ('HTTP ' + r.status));
+    if (!d.outdated.length) {
+      box.innerHTML = `<span class="u-text-success">${t('msg_npm_all_uptodate')}</span>`;
+      return;
+    }
+    box.innerHTML = `
+      <table class="outdated-table">
+        <thead><tr>
+          <th>${t('lbl_package')}</th><th>${t('lbl_current')}</th><th>${t('lbl_wanted')}</th><th>${t('lbl_latest')}</th>
+        </tr></thead>
+        <tbody>
+          ${d.outdated.map(o => `
+            <tr>
+              <td class="u-font-mono">${esc(o.name)}</td>
+              <td class="u-font-mono">${esc(o.current)}</td>
+              <td class="u-font-mono u-text-warn">${esc(o.wanted)}</td>
+              <td class="u-font-mono">${esc(o.latest)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch (e) {
+    box.innerHTML = `<span class="u-text-danger-fallback">${t('msg_load_error', { msg: e.message })}</span>`;
+  }
 }
 
 // ── Вкладка: Организации ──────────────────────────────────────────────────────

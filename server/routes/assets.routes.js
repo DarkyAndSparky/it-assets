@@ -8,14 +8,36 @@
 
 const express = require('express');
 const fs = require('fs');
+const db = require('../database');
 const assetsRepo = require('../repositories/assets.repo');
 const photosRepo = require('../repositories/photos.repo');
-const { requireAuth, requireLogin, changedBy } = require('../middleware/auth');
+const { requireAuth, requireLogin, requireOrgAccess, changedBy } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { createAssetSchema, updateAssetSchema, moveAssetSchema,
         bulkMoveAssetsSchema, bulkAssignInvSchema, bulkUpdateMetaSchema, addAssetPhotoSchema } = require('../validation/schemas');
 
 const router = express.Router();
+
+// PROD-9: извлечение org_id затрагиваемой записи для requireOrgAccess.
+// Создание: тело содержит `org` (СВОБОДНЫЙ ТЕКСТ, имя) — резолвим по
+// справочнику org_id ТАК ЖЕ, как это позже сделает сам репозиторий
+// (_resolveWriteIds). Если имя не резолвится ни в один org_id — не
+// блокируем (light-версия, не строгая изоляция — см. комментарий у
+// requireOrgAccess).
+function _orgIdFromCreateBody(req) {
+  const name = (req.body?.org || '').trim();
+  if (!name) return null;
+  const found = db.config.getOrgs(true).find(o => o.name.trim().toLowerCase() === name.toLowerCase());
+  return found ? found.id : null;
+}
+// Обновление/удаление/перемещение одного актива: смотрим на org_id уже
+// СУЩЕСТВУЮЩЕЙ записи (не на тело запроса — тело может вообще не менять
+// org, а ограниченный пользователь должен быть ограничен тем, что у
+// актива УЖЕ есть, а не тем, что он сам укажет).
+function _orgIdOfExistingAsset(req) {
+  const asset = assetsRepo.getAssetById(req.params.id);
+  return asset ? asset.org_id : null;
+}
 
 // INFRA-7: раньше эти три роута были без requireAuth — активы (включая
 // серийные номера, ответственных, локации) отдавались без авторизации
@@ -37,26 +59,40 @@ router.get('/:id', requireLogin, (req, res) => {
   res.json(asset);
 });
 
-router.post('/', requireAuth, validate(createAssetSchema), (req, res) => {
+// PROD-10: история снапшотов записи. requireLogin (не requireAuth) — это
+// чтение, тот же уровень доступа, что у самой карточки актива/её фото.
+router.get('/:id/versions', requireLogin, (req, res) => {
+  const asset = assetsRepo.getAssetById(req.params.id);
+  if (!asset) return res.status(404).json({ error: 'Not found' });
+  res.json(assetsRepo.getAssetVersions(req.params.id));
+});
+
+router.post('/', requireAuth, requireOrgAccess(_orgIdFromCreateBody), validate(createAssetSchema), (req, res) => {
   try { res.json(assetsRepo.createAsset(req.body, changedBy(req))); }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
 
-router.put('/:id', requireAuth, validate(updateAssetSchema), (req, res) => {
+router.put('/:id', requireAuth, requireOrgAccess(_orgIdOfExistingAsset), validate(updateAssetSchema), (req, res) => {
   try { res.json(assetsRepo.updateAsset(req.params.id, req.body, changedBy(req))); }
   catch(e) { res.status(e.notFound ? 404 : 400).json({ error: e.message }); }
 });
 
-router.delete('/:id', requireAuth, (req, res) => {
+router.delete('/:id', requireAuth, requireOrgAccess(_orgIdOfExistingAsset), (req, res) => {
   try { res.json(assetsRepo.retireAsset(req.params.id, changedBy(req))); }
   catch(e) { res.status(e.notFound ? 404 : 400).json({ error: e.message }); }
 });
 
-router.post('/:id/move', requireAuth, validate(moveAssetSchema), (req, res) => {
+router.post('/:id/move', requireAuth, requireOrgAccess(_orgIdOfExistingAsset), validate(moveAssetSchema), (req, res) => {
   try { res.json(assetsRepo.moveAsset(req.params.id, req.body, changedBy(req))); }
   catch(e) { res.status(e.notFound ? 404 : 400).json({ error: e.message }); }
 });
 
+// PROD-9: bulk-роуты ниже (bulk-move/bulk-assign-inv/bulk-update-meta)
+// НЕ прикрыты requireOrgAccess в этой light-версии — потребовал бы
+// резолвить org_id КАЖДОГО ассета в пачке ещё на уровне роута (до валидации
+// схемы), задваивая часть работы, которую сам репозиторий и так делает
+// внутри транзакции. Известное ограничение, не молчаливый пропуск —
+// см. роадмап/SCHEMA.md.
 router.post('/bulk-move', requireAuth, validate(bulkMoveAssetsSchema), (req, res) => {
   try { res.json(assetsRepo.bulkMoveAssets(req.body, changedBy(req))); }
   catch(e) { res.status(e.badRequest ? 400 : 500).json({ error: e.message }); }

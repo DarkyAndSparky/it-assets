@@ -226,6 +226,10 @@ const backupRoutes = require('./routes/backup.routes');
 const { listBackups, BACKUP_DIR } = backupRoutes;
 app.use('/api/backup', backupRoutes);
 app.use('/api/qr', require('./routes/qr.routes'));
+// PROD-8: /api/public/* — единственные роуты БЕЗ requireAuth/requireLogin,
+// см. подробное обоснование в server/routes/public.routes.js.
+app.use('/api/public', require('./routes/public.routes'));
+app.use('/api/api-keys', require('./routes/apikeys.routes'));
 
 // OPS-5 (Track 9, найдено при аудите net-monitor): без этого несуществующий
 // /api/... путь (опечатка, устаревший вызов после рефакторинга) проваливался
@@ -351,6 +355,28 @@ if (require.main === module) {
       gracefulShutdown('uncaughtException');
     });
 
+    // OPS-9 (Track 9, найдено при аудите net-monitor): раньше открытие
+    // браузера при старте было угадыванием — start.sh/START.bat делали
+    // blind `sleep 3`/`timeout 4` перед запуском node, в надежде что сервер
+    // успеет поднять HTTPS-порт. Теперь открываем ровно в момент, когда
+    // порт реально готов — в callback'е httpsServer.listen() (и в HTTP-only
+    // фолбэке ниже). Включается только явно через IT_ASSETS_AUTO_OPEN_BROWSER=1
+    // (выставляется из start.sh/START.bat) — по умолчанию выключено, чтобы
+    // не пытаться открывать браузер в Docker/headless-окружениях, где его
+    // просто нет.
+    function maybeOpenBrowser(url) {
+      if (process.env.IT_ASSETS_AUTO_OPEN_BROWSER !== '1') return;
+      const platform = process.platform;
+      const opener = platform === 'darwin' ? 'open'
+                   : platform === 'win32'  ? 'start'
+                   : 'xdg-open';
+      const { exec } = require('child_process');
+      const cmd = platform === 'win32' ? `start "" "${url}"` : `${opener} "${url}"`;
+      exec(cmd, (err) => {
+        if (err) logger.warn('startup', 'auto-open browser failed', err.message);
+      });
+    }
+
     function printStartInfo(ips) {
       const fs2    = require('fs');
       const dbPath = require('./db/store').DB_PATH;
@@ -451,6 +477,7 @@ if (require.main === module) {
         for (const ip of ips.filter(i => i !== '127.0.0.1'))
           console.log('  http://' + ip + ':' + HTTP_PORT);
         console.log(rule + '\n');
+        maybeOpenBrowser('http://localhost:' + HTTP_PORT);
       });
       return;
     }
@@ -458,6 +485,7 @@ if (require.main === module) {
     const ips = getLocalIPs();
     httpsServer = https.createServer(tlsOptions, app).listen(HTTPS_PORT, '0.0.0.0', () => {
       printStartInfo(ips);
+      maybeOpenBrowser('https://localhost:' + HTTPS_PORT);
     });
   })();
 }

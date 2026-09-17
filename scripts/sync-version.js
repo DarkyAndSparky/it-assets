@@ -13,6 +13,9 @@
  *     инструментарием, которому нужен package.json.version)
  *   - README.md — бейдж версии (shields.io)
  *   - docs/index.html — версия в сайдбаре
+ *   - docker-compose.yml — тег образа `image: it-assets:VERSION` (OPS-8)
+ *   - public/sw.js — CACHE_NAME (PROD-12) — версия в имени кеша SW, чтобы
+ *     activate-хендлер реально сбрасывал старый кеш при каждом релизе
  *
  * server/index.js и server/routes/settings.routes.js версию НЕ дублируют —
  * они читают VERSION напрямую в рантайме, синхронизировать там нечего.
@@ -29,6 +32,8 @@ const VERSION_FILE = path.join(ROOT, 'VERSION');
 const PKG_PATH     = path.join(ROOT, 'package.json');
 const README_PATH  = path.join(ROOT, 'README.md');
 const DOCS_PATH    = path.join(ROOT, 'docs', 'index.html');
+const COMPOSE_PATH = path.join(ROOT, 'docker-compose.yml');
+const SW_PATH      = path.join(ROOT, 'public', 'sw.js');
 
 const VERSION_RE = /^(alpha|beta)-(\d+)-(\d{2}w\d{2})-(\d+)$/;
 
@@ -76,6 +81,33 @@ function updateDocsVersion(version, content) {
   return { content: next, changed: next !== content };
 }
 
+function updateComposeImage(version, content) {
+  // image: it-assets:<version> — тег как есть, без α/β-преобразования
+  // (docker-тег должен быть валидным идентификатором, display-формат с
+  // '·' в него не годится).
+  const re = /(image:\s*it-assets:)([^\s]+)/;
+  if (!re.test(content)) {
+    console.warn('[sync-version] docker-compose.yml: строка image: it-assets:... не найдена — пропускаю.');
+    return { content, changed: false };
+  }
+  const next = content.replace(re, `$1${version}`);
+  return { content: next, changed: next !== content };
+}
+
+// PROD-12: CACHE_NAME в sw.js должен меняться при каждом релизе — иначе
+// у пользователей, уже установивших PWA, service worker никогда не
+// обновит закешированную оболочку (activate-хендлер чистит кеши по ИМЕНИ,
+// не по содержимому — совпадающее имя = "нечего обновлять").
+function updateServiceWorkerCache(version, content) {
+  const re = /(const CACHE_NAME = 'it-assets-shell-)([^']+)(';)/;
+  if (!re.test(content)) {
+    console.warn("[sync-version] public/sw.js: строка CACHE_NAME не найдена — пропускаю.");
+    return { content, changed: false };
+  }
+  const next = content.replace(re, `$1${version}$3`);
+  return { content: next, changed: next !== content };
+}
+
 function main() {
   if (!fs.existsSync(VERSION_FILE)) {
     console.error('[sync-version] Файл VERSION не найден в корне репозитория.');
@@ -115,6 +147,22 @@ function main() {
     if (changed) { fs.writeFileSync(DOCS_PATH, content); console.log('[sync-version] docs/index.html обновлён.'); anyChanged = true; }
   } else {
     console.warn('[sync-version] docs/index.html не найден.');
+  }
+
+  if (fs.existsSync(COMPOSE_PATH)) {
+    const compose = fs.readFileSync(COMPOSE_PATH, 'utf8');
+    const { content, changed } = updateComposeImage(version, compose);
+    if (changed) { fs.writeFileSync(COMPOSE_PATH, content); console.log('[sync-version] docker-compose.yml обновлён.'); anyChanged = true; }
+  } else {
+    console.warn('[sync-version] docker-compose.yml не найден.');
+  }
+
+  if (fs.existsSync(SW_PATH)) {
+    const sw = fs.readFileSync(SW_PATH, 'utf8');
+    const { content, changed } = updateServiceWorkerCache(version, sw);
+    if (changed) { fs.writeFileSync(SW_PATH, content); console.log('[sync-version] public/sw.js обновлён.'); anyChanged = true; }
+  } else {
+    console.warn('[sync-version] public/sw.js не найден.');
   }
 
   console.log(`[sync-version] Текущая версия (из VERSION): ${version} (${toDisplay(version)})`);

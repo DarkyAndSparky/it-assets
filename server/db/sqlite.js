@@ -124,7 +124,8 @@ sqlite.exec(`
     pin        TEXT NOT NULL DEFAULT '',
     email      TEXT NOT NULL DEFAULT '',
     active     INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    org_id     TEXT
   );
 `);
 
@@ -138,6 +139,19 @@ try {
     sqlite.exec(`ALTER TABLE users ADD COLUMN can_view_accounts INTEGER NOT NULL DEFAULT 0`);
   }
 } catch (e) { logger.error('DB', 'add can_view_accounts column failed', e.message); }
+
+// PROD-9 (лёгкая версия доступа по организации): org_id = NULL значит без
+// ограничения (видит/пишет по всем организациям, как раньше — обратная
+// совместимость для существующих пользователей и админов по умолчанию).
+// Не FK на organizations.id (в этом проекте FK между таблицами почти
+// нигде не объявлены явно, ссылочная целостность проверяется в JS —
+// единообразно с остальной схемой).
+try {
+  const userCols2 = sqlite.prepare(`PRAGMA table_info(users)`).all();
+  if (!userCols2.some(c => c.name === 'org_id')) {
+    sqlite.exec(`ALTER TABLE users ADD COLUMN org_id TEXT`);
+  }
+} catch (e) { logger.error('DB', 'add org_id column to users failed', e.message); }
 
 // ─── Схема: employees (Фаза 7c-6) ─────────────────────────────────────────
 // filial — свободный текст (legacy-поле, не FK на filials.id — так было и
@@ -463,6 +477,63 @@ sqlite.exec(`
 `);
 sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_history_asset_id ON history(asset_id);`);
 sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_history_date ON history(date);`);
+
+// PROD-10: версионирование записей — полный снапшот ВСЕХ полей актива
+// (не только "что изменилось", как history) на момент создания/изменения/
+// списания. Отдельная таблица, не переиспользуем history: history —
+// журнал ДЕЙСТВИЙ (кто/когда/что за событие), asset_versions — журнал
+// СОСТОЯНИЙ (полный слепок записи целиком, включая meta). Разные формы
+// данных, разное назначение (history — "что произошло", versions —
+// "как выглядела запись") — смешивать в одну таблицу означало бы либо
+// раздувать history годами неиспользуемыми полями, либо парсить meta из
+// history там, где она сейчас не хранится вовсе.
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS asset_versions (
+    id          TEXT PRIMARY KEY,
+    asset_id    TEXT NOT NULL,
+    version_no  INTEGER NOT NULL,
+    snapshot    TEXT NOT NULL,
+    changed_by  TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL,
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
+  );
+`);
+sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_asset_versions_asset_id ON asset_versions(asset_id);`);
+
+// PROD-11: REST API-ключи. Ключ выдаётся конкретному пользователю и
+// наследует его роль/права целиком — ключ НЕ отдельная сущность с своими
+// правами, а альтернативный способ аутентифицироваться КАК этот
+// пользователь (тот же принцип, что личный токен в GitHub/GitLab: живёт
+// под аккаунтом, действует от его имени). Отдельная модель прав для
+// ключей (scopes/permissions) — вне рамок MVP, задокументировано как
+// известное ограничение (см. SCHEMA.md).
+//
+// key_hash — bcrypt-хеш ПОЛНОГО ключа (тот же паттерн и SALT_ROUNDS, что
+// у PIN пользователя, см. server/pin.js). key_prefix — первые 12 символов
+// СЫРОГО ключа (включая префикс "itak_"), хранится в открытом виде
+// специально для быстрого индексированного поиска кандидата ПЕРЕД
+// дорогим bcrypt.compare — без префикса пришлось бы гонять bcrypt против
+// хеша КАЖДОГО существующего ключа на каждый запрос (O(n) дорогих
+// синхронных bcrypt-вызовов на request, деградация с ростом числа ключей).
+// Раскрытие 12-символьного префикса не ослабляет секрет — это меньше
+// четверти длины ключа, brute-force остатка так же невозможен, как и без
+// него (энтропия оставшихся ~32 байт случайности не снижается атакующим,
+// знающим лишь префикс).
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS api_keys (
+    id           TEXT PRIMARY KEY,
+    user_id      TEXT NOT NULL,
+    name         TEXT NOT NULL DEFAULT '',
+    key_hash     TEXT NOT NULL,
+    key_prefix   TEXT NOT NULL,
+    created_at   TEXT NOT NULL,
+    last_used_at TEXT,
+    revoked      INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+`);
+sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);`);
+sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_prefix ON api_keys(key_prefix);`);
 
 const META_KEYS = ['ip','mac','subnet','winbox','login','password','cabinet',
   'controller','inv','network','hostname','cartridge','firmware','note2','warranty',

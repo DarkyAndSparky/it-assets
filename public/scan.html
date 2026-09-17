@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>IT Assets — Сканер устройств</title>
+<!--
+  PROD-8: отдельная СТАТИЧНАЯ страница (не часть SPA в index.html) — не
+  требует логина по построению: express.static отдаёт её напрямую по
+  /scan.html, минуя весь auth-флоу основного приложения. Никакого app.js
+  тут не подключаем намеренно — та часть кода рассчитана на залогиненную
+  сессию (x-user-id/x-edit-password в каждом запросе), эта страница вообще
+  не должна знать о существовании логина.
+-->
+<style>
+  :root {
+    --bg:#f0f2f5; --surface:#fff; --text:#1a1a2e; --text2:#334155;
+    --border:#e2e8f0; --accent:#e94560; --muted:#94a3b8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1117; --surface:#1a1b23; --text:#e8eaf0; --text2:#a8b0c0; --border:#2a2c38; --muted:#6b7280; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+    font-family:'Segoe UI',Arial,sans-serif;
+    display:flex; flex-direction:column; align-items:center; padding:24px 16px;
+  }
+  .title { font-size:20px; font-weight:800; margin-bottom:4px; }
+  .title span { color:var(--accent); }
+  .subtitle { color:var(--muted); font-size:13px; margin-bottom:24px; text-align:center; }
+  .card {
+    width:100%; max-width:420px; background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; padding:20px; margin-bottom:16px;
+  }
+  input[type=text] {
+    width:100%; padding:12px 14px; font-size:16px; border:1px solid var(--border);
+    border-radius:10px; background:var(--bg); color:var(--text); outline:none;
+  }
+  input[type=text]:focus { border-color:var(--accent); }
+  .btn {
+    width:100%; padding:12px; margin-top:10px; border:none; border-radius:10px;
+    font-size:15px; font-weight:600; cursor:pointer;
+  }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-secondary { background:var(--bg); color:var(--text); border:1px solid var(--border); }
+  .btn:disabled { opacity:.5; cursor:default; }
+  #camera-wrap { display:none; margin-top:12px; }
+  #camera-wrap video { width:100%; border-radius:10px; background:#000; }
+  .result-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); font-size:14px; }
+  .result-row:last-child { border-bottom:none; }
+  .result-label { color:var(--muted); }
+  .result-value { font-weight:600; text-align:right; }
+  .result-title { font-size:18px; font-weight:700; margin-bottom:10px; }
+  .status-msg { text-align:center; color:var(--muted); font-size:14px; padding:12px 0; }
+  .status-msg.error { color:var(--accent); }
+</style>
+</head>
+<body>
+  <div class="title">🗄️ IT <span>Assets</span></div>
+  <div class="subtitle">Наведите сканер на QR-код устройства или введите инв.&nbsp;номер/серийник вручную</div>
+
+  <div class="card">
+    <input type="text" id="code-input" placeholder="INV-... или серийный номер" autofocus autocomplete="off">
+    <button class="btn btn-primary" id="lookup-btn">Найти</button>
+    <button class="btn btn-secondary" id="camera-btn">📷 Сканировать камерой</button>
+    <div id="camera-wrap">
+      <video id="camera-video" playsinline muted></video>
+      <button class="btn btn-secondary" id="camera-stop-btn">Отменить</button>
+    </div>
+  </div>
+
+  <div class="card" id="result-card" style="display:none"></div>
+
+<script src="/js/scan.js"></script>
+</body>
+</html>

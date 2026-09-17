@@ -30,8 +30,8 @@ const stmts = {
   selectActive: sqlite.prepare('SELECT * FROM users WHERE active = 1'),
   selectAll:    sqlite.prepare('SELECT * FROM users'),
   selectOne:    sqlite.prepare('SELECT * FROM users WHERE id = ?'),
-  insert:       sqlite.prepare('INSERT INTO users (id, name, login, role, pin, email, active, can_view_accounts, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)'),
-  update:       sqlite.prepare('UPDATE users SET name = ?, login = ?, role = ?, pin = ?, email = ?, active = ?, can_view_accounts = ? WHERE id = ?'),
+  insert:       sqlite.prepare('INSERT INTO users (id, name, login, role, pin, email, active, can_view_accounts, created_at, org_id) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)'),
+  update:       sqlite.prepare('UPDATE users SET name = ?, login = ?, role = ?, pin = ?, email = ?, active = ?, can_view_accounts = ?, org_id = ? WHERE id = ?'),
   del:          sqlite.prepare('DELETE FROM users WHERE id = ?'),
 };
 
@@ -67,7 +67,7 @@ function authByLogin(login, password) {
   return user;
 }
 
-function createUser({ name, login = '', role = 'operator', pin = '', email = '', can_view_accounts = false }) {
+function createUser({ name, login = '', role = 'operator', pin = '', email = '', can_view_accounts = false, org_id = null }) {
   if (!name) throw new Error('name обязателен');
   const users = getUsers(false);
   if (login && users.find(u => u.login && u.login.toLowerCase() === login.trim().toLowerCase()))
@@ -77,7 +77,7 @@ function createUser({ name, login = '', role = 'operator', pin = '', email = '',
   const loginTrimmed = String(login || '').trim();
   const emailNorm = String(email || '').trim().toLowerCase();
   const pinHash = hashPin(pin);
-  stmts.insert.run(id, name, loginTrimmed, role, pinHash, emailNorm, can_view_accounts ? 1 : 0, created_at);
+  stmts.insert.run(id, name, loginTrimmed, role, pinHash, emailNorm, can_view_accounts ? 1 : 0, created_at, org_id || null);
   return getUser(id);
 }
 
@@ -94,7 +94,7 @@ function updateUser(id, fields) {
       throw new Error('Нельзя деактивировать системного администратора');
     allowed = ['name', 'login', 'pin', 'email'];
   } else {
-    allowed = ['name', 'login', 'role', 'pin', 'email', 'active', 'can_view_accounts'];
+    allowed = ['name', 'login', 'role', 'pin', 'email', 'active', 'can_view_accounts', 'org_id'];
   }
 
   const next = { ...user };
@@ -104,6 +104,7 @@ function updateUser(id, fields) {
     next.name, next.login, next.role, next.pin, next.email,
     (next.active !== false && next.active !== 0) ? 1 : 0,
     next.can_view_accounts ? 1 : 0,
+    next.org_id || null,
     id
   );
   return getUser(id);

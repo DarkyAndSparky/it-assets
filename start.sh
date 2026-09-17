@@ -84,11 +84,9 @@ echo ""
 echo " Остановить: Ctrl+C"
 echo ""
 
-# Открыть браузер в фоне (с задержкой чтобы сервер успел стартовать)
-if command -v xdg-open &>/dev/null; then
-    (sleep 3 && xdg-open https://localhost:3443) &>/dev/null &
-elif command -v open &>/dev/null; then
-    (sleep 3 && open https://localhost:3443) &>/dev/null &
-fi
+# OPS-9: раньше здесь было угадывание задержки (sleep 3) перед открытием
+# браузера — сервер мог не успеть поднять порт. Теперь открытие делает сам
+# server/index.js, ровно в момент когда HTTPS-порт готов (callback listen()).
+export IT_ASSETS_AUTO_OPEN_BROWSER=1
 
 node server/index.js

@@ -26,6 +26,16 @@ router.get('/export/csv', requireAuth, (req, res) => {
   res.send(csv);
 });
 
+// PROD-6: тот же отчёт, что /export/csv, в формате .xlsx — см.
+// csvRepo.exportXlsx() / server/lib/xlsx-writer.js.
+router.get('/export/xlsx', requireAuth, (req, res) => {
+  const { tab } = req.query;
+  const buf = csvRepo.exportXlsx(tab);
+  res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition',`attachment; filename="IT_assets${tab?'_'+tab:''}.xlsx"`);
+  res.send(buf);
+});
+
 router.post('/import/history', requireAuth, validate(importHistorySchema), (req, res) => {
   try { res.json(csvRepo.importHistory(req.body.rows, changedBy(req))); }
   catch(e) { res.status(e.badRequest ? 400 : 500).json({ error: e.message }); }

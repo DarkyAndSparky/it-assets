@@ -95,7 +95,7 @@
 <nav class="sidebar">
   <div class="sidebar-logo">
     <div class="project">⚙️ IT Assets</div>
-    <div class="version">β1 · 26w35·01</div>
+    <div class="version">β1 · 26w38·08</div>
     <div class="badge">Developer Documentation</div>
   </div>
   <div class="nav-section">
@@ -284,6 +284,22 @@ nvm use --lts</pre>
   <pre>hostname -I | awk '{print $1}'    # Linux
 ipconfig                           # Windows</pre>
   <p>Сообщите сотрудникам адрес: <code>https://192.168.x.x:3443</code></p>
+
+  <h2>Установка как приложение (PWA)</h2>
+  <p>Приложение — полноценный PWA (PROD-12): <code>manifest.json</code> + service worker
+    (<code>sw.js</code>). В Chrome/Edge на десктопе — иконка установки в адресной строке; на Android —
+    баннер «Добавить на главный экран». Устанавливается по-отдельности для каждого пользователя/устройства
+    (обычный веб-стандарт, не что-то специфичное для этого проекта).</p>
+  <p>Офлайн-режим — ограниченный и намеренно: кешируется ТОЛЬКО статическая оболочка (HTML/CSS/JS/иконки),
+    чтобы интерфейс хотя бы открывался без сети. <code>/api/*</code> (сами данные — активы, история,
+    пользователи) НИКОГДА не кешируется — учёт оборудования не тот случай, где показать устаревшие данные
+    офлайн лучше честной ошибки сети. При смене версии приложения (см. <code>VERSION</code>/
+    <code>scripts/sync-version.js</code>) старый кеш SW автоматически инвалидируется при следующем
+    открытии.</p>
+  <p>Самоподписанный сертификат: браузер должен принять исключение безопасности (см. предупреждение в
+    консоли при запуске) ДО того, как сервис-воркер сможет зарегистрироваться — это требование самого
+    браузера (service worker работает только в «безопасном контексте», а недоверенный сертификат сначала
+    нужно явно принять), не ограничение этого приложения.</p>
 
   <h2>Открыть порт в firewall</h2>
   <pre>sudo ufw allow 3443/tcp && sudo ufw reload         # Ubuntu (ufw)
@@ -485,6 +501,7 @@ git push origin dev</pre>
 │                                установленного node_modules, не вручную)
 ├── .env.example                — Документация всех переменных окружения, копировать в .env
 ├── Dockerfile / docker-compose.yml / .dockerignore  — Продакшн-образ, HEALTHCHECK на GET /api/health
+├── docker-entrypoint.sh  — chown /data + gosu itassets перед exec node (bind-mount с любым UID хоста)
 ├── scripts/
 │   ├── check-deps-fresh.js  — Сравнение mtime package-lock.json vs node_modules для START.bat/start.sh
 │   ├── install-hooks.js     — Ставит scripts/hooks/pre-commit в .git/hooks/ (npm "prepare")
@@ -514,8 +531,14 @@ git push origin dev</pre>
 │   └── pin.js                — hashPin/verifyPin (bcrypt)
 ├── public/
 │   ├── index.html            — SPA-оболочка (Фаза 5+6 завершена): разбита на модули
+│   ├── scan.html              — PROD-8: отдельная страница /scan, БЕЗ логина, вне SPA-оболочки
+│   ├── manifest.json          — PROD-12: PWA-манифест (иконки, standalone, theme_color)
+│   ├── sw.js                  — PROD-12: service worker (offline-кеш оболочки, НЕ кеширует /api/*)
+│   ├── icons/                 — PROD-12: иконки PWA (192/512, сгенерированы без внешних SVG-либ)
 │   ├── css/main.css          — Все стили (светлая/тёмная тема, CSS-переменные)
 │   └── js/
+│       ├── pwa.js             — PROD-12: регистрация service worker
+│       ├── scan.js            — PROD-8: логика /scan.html (вынесена из инлайн-<script>, см. ниже)
 │       ├── theme.js          — Тема (IIFE, toggleTheme, applyStoredStyles)
 │       ├── i18n.js           — Локализация EN/RU (I18N словарь, t(key), applyLang)
 │       ├── auth.js           — Авторизация (login, logout, canEdit, requireAuth)
@@ -1046,6 +1069,37 @@ type_codes        — справочник типов устройств (code, 
       <h4>200 OK</h4><pre>{ "ok": true, "moved": 3, "left_unassigned": 0 }</pre>
     </div>
   </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/api-keys</div><div class="endpoint-desc">Список СВОИХ REST API-ключей (PROD-11) <span class="auth-badge">🔐 login</span></div></div>
+    <div class="endpoint-body">
+      <pre>[ { "id":"...", "name":"CI pipeline", "key_prefix":"itak_Ab3xY9z", "created_at":"...", "last_used_at":"...", "revoked":false } ]</pre>
+      <p>Только метаданные — сырое значение ключа нигде после создания не хранится и не возвращается
+        повторно (write-once, тот же принцип, что у пароля пользователя).</p>
+    </div>
+  </div>
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method POST">POST</div><div class="endpoint-path">/api/api-keys</div><div class="endpoint-desc">Создать ключ для СЕБЯ <span class="auth-badge">🔐 auth</span></div></div>
+    <div class="endpoint-body">
+      <h4>Body</h4><pre>{ "name": "CI pipeline" }</pre>
+      <h4>201 Created</h4><pre>{ "id":"...", "name":"CI pipeline", "key":"itak_Ab3xY9z...(43 символа)", "created_at":"..." }</pre>
+      <p><b>Поле <code>key</code> — сырое значение, отдаётся ОДИН ЕДИНСТВЕННЫЙ РАЗ, в этом ответе.</b>
+        Использование: заголовок <code>Authorization: Bearer itak_...</code> — это ПОЛНОЦЕННАЯ
+        альтернатива паре <code>x-user-id</code>/<code>x-edit-password</code> во ВСЕХ роутах, защищённых
+        <code>requireAuth</code>/<code>requireLogin</code> (см. <code>server/middleware/auth.js</code>).
+        Ключ наследует роль владельца ЦЕЛИКОМ — это не отдельная модель прав (scopes), а альтернативный
+        способ аутентифицироваться КАК этот пользователь, тот же принцип, что личный токен в
+        GitHub/GitLab. Заводить отдельные scoped-права для ключей — вне рамок MVP (см. SCHEMA.md).</p>
+    </div>
+  </div>
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method DELETE">DELETE</div><div class="endpoint-path">/api/api-keys/:id</div><div class="endpoint-desc">Отозвать ключ <span class="auth-badge">🔐 auth</span></div></div>
+    <div class="endpoint-body">
+      <p>Свой ключ отзывает любой пользователь; чужой — только admin (компрометацию должен уметь
+        погасить не только тот, у кого угнали сессию). Отозванный ключ сразу перестаёт проходить
+        аутентификацию — проверяется на каждый запрос в <code>authenticateApiKey()</code>.</p>
+    </div>
+  </div>
 </section>
 
 <!-- API ASSETS -->
@@ -1089,6 +1143,27 @@ type_codes        — справочник типов устройств (code, 
   <div class="endpoint">
     <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/assets/:id</div><div class="endpoint-desc">Один ассет по ID</div></div>
     <div class="endpoint-body"><p>Возвращает Asset или <code>404 {error: "Not found"}</code>.</p></div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/assets/:id/versions</div><div class="endpoint-desc">История снапшотов записи (PROD-10)</div></div>
+    <div class="endpoint-body">
+      <pre>[
+  { "id":"...", "version_no":2, "changed_by":"admin",
+    "created_at":"2026-09-16T09:10:00.000Z",
+    "snapshot": { "model":"ThinkPad T14", "status":"используется", "meta":{...}, ... } }
+]</pre>
+      <p>Новые версии первыми (DESC). <code>snapshot</code> — полный JSON-слепок ВСЕХ полей ассета
+        (включая <code>meta</code> целиком, БЕЗ урезания — в отличие от <code>/api/public/scan</code>,
+        это авторизованный эндпоинт, тот же уровень доступа, что и у самой карточки).</p>
+      <p>Снапшот пишется в трёх точках: при создании (версия 1 — исходное состояние), при изменении
+        (снапшот <b>ДО</b> применения патча — "что было, прежде чем изменили") и при списании
+        (финальное состояние перед списанием). <code>move</code> и все <code>bulk-*</code>-операции
+        версию НЕ создают — осознанное ограничение (та же причина, что у PROD-7: массовая операция дала
+        бы шквал версий, а код там пишет историю инлайн-аргументами, не через объект). Подробности и
+        обоснование — в <code>SCHEMA.md</code> и комментариях <code>assets.repo.js</code>. Нет функции
+        восстановления (rollback) из версии — вне рамок задачи, см. SCHEMA.md.</p>
+    </div>
   </div>
 
   <div class="endpoint">
@@ -1180,8 +1255,23 @@ type_codes        — справочник типов устройств (code, 
       <p>Параметр <code>tab</code> — опционально. Без него — весь реестр. Filename: <code>IT_assets.csv</code> или <code>IT_assets_os.csv</code>.</p>
       <h4>Колонки</h4>
       <pre>Инв. номер; Вкладка; Коллекция; Филиал; Расположение; Ответственный; Тип; Модель;
-Серийный №; Статус; Организация; Примечание; IP; MAC; Подсеть; WinBox/URL;
-Логин; Пароль; Hostname; Картриджи; Прошивка; ИНВ шкаф</pre>
+Серийный №; Статус; Организация; Примечание; IP; MAC; Подсеть; Сеть; WinBox/URL;
+Контроллер; Логин; Пароль; Hostname; Картриджи; Прошивка; ИНВ шкаф; Доп. описание;
+Гарантия/ТО; Дата покупки; Стоимость</pre>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/export/xlsx?tab=os</div><div class="endpoint-desc">Экспорт в .xlsx (PROD-6) — те же колонки, что у CSV</div></div>
+    <div class="endpoint-body">
+      <p>Параметр <code>tab</code> — опционально, как у <code>/export/csv</code>. Один лист, шапка жирным,
+        колонка «Стоимость» — числовая ячейка (остальное — текст). Собирается вручную
+        (<code>server/lib/xlsx-writer.js</code>, ZIP + минимальный OOXML через уже используемый в проекте
+        <code>adm-zip</code>) — без сторонних xlsx-библиотек: единственные npm-кандидаты на момент
+        реализации (<code>xlsx</code>/SheetJS, <code>exceljs</code>) несут непропатченные
+        high-severity уязвимости или четвёртый десяток лишних транзитивных зависимостей ради обработки
+        изображений, которая здесь не нужна. Filename: <code>IT_assets.xlsx</code> или
+        <code>IT_assets_os.xlsx</code>.</p>
     </div>
   </div>
 
@@ -1520,9 +1610,90 @@ type_codes        — справочник типов устройств (code, 
     </div>
   </div>
   <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method POST">POST</div><div class="endpoint-path">/api/settings/npm-outdated</div><div class="endpoint-desc">Проверка устаревших зависимостей (OPS-10) <span class="admin-badge">👑 admin</span></div></div>
+    <div class="endpoint-body">
+      <pre>{
+  "outdated": [
+    { "name": "express", "current": "4.22.2", "wanted": "4.22.3", "latest": "5.2.1", "type": "dependencies" }
+  ]
+}</pre>
+      <p>Разово запускает <code>npm outdated --json</code> (таймаут 15с) и возвращает разбор. По требованию
+        (кнопка «Проверить обновления» в блоке «Зависимости»), не автоматически — команда ходит в реестр
+        npm по сети и может занимать несколько секунд, поэтому умышленно не встроена в <code>/system-info</code>.
+        Пустой список <code>outdated</code> означает, что всё актуально.</p>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/settings/notify-config</div><div class="endpoint-desc">Конфиг Webhook/Telegram-уведомлений (PROD-7) <span class="admin-badge">👑 admin</span></div></div>
+    <div class="endpoint-body">
+      <pre>{
+  "enabled": true, "webhook_url": "••••1234", "telegram_bot_token": "••••DDEF",
+  "telegram_chat_id": "-100987654321", "events": ["add", "retire"]
+}</pre>
+      <p><code>webhook_url</code>/<code>telegram_bot_token</code> — секреты, отдаются ТОЛЬКО в
+        замаскированном виде (последние 4 символа) — тот же принцип, что у пароля пользователя (write-only,
+        никогда не читается обратно в открытом виде). Область действия — только события <code>add</code>
+        (создание), <code>retire</code> (списание), <code>status_change</code> (смена статуса);
+        <code>move</code> и все <code>bulk-*</code>-операции НЕ триггерят уведомления (осознанное
+        ограничение — при массовой операции над сотней активов уведомление на каждый было бы спамом, не
+        сигналом; подробности в <code>server/lib/notify.js</code>).</p>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method PUT">PUT</div><div class="endpoint-path">/api/settings/notify-config</div><div class="endpoint-desc">Сохранить конфиг уведомлений <span class="admin-badge">👑 admin</span></div></div>
+    <div class="endpoint-body">
+      <h4>Body</h4>
+      <pre>{ "enabled": true, "webhook_url": "https://...", "telegram_bot_token": "123:ABC",
+  "telegram_chat_id": "-100...", "events": ["add", "retire", "status_change"] }</pre>
+      <p>Поле, начинающееся с <code>••••</code> (то, что вернул GET) — трактуется как «не менялось», старое
+        значение секрета сохраняется как есть, а не затирается маской. Ответ — тот же замаскированный
+        конфиг, что и у GET.</p>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method POST">POST</div><div class="endpoint-path">/api/settings/notify-test</div><div class="endpoint-desc">Отправить тестовое уведомление <span class="admin-badge">👑 admin</span></div></div>
+    <div class="endpoint-body">
+      <h4>Body</h4><pre>{ "webhook_url": "...", "telegram_bot_token": "...", "telegram_chat_id": "..." }</pre>
+      <h4>200 OK</h4><pre>{ "webhook": "sent", "telegram": "error: ..." }</pre>
+      <p>Не сохраняет конфиг — только пробует отправить прямо сейчас с переданными значениями (в том числе
+        ещё не сохранёнными, прямо из формы). Ключи <code>webhook</code>/<code>telegram</code> в ответе
+        присутствуют только для тех каналов, для которых были переданы данные.</p>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/public/scan?code=...</div><div class="endpoint-desc">Карточка устройства по QR/инв.номеру/серийнику — БЕЗ логина (PROD-8)</div></div>
+    <div class="endpoint-body">
+      <pre>{ "model":"ThinkPad T14","type":"Ноутбук","category":"Оргтехника","serial":"PF1234",
+  "inv":"IT-001-00042","status":"используется","tab":"os","filial":"Головной офис","location":"305" }</pre>
+      <p><b>Единственный эндпоинт в проекте без <code>requireAuth</code>/<code>requireLogin</code></b> —
+        обслуживает страницу <code>/scan.html</code> (статичная, вне SPA, тоже без логина). Смысл фичи:
+        нашёл/отсканировал QR-наклейку на оборудовании — узнал что это, не заводя учётку.</p>
+      <p><code>code</code> ищется точным совпадением (не подстрокой) по <code>inv</code> ИЛИ
+        <code>serial</code> среди активных (не списанных) активов; принимает как голое значение, так и
+        QR-стиль префикс (<code>INV:</code>/<code>SN:</code>), регистронезависимо.</p>
+      <p><b>SEC:</b> ответ — заведомо безопасное подмножество полей (см. список выше). НИКОГДА не
+        включает <code>meta</code> целиком (там login/password/ip/mac — сетевые креды и адреса
+        оборудования) и не включает <code>responsible</code> (ФИО сотрудника — персональные данные).
+        Защищено 4 SEC-тестами в <code>tests/prod8-public-scan.test.js</code>. Списанные активы не
+        находятся. Rate limit — общий <code>/api</code>-лимитер (300 GET/мин на IP), отдельного нет.</p>
+      <p><b>Найденный и исправленный при работе над PROD-12 баг:</b> изначально JS этой страницы был
+        инлайн-<code>&lt;script&gt;</code> — глобальный CSP-заголовок (<code>script-src 'self'</code> без
+        <code>'unsafe-inline'</code>, см. <code>server/index.js</code>) применяется middleware'ом ко ВСЕМ
+        ответам сервера безусловно, включая статичные файлы вроде <code>scan.html</code>. Инлайн-код
+        браузером молча блокировался бы — страница открывалась, но ни ручной ввод, ни камера не работали
+        бы вообще. Исправлено переносом в <code>public/js/scan.js</code>; 2 регрессионных теста добавлены
+        в <code>tests/prod8-public-scan.test.js</code> (проверяют отсутствие инлайн-<code>&lt;script&gt;</code>
+        и наличие CSP-заголовка на самой странице).</p>
+    </div>
+  </div>
+  <div class="endpoint">
     <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/settings/version</div><div class="endpoint-desc">Лёгкий эндпоинт версии <span class="auth-badge">🔐 login</span></div></div>
     <div class="endpoint-body">
-      <pre>{ "version": "beta-1-26w35-01" }</pre>
+      <pre>{ "version": "beta-1-26w38-08" }</pre>
       <p>Умышленно отдельный от <code>/system-info</code> — для мини-виджетов (шапка и т.п.), которым не
         нужен весь список зависимостей. Доступен любому залогиненному пользователю (<code>requireLogin</code>),
         не только admin.</p>

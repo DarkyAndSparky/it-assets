@@ -45,7 +45,10 @@ echo.
 echo  To stop: press Ctrl+C
 echo.
 
-start "" /B cmd /C "timeout /t 4 >nul && start https://localhost:3443"
+rem OPS-9: раньше здесь был blind timeout /t 4 перед открытием браузера —
+rem угадывание, успеет ли сервер поднять порт. Теперь открытие делает сам
+rem server/index.js, ровно в момент когда HTTPS-порт готов (listen callback).
+set IT_ASSETS_AUTO_OPEN_BROWSER=1
 
 node server/index.js
 

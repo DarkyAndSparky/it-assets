@@ -92,7 +92,8 @@ async function _renderSettingsPanel(isAdmin) {
   const html = _renderGeneralPanel(isAdmin, _gs.company_name || _companyName, _gs.logo_svg || '', _appVersion);
   setTimeout(() => {
     _loadLogoPreview(_gs.logo_svg || '');
-    if (isAdmin) _initStyleEditor();
+    if (isAdmin) { _initStyleEditor(); loadNotifyConfig(); }
+    loadApiKeys(); // PROD-11: самообслуживание, доступно всем залогиненным
   }, 50);
   return html;
 }

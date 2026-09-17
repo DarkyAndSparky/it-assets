@@ -5,6 +5,18 @@
 
 FROM node:22-slim
 
+# OPS-7 (Track 9, найдено при аудите procure-it): OCI-метаданные — видны
+# через `docker inspect`/`docker image ls --format`, полезны когда образов
+# накопилось много (какая версия, откуда собрана, чей это проект). Значения
+# статичные (VERSION копируется отдельным слоем ниже и читается рантаймом,
+# дублировать его сюда через build-time ARG избыточно для одного человека,
+# работающего в одном репозитории — при желании можно позже завести ARG).
+LABEL org.opencontainers.image.title="IT Assets" \
+      org.opencontainers.image.description="IT Assets Management — beta 1" \
+      org.opencontainers.image.source="https://github.com/DarkyAndSparky/it-assets" \
+      org.opencontainers.image.licenses="UNLICENSED" \
+      org.opencontainers.image.authors="DarkyAndSparky"
+
 WORKDIR /app
 
 # Сначала только манифесты — слой с зависимостями кешируется отдельно от
@@ -34,7 +46,21 @@ RUN mkdir -p /data && \
     addgroup --system --gid 1001 itassets && \
     adduser --system --uid 1001 --gid 1001 itassets && \
     chown -R itassets:itassets /data /app
-USER itassets
+
+# OPS-6 (Track 9, найдено при аудите procure-it): gosu — Debian-аналог
+# su-exec (см. docker-entrypoint.sh для полного объяснения). Устанавливаем
+# из apt, а не качаем бинарник вручную — образ и так на Debian, лишний
+# внешний скачиваемый артефакт ни к чему.
+RUN apt-get update && apt-get install -y --no-install-recommends gosu && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Образ стартует от root — entrypoint chown'ит /data и роняет привилегии до
+# itassets перед exec node (см. docker-entrypoint.sh). Жёсткого `USER
+# itassets` здесь больше нет осознанно, это не регрессия.
+ENTRYPOINT ["docker-entrypoint.sh"]
 
 EXPOSE 3000 3443
 
