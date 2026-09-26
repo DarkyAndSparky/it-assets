@@ -52,6 +52,7 @@ async function _renderTypesPanel() {
       </td>
       <td class="u-text-center">
         <button class="btn-icon" title="${t('tooltip_field_schema')}" data-action="showFieldSchemaModal" data-args='${JSON.stringify([ty.code])}'>🛠</button>
+        <button class="btn-icon" title="${t('tooltip_component_slots')}" data-action="showComponentSlotsModal" data-args='${JSON.stringify([ty.code])}'>🔗</button>
         <button class="btn-icon" title="${t('tooltip_delete')}" data-action="deleteTypeCode" data-args='${JSON.stringify([i])}'>🗑</button>
       </td>
     </tr>`;
@@ -252,4 +253,97 @@ async function _resetFieldSchema(typeCode) {
   const r = await fetch(`${API}/api/field-schemas/${encodeURIComponent(typeCode)}`, { method: 'DELETE', headers: ah() });
   if (r.ok) { toast(t('msg_field_schema_reset'), 'success'); closeModal(); }
   else toast(t('msg_error'), 'error');
+}
+
+// ─── REL-6 (составные активы, Track 11): редактор «слотов компонентов» ────
+// Намеренно ОТДЕЛЬНАЯ от showFieldSchemaModal модалка — слоты не привязаны
+// к META_KEYS/meta_*, см. обоснование в settings.repo.js::getComponentSlots().
+// target_type_codes выбираются чекбоксами из уже загруженного _typesBuffer
+// (те же типы, что в общей таблице) — мягкая подсказка для UI-пикера на
+// карточке актива, не проверяется на сервере при создании связи.
+async function showComponentSlotsModal(typeCode) {
+  let slots = [];
+  try {
+    const all = await fetch(`${API}/api/component-slots`, { headers: ah() }).then(r=>r.json());
+    slots = all[typeCode] || [];
+  } catch(e) { return toast(t('msg_error'), 'error'); }
+
+  const otherTypes = (_typesBuffer || []).filter(ty => ty.code !== typeCode);
+
+  const rowHtml = (slot, idx) => `
+    <tr data-slot-idx="${idx}">
+      <td><input class="cs-label u-text-13 u-w-100" value="${esc(slot.slot_label||'')}" placeholder="${t('cs_slot_label_placeholder')}"/></td>
+      <td>
+        <div class="u-flex-gap-6 u-wrap">
+          ${otherTypes.map(ty => `
+            <label class="u-text-11 u-flex-gap-4">
+              <input type="checkbox" class="cs-target" value="${esc(ty.code)}" ${(slot.target_type_codes||[]).includes(ty.code)?'checked':''}/>
+              ${esc(ty.name)}
+            </label>`).join('')}
+        </div>
+      </td>
+      <td class="u-text-center"><button class="btn-icon" data-action="_removeComponentSlotRow" data-args='${JSON.stringify([idx])}'>🗑</button></td>
+    </tr>`;
+
+  showModal(`<h2>${t('modal_component_slots_title')} ${esc(typeCode)}</h2>
+    <div class="u-text-12 u-text-muted u-mb-12 u-lh-16">${t('msg_component_slots_hint')}</div>
+    <div class="tbl-wrap">
+      <table id="cs-table">
+        <thead><tr><th>${t('lbl_slot_label')}</th><th>${t('lbl_slot_targets')}</th><th></th></tr></thead>
+        <tbody>${slots.map(rowHtml).join('')}</tbody>
+      </table>
+    </div>
+    <button class="btn btn-ghost btn-sm u-mt-8" data-action="_addComponentSlotRow">${t('btn_add_slot')}</button>
+    <div class="modal-actions">
+      <button class="btn btn-primary" data-action="_saveComponentSlots" data-args='${JSON.stringify([typeCode])}'>${t('btn_save')}</button>
+      <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
+    </div>`);
+
+  // otherTypes нужен и в _addComponentSlotRow (новая строка тоже должна
+  // получить полный набор чекбоксов) — сохраняем в module-level переменную,
+  // проще, чем прокидывать через data-args на каждый клик.
+  _csOtherTypesBuffer = otherTypes;
+}
+
+let _csOtherTypesBuffer = [];
+
+function _addComponentSlotRow() {
+  const tbody = document.querySelector('#cs-table tbody');
+  const idx = tbody.children.length;
+  const row = document.createElement('tr');
+  row.dataset.slotIdx = idx;
+  row.innerHTML = `
+    <td><input class="cs-label u-text-13 u-w-100" placeholder="${t('cs_slot_label_placeholder')}"/></td>
+    <td>
+      <div class="u-flex-gap-6 u-wrap">
+        ${_csOtherTypesBuffer.map(ty => `
+          <label class="u-text-11 u-flex-gap-4">
+            <input type="checkbox" class="cs-target" value="${esc(ty.code)}"/> ${esc(ty.name)}
+          </label>`).join('')}
+      </div>
+    </td>
+    <td class="u-text-center"><button class="btn-icon" data-action="_removeComponentSlotRow" data-args='${JSON.stringify([idx])}'>🗑</button></td>`;
+  tbody.appendChild(row);
+}
+
+function _removeComponentSlotRow(idx) {
+  const row = document.querySelector(`#cs-table tbody tr[data-slot-idx="${idx}"]`);
+  if (row) row.remove();
+}
+
+async function _saveComponentSlots(typeCode) {
+  const rows = document.querySelectorAll('#cs-table tbody tr');
+  const slots = [];
+  rows.forEach(row => {
+    const label = row.querySelector('.cs-label').value.trim();
+    if (!label) return; // пустая метка — строка пропускается, не отправляется как невалидная
+    const targets = [...row.querySelectorAll('.cs-target:checked')].map(cb => cb.value);
+    slots.push({ slot_label: label, target_type_codes: targets });
+  });
+  const r = await fetch(`${API}/api/component-slots/${encodeURIComponent(typeCode)}`, {
+    method: 'PUT', headers: ah(), body: JSON.stringify({ slots }),
+  });
+  const d = await r.json().catch(()=>({}));
+  if (r.ok) { toast(t('msg_component_slots_saved'), 'success'); closeModal(); _refDataLoaded = false; ensureRefData(); }
+  else toast(t('msg_component_slots_error', { msg: d.error || '' }), 'error');
 }

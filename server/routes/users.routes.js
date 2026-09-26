@@ -18,6 +18,7 @@ function mustChangePin(user) {
   return def != null && verifyPin(def, user.pin);
 }
 const { requireAdmin, requireLogin } = require('../middleware/auth');
+const ldap = require('../lib/ldap');
 const { rateLimitLogin } = require('../middleware/rateLimit');
 const { validate } = require('../middleware/validate');
 const { createUserSchema, updateUserSchema } = require('../validation/schemas');
@@ -55,10 +56,18 @@ router.post('/auth', rateLimitLogin, (req, res) => {
   });
 });
 
-router.post('/login', rateLimitLogin, (req, res) => {
+router.post('/login', rateLimitLogin, async (req, res) => {
   const { login, password } = req.body || {};
   if (!login) return res.status(400).json({ error: 'login required' });
-  const user = db.authByLogin(login, password || '');
+  let user = db.authByLogin(login, password || '');
+  // PROD-13: LDAP/AD — только если локальный логин/пароль не подошли.
+  // Локальные учётки (включая sys-user-admin) продолжают работать как
+  // раньше, независимо от состояния LDAP — это дополнительный путь входа,
+  // не замена. См. server/lib/ldap.js — там же объяснение, почему пустой
+  // пароль отклоняется ДО обращения к LDAP (anonymous bind).
+  if (!user) {
+    user = await ldap.authenticateAndSync(login, password || '');
+  }
   if (!user) return res.status(401).json({ error: 'Неверный логин или пароль' });
 
   const isDefaultPin = mustChangePin(user);

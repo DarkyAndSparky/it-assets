@@ -20,7 +20,7 @@
  */
 
 function switchTab(tab) {
-  const _protected = ['os','small','infra','history','accounts','alerts','settings'];
+  const _protected = ['os','small','infra','history','accounts','alerts','inventory','settings'];
   if (_protected.includes(tab) && !currentUser) {
     toast(t('msg_login_required'), 'error');
     return;
@@ -71,6 +71,7 @@ async function render() {
     if (currentTab==='history')   return await renderHistory();
     if (currentTab==='accounts')  return await renderAccounts();
     if (currentTab==='alerts')    return await renderAlerts();
+    if (currentTab==='inventory') return await renderInventory();
     if (currentTab==='settings')  return await renderSettings();
     await renderAssetTab(currentTab);
   } catch(e) {

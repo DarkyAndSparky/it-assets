@@ -161,16 +161,91 @@ function _renderGeneralPanel(isAdmin, db_company_name='', db_logo_svg='', db_ver
           <input type="text" id="notify-tg-chat" placeholder="-1001234567890">
         </div>
       </div>
+      <div class="u-fw-600 u-text-12 u-mt-8 u-mb-6">${t('notify_smtp_title')}</div>
+      <div class="u-flex-gap-8 u-wrap">
+        <div class="form-row"><label>${t('notify_smtp_host')}</label>
+          <input type="text" id="notify-smtp-host" placeholder="smtp.example.com">
+        </div>
+        <div class="form-row"><label>${t('notify_smtp_port')}</label>
+          <input type="text" id="notify-smtp-port" placeholder="587" style="width:80px">
+        </div>
+        <label class="u-flex-gap-6" style="align-self:center; margin-top:12px;">
+          <input type="checkbox" id="notify-smtp-secure"> ${t('notify_smtp_secure')}
+        </label>
+      </div>
+      <div class="u-flex-gap-8 u-wrap">
+        <div class="form-row"><label>${t('notify_smtp_user')}</label>
+          <input type="text" id="notify-smtp-user" placeholder="notify@example.com">
+        </div>
+        <div class="form-row"><label>${t('notify_smtp_password')}</label>
+          <input type="text" id="notify-smtp-password" placeholder="••••">
+        </div>
+      </div>
+      <div class="u-flex-gap-8 u-wrap">
+        <div class="form-row"><label>${t('notify_smtp_from')}</label>
+          <input type="text" id="notify-smtp-from" placeholder="IT Assets <notify@example.com>">
+        </div>
+        <div class="form-row"><label>${t('notify_smtp_to')}</label>
+          <input type="text" id="notify-smtp-to" placeholder="it-team@example.com">
+        </div>
+      </div>
       <div class="form-row"><label>${t('notify_events')}</label>
         <div class="u-flex-gap-6"><input type="checkbox" class="notify-event-cb" value="add"> ${t('notify_ev_add')}</div>
         <div class="u-flex-gap-6"><input type="checkbox" class="notify-event-cb" value="status_change"> ${t('notify_ev_status')}</div>
         <div class="u-flex-gap-6"><input type="checkbox" class="notify-event-cb" value="retire"> ${t('notify_ev_retire')}</div>
       </div>
+      <label class="u-flex-gap-6 u-mb-8">
+        <input type="checkbox" id="notify-health-toggle"> ${t('notify_health_toggle')}
+      </label>
+      <div class="u-text-11 u-text-muted u-mb-8">${t('notify_health_hint')}</div>
       <div class="u-flex-gap-8 u-wrap">
         <button class="btn btn-primary btn-sm" data-action="saveNotifyConfig">${t('btn_save')}</button>
         <button class="btn btn-ghost btn-sm" data-action="testNotifyConfig">${t('btn_send_test')}</button>
       </div>
       <div id="notify-config-result" class="u-mt-8 u-text-12 u-lh-16"></div>
+    </div>` : ''}
+
+    ${isAdmin ? `
+    <div class="card settings-card">
+      <div class="section-title">${t('ldap_title')}</div>
+      <div class="u-text-12 u-text-muted u-mb-8">${t('ldap_hint')}</div>
+      <label class="u-flex-gap-6 u-mb-8">
+        <input type="checkbox" id="ldap-enabled"> ${t('ldap_enabled')}
+      </label>
+      <div class="form-row"><label>${t('ldap_url')}</label>
+        <input type="text" id="ldap-url" placeholder="ldaps://ad.example.com:636">
+      </div>
+      <div class="u-flex-gap-8 u-wrap">
+        <div class="form-row"><label>${t('ldap_bind_dn')}</label>
+          <input type="text" id="ldap-bind-dn" placeholder="cn=svc-account,dc=example,dc=com">
+        </div>
+        <div class="form-row"><label>${t('ldap_bind_password')}</label>
+          <input type="text" id="ldap-bind-password" placeholder="••••">
+        </div>
+      </div>
+      <div class="form-row"><label>${t('ldap_base_dn')}</label>
+        <input type="text" id="ldap-base-dn" placeholder="dc=example,dc=com">
+      </div>
+      <div class="form-row"><label>${t('ldap_user_filter')}</label>
+        <input type="text" id="ldap-user-filter" placeholder="(sAMAccountName={{username}})">
+      </div>
+      <div class="u-flex-gap-8 u-wrap">
+        <div class="form-row"><label>${t('ldap_default_role')}</label>
+          <select id="ldap-default-role">
+            <option value="viewer">${t('role_viewer')}</option>
+            <option value="operator">${t('role_operator')}</option>
+            <option value="admin">${t('role_admin')}</option>
+          </select>
+        </div>
+      </div>
+      <label class="u-flex-gap-6 u-mb-8">
+        <input type="checkbox" id="ldap-auto-create"> ${t('ldap_auto_create')}
+      </label>
+      <div class="u-flex-gap-8 u-wrap">
+        <button class="btn btn-primary btn-sm" data-action="saveLdapConfig">${t('btn_save')}</button>
+        <button class="btn btn-ghost btn-sm" data-action="testLdapConfig">${t('ldap_btn_test')}</button>
+      </div>
+      <div id="ldap-config-result" class="u-mt-8 u-text-12 u-lh-16"></div>
     </div>` : ''}
 
     <div class="card settings-card">
@@ -416,6 +491,72 @@ async function revokeApiKey(id) {
   }
 }
 
+// PROD-13: LDAP/AD — тот же принцип маскировки секрета (bind_password),
+// что и у PROD-7. Загружается при монтировании панели (settings-router.js),
+// только для admin.
+async function loadLdapConfig() {
+  try {
+    const r = await fetch(`${API}/api/settings/ldap-config`, { headers: ah() });
+    if (!r.ok) return;
+    const cfg = await r.json();
+    const enabledEl = document.getElementById('ldap-enabled');
+    if (!enabledEl) return; // панель могла смениться, пока шёл fetch
+    enabledEl.checked = !!cfg.enabled;
+    document.getElementById('ldap-url').value = cfg.url || '';
+    document.getElementById('ldap-bind-dn').value = cfg.bind_dn || '';
+    document.getElementById('ldap-bind-password').value = cfg.bind_password || '';
+    document.getElementById('ldap-base-dn').value = cfg.base_dn || '';
+    document.getElementById('ldap-user-filter').value = cfg.user_filter || '(uid={{username}})';
+    document.getElementById('ldap-default-role').value = cfg.default_role || 'viewer';
+    document.getElementById('ldap-auto-create').checked = !!cfg.auto_create_users;
+  } catch (e) { /* тихо — панель останется с пустыми полями */ }
+}
+
+function _readLdapConfigForm() {
+  return {
+    enabled: document.getElementById('ldap-enabled').checked,
+    url: document.getElementById('ldap-url').value.trim(),
+    bind_dn: document.getElementById('ldap-bind-dn').value.trim(),
+    bind_password: document.getElementById('ldap-bind-password').value.trim(),
+    base_dn: document.getElementById('ldap-base-dn').value.trim(),
+    user_filter: document.getElementById('ldap-user-filter').value.trim() || '(uid={{username}})',
+    default_role: document.getElementById('ldap-default-role').value,
+    auto_create_users: document.getElementById('ldap-auto-create').checked,
+  };
+}
+
+async function saveLdapConfig() {
+  const box = document.getElementById('ldap-config-result');
+  try {
+    const r = await fetch(`${API}/api/settings/ldap-config`, {
+      method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(_readLdapConfigForm()),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    toast(t('msg_saved'), 'success');
+    loadLdapConfig(); // перечитать — секрет снова придёт маскированным
+  } catch (e) {
+    if (box) box.innerHTML = `<span class="u-text-danger-fallback">${t('msg_save_error', { msg: e.message })}</span>`;
+  }
+}
+
+async function testLdapConfig() {
+  const box = document.getElementById('ldap-config-result');
+  if (box) box.innerHTML = `<span class="u-text-muted">${t('msg_loading')}</span>`;
+  try {
+    const r = await fetch(`${API}/api/settings/ldap-test`, {
+      method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(_readLdapConfigForm()),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    if (box) box.innerHTML = `<span class="u-text-success">${t('ldap_test_ok')}</span>`;
+  } catch (e) {
+    if (box) box.innerHTML = `<span class="u-text-danger-fallback">${t('ldap_test_fail', { msg: e.message })}</span>`;
+  }
+}
+
 // PROD-7: Webhook/Telegram-уведомления. Конфиг подгружается при монтировании
 // панели (см. settings-router.js) — секреты приходят МАСКИРОВАННЫМИ
 // (server/lib/notify.js::getConfigMasked), поля токена/URL остаются пустыми
@@ -428,17 +569,23 @@ async function loadNotifyConfig() {
     if (!r.ok) return;
     const cfg = await r.json();
     const enabledEl = document.getElementById('notify-enabled');
-    const webhookEl = document.getElementById('notify-webhook-url');
-    const tokenEl   = document.getElementById('notify-tg-token');
-    const chatEl    = document.getElementById('notify-tg-chat');
     if (!enabledEl) return; // панель уже могла смениться, пока шёл fetch
     enabledEl.checked = !!cfg.enabled;
-    webhookEl.value = cfg.webhook_url || '';
-    tokenEl.value   = cfg.telegram_bot_token || '';
-    chatEl.value    = cfg.telegram_chat_id || '';
+    document.getElementById('notify-webhook-url').value = cfg.webhook_url || '';
+    document.getElementById('notify-tg-token').value    = cfg.telegram_bot_token || '';
+    document.getElementById('notify-tg-chat').value     = cfg.telegram_chat_id || '';
+    // PROD-14
+    document.getElementById('notify-smtp-host').value     = cfg.smtp_host || '';
+    document.getElementById('notify-smtp-port').value     = cfg.smtp_port || 587;
+    document.getElementById('notify-smtp-secure').checked = !!cfg.smtp_secure;
+    document.getElementById('notify-smtp-user').value     = cfg.smtp_user || '';
+    document.getElementById('notify-smtp-password').value = cfg.smtp_password || '';
+    document.getElementById('notify-smtp-from').value     = cfg.smtp_from || '';
+    document.getElementById('notify-smtp-to').value       = cfg.smtp_to || '';
     document.querySelectorAll('.notify-event-cb').forEach(cb => {
       cb.checked = (cfg.events || []).includes(cb.value);
     });
+    document.getElementById('notify-health-toggle').checked = !!cfg.notify_on_health_issues;
   } catch (e) { /* тихо — панель просто останется с пустыми полями */ }
 }
 
@@ -448,6 +595,15 @@ function _readNotifyConfigForm() {
     webhook_url: document.getElementById('notify-webhook-url').value.trim(),
     telegram_bot_token: document.getElementById('notify-tg-token').value.trim(),
     telegram_chat_id: document.getElementById('notify-tg-chat').value.trim(),
+    notify_on_health_issues: document.getElementById('notify-health-toggle').checked,
+    // PROD-14
+    smtp_host: document.getElementById('notify-smtp-host').value.trim(),
+    smtp_port: document.getElementById('notify-smtp-port').value.trim(),
+    smtp_secure: document.getElementById('notify-smtp-secure').checked,
+    smtp_user: document.getElementById('notify-smtp-user').value.trim(),
+    smtp_password: document.getElementById('notify-smtp-password').value.trim(),
+    smtp_from: document.getElementById('notify-smtp-from').value.trim(),
+    smtp_to: document.getElementById('notify-smtp-to').value.trim(),
     events: [...document.querySelectorAll('.notify-event-cb:checked')].map(cb => cb.value),
   };
 }
@@ -478,13 +634,14 @@ async function testNotifyConfig() {
     });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
-    if (!d.webhook && !d.telegram) {
+    if (!d.webhook && !d.telegram && !d.email) {
       if (box) box.innerHTML = `<span class="u-text-warn">${t('msg_notify_nothing_configured')}</span>`;
       return;
     }
     const parts = [];
     if (d.webhook) parts.push(`Webhook: ${d.webhook}`);
     if (d.telegram) parts.push(`Telegram: ${d.telegram}`);
+    if (d.email) parts.push(`Email: ${d.email}`);
     if (box) box.innerHTML = `<span class="u-text-success">${parts.join(' · ')}</span>`;
   } catch (e) {
     if (box) box.innerHTML = `<span class="u-text-danger-fallback">${t('msg_load_error', { msg: e.message })}</span>`;

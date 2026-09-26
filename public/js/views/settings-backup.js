@@ -17,6 +17,10 @@ let _orgsCache = [], _filialsCache = [], _locsCache = [];
 // типизированных полей по коду — грузятся вместе с остальным ref-data,
 // используются в meta-fields.js::getMetaFieldDefs().
 let _typeCodesCache = [], _fieldSchemasCache = {};
+// REL-6 (составные активы): слоты компонентов по type_code, тот же
+// паттерн кеша, что _fieldSchemasCache — грузится вместе с остальным
+// ref-data, используется в asset-forms.js::showDetail().
+let _componentSlotsCache = {};
 let _refDataLoaded = false;
 
 async function ensureRefData() {
@@ -38,12 +42,13 @@ async function ensureRefData() {
     // функции (а её вызывают многократно — при рендере вкладок активов, для
     // выпадающих списков филиала/локации).
     const asJson = r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status));
-    [_orgsCache, _filialsCache, _locsCache, _typeCodesCache, _fieldSchemasCache] = await Promise.all([
+    [_orgsCache, _filialsCache, _locsCache, _typeCodesCache, _fieldSchemasCache, _componentSlotsCache] = await Promise.all([
       fetch(`${API}/api/orgs`, { headers: ah() }).then(asJson).catch(()=>[]),
       fetch(`${API}/api/filials`, { headers: ah() }).then(asJson).catch(()=>[]),
       fetch(`${API}/api/locations`, { headers: ah() }).then(asJson).catch(()=>[]),
       fetch(`${API}/api/type-codes`, { headers: ah() }).then(asJson).catch(()=>[]),
       fetch(`${API}/api/field-schemas`, { headers: ah() }).then(asJson).catch(()=>({})),
+      fetch(`${API}/api/component-slots`, { headers: ah() }).then(asJson).catch(()=>({})),
     ]);
     _refDataLoaded = true;
   } catch(e) { console.warn('ensureRefData failed', e); }

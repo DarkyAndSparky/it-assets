@@ -498,7 +498,9 @@ async function doBulkRetire(tab) {
 function showBulkMoveModal(tab) {
   if (!selectedIds.size) return toast(t('msg_nothing_selected'), 'error');
   const filOpts = _filialsCache.map(f=>`<option value="${f.name}">${esc(f.name)}</option>`).join('');
-  const locOpts = _locsCache.map(l=>`<option value="${l.name}">${esc(l.name)}</option>`).join('');
+  // WH-1: data-type/data-responsible на каждом <option> — нужно на onchange
+  // ниже, чтобы подставить держателя склада, не делая отдельный запрос.
+  const locOpts = _locsCache.map(l=>`<option value="${esc(l.name)}" data-type="${esc(l.type||'')}" data-responsible="${esc(l.responsible||'')}">${esc(l.name)}</option>`).join('');
   showModal(`<h2>${t('modal_bulk_move_title')}</h2>
     <div class="blue-note-box">
       ${t('lbl_assets_count')}: <b>${selectedIds.size}</b> &nbsp;·&nbsp;
@@ -510,12 +512,34 @@ function showBulkMoveModal(tab) {
       <select id="bm-filial"><option value="">${t('opt_no_change')}</option>${filOpts}</select></div>
     <div class="form-row"><label>${t('field_location')}</label>
       <select id="bm-loc"><option value="">${t('opt_no_change')}</option>${locOpts}</select></div>
+    <div id="bm-warehouse-hint" class="u-text-11 u-text-muted u-mb-8"></div>
     <div class="form-row"><label>${t('field_reason')}</label>
       <input id="bm-reason" placeholder="${t('msg_move_reason_placeholder')}"/></div>
     <div class="modal-actions">
       <button class="btn btn-primary" data-action="doBulkMove" data-args='${JSON.stringify([tab])}'>${t('btn_move')}</button>
       <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
+  _wireWarehouseAutoFill('bm-loc', 'bm-resp', 'bm-warehouse-hint');
+}
+
+// WH-1: при выборе склада (locations.type==='warehouse') с назначенным
+// держателем — ПОДСКАЗЫВАЕМ его в поле «Ответственный», не подставляем
+// молча без ведома пользователя. Если поле уже что-то содержит —
+// НЕ перезаписываем (пользователь мог осознанно ввести другое имя).
+// Тот же обработчик переиспользуется и для одиночного, и для массового
+// перемещения (см. showMoveModal в asset-forms.js).
+function _wireWarehouseAutoFill(locSelectId, respInputId, hintBoxId) {
+  const sel = document.getElementById(locSelectId);
+  const resp = document.getElementById(respInputId);
+  const hint = document.getElementById(hintBoxId);
+  if (!sel || !resp) return;
+  sel.addEventListener('change', () => {
+    const opt = sel.options[sel.selectedIndex];
+    const isWarehouse = opt?.dataset.type === 'warehouse';
+    const custodian = opt?.dataset.responsible || '';
+    if (hint) hint.textContent = (isWarehouse && custodian) ? t('wh_hint_custodian', { name: custodian }) : '';
+    if (isWarehouse && custodian && !resp.value.trim()) resp.value = custodian;
+  });
 }
 
 async function doBulkMove(tab) {

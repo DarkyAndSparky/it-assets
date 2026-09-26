@@ -11,7 +11,7 @@ const express = require('express');
 const db = require('../database');
 const { requireAuth, requireLogin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
-const { setTypeCodesSchema, setFieldSchemaSchema } = require('../validation/schemas');
+const { setTypeCodesSchema, setFieldSchemaSchema, setComponentSlotsSchema } = require('../validation/schemas');
 const { META_KEYS } = require('../db/sqlite');
 
 const router = express.Router();
@@ -56,6 +56,20 @@ router.put('/field-schemas/:type_code', requireAuth, validate(setFieldSchemaSche
 router.delete('/field-schemas/:type_code', requireAuth, (req, res) => {
   db.setFieldSchema(req.params.type_code, null);
   res.json({ ok: true });
+});
+
+// REL-6 (составные активы, Track 11): «слоты компонентов» — намеренно
+// отдельная конфигурация от field-schemas выше, не часть META_KEYS/meta_*
+// системы. Полное обоснование — server/repositories/settings.repo.js
+// над getComponentSlots(). target_type_codes — мягкая подсказка для
+// UI-пикера, сервер её не проверяет при создании связи (relations.repo.js
+// ничего не знает о слотах) — это не пробел в целостности данных,
+// целостность (кардинальность/циклы) обеспечивается независимо.
+router.get('/component-slots', requireLogin, (req, res) => res.json(db.getComponentSlots()));
+
+router.put('/component-slots/:type_code', requireAuth, validate(setComponentSlotsSchema), (req, res) => {
+  const saved = db.setComponentSlotsForType(req.params.type_code, req.body.slots);
+  res.json({ ok: true, slots: saved });
 });
 
 module.exports = router;

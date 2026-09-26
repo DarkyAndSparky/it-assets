@@ -535,6 +535,87 @@ sqlite.exec(`
 sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);`);
 sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_prefix ON api_keys(key_prefix);`);
 
+// ARCH (составные активы, вариант C из обсуждения с пользователем):
+// asset_relations — УНИВЕРСАЛЬНАЯ таблица связей между активами, не только
+// «компонент чего-то». Осознанный выбор вместо (а) meta-поля с ID другого
+// актива — там нет FK/UNIQUE на уровне БД, и это не расширяется на
+// «несколько одного типа» (2 диска) без костылей; и вместо (б) отдельной
+// bespoke-таблицы под каждый новый тип связи — при росте числа типов
+// связей (не только «компонент», но в будущем например «заменён на»)
+// плодило бы N почти одинаковых таблиц. Эта таблица — стандартная
+// relational-схема (from/to/type), переносится в Postgres/MySQL при
+// будущей миграции БД БЕЗ ИЗМЕНЕНИЙ — ровно то, что нужно от таблицы,
+// которая должна пережить возможный переезд с SQLite.
+//
+// relation_type — ОТКРЫТЫЙ список, не фиксированный SQL CHECK/enum: белый
+// список живёт в коде (server/repositories/relations.repo.js::
+// SUPPORTED_RELATION_TYPES), тот же паттерн, что SUPPORTED_EVENTS в
+// notify.js (PROD-7). Новый тип связи — осознанное решение разработчика
+// (плюс явное решение по кардинальности для него), не автоматическое
+// расширение через UI.
+//
+// Кардинальность НЕ универсальна для всей таблицы — она специфична для
+// relation_type. Для 'component_of' физический смысл требует «один
+// компонент — максимум один родитель одновременно» (диск не может
+// физически стоять в двух системниках сразу) — обеспечено частичным
+// UNIQUE-индексом ниже (SQLite и Postgres оба поддерживают partial index
+// с одинаковым синтаксисом WHERE — портируемо). Будущие типы связи со
+// связью многие-ко-многим просто не получат такого индекса — это
+// осознанное решение на момент добавления нового типа, не ограничение
+// таблицы.
+//
+// Циклы: только прямая защита (A→B и B→A одновременно) на уровне кода
+// репозитория — глубокая защита от произвольной длины цикла НЕ реализована,
+// осознанно вне рамок, пока нет сценария вложенной композиции (компоненты
+// в этой предметной области не имеют своих компонентов — диск не
+// «содержит» видеокарту).
+//
+// Списание актива с активными связями НЕ блокируется и НЕ каскадит на
+// связи — они остаются как есть (историческая ценность: «этот диск был
+// установлен в списанном системнике» — данные, не мусор для удаления).
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS asset_relations (
+    id            TEXT PRIMARY KEY,
+    from_asset_id TEXT NOT NULL,
+    to_asset_id   TEXT NOT NULL,
+    relation_type TEXT NOT NULL,
+    slot_label    TEXT NOT NULL DEFAULT '',
+    note          TEXT NOT NULL DEFAULT '',
+    created_at    TEXT NOT NULL,
+    created_by    TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY (from_asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+    FOREIGN KEY (to_asset_id)   REFERENCES assets(id) ON DELETE CASCADE
+  );
+`);
+sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_asset_relations_from ON asset_relations(from_asset_id);`);
+sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_asset_relations_to ON asset_relations(to_asset_id);`);
+// Частичный UNIQUE — «один компонент = один родитель одновременно» ТОЛЬКО
+// для relation_type='component_of'. Другие будущие типы связи этим
+// индексом не ограничены.
+sqlite.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_asset_relations_component_unique
+  ON asset_relations(to_asset_id)
+  WHERE relation_type = 'component_of';
+`);
+
+// WH-1 (Track 13, «держатель склада»/МОЛ): locations.responsible_id —
+// тот же паттерн id+снапшот имени, что уже используется у assets
+// (org_id/org, filial_id/filial, location_id/location, responsible_id/
+// responsible) — ссылка на employees, не FK (ссылочная целостность
+// проверяется в JS, единообразно с остальной схемой проекта, см.
+// комментарий про org_id у users выше). Старые базы созданы до этого
+// поля — CREATE TABLE IF NOT EXISTS их не тронет, добавляем отдельно тем
+// же защищённым паттерном, что уже применялся для can_view_accounts.
+try {
+  const locCols = sqlite.prepare(`PRAGMA table_info(locations)`).all();
+  if (!locCols.some(c => c.name === 'responsible_id')) {
+    sqlite.exec(`ALTER TABLE locations ADD COLUMN responsible_id TEXT`);
+  }
+  if (!locCols.some(c => c.name === 'responsible')) {
+    sqlite.exec(`ALTER TABLE locations ADD COLUMN responsible TEXT NOT NULL DEFAULT ''`);
+  }
+} catch (e) { logger.error('DB', 'add responsible_id/responsible columns to locations failed', e.message); }
+
 const META_KEYS = ['ip','mac','subnet','winbox','login','password','cabinet',
   'controller','inv','network','hostname','cartridge','firmware','note2','warranty',
   'purchase_date','cost'];

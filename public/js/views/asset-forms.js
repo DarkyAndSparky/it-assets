@@ -271,11 +271,12 @@ async function _openAssetPhotosQuick(assetId) {
 }
 
 async function showDetail(id) {
-  const [a, histResp, photos, versions] = await Promise.all([
+  const [a, histResp, photos, versions, relations] = await Promise.all([
     fetch(`${API}/api/assets/${id}`, { headers: ah() }).then(r=>r.json()),
     fetch(`${API}/api/history?asset_id=${id}&limit=30`, { headers: ah() }).then(r=>r.json()),
     fetch(`${API}/api/assets/${id}/photos`, { headers: ah() }).then(r=>r.ok ? r.json() : []).catch(()=>[]),
     fetch(`${API}/api/assets/${id}/versions`, { headers: ah() }).then(r=>r.ok ? r.json() : []).catch(()=>[]),
+    fetch(`${API}/api/assets/${id}/relations`, { headers: ah() }).then(r=>r.ok ? r.json() : []).catch(()=>[]),
   ]);
   const hist = Array.isArray(histResp) ? histResp : (histResp.items || []);
   // Org lookup через справочник
@@ -284,6 +285,10 @@ async function showDetail(id) {
     if (org) a.org = org.name;
   }
   const mf=getMetaFieldDefs(a.category, a.type).map(f=>f.key);
+  // REL-6: объявленные слоты компонентов для type_code этого актива
+  // (component_slots) — null, если для типа ничего не настроено.
+  const _relTypeCode = _resolveTypeCodeByName(a.type);
+  const declaredSlots = (_relTypeCode && _componentSlotsCache) ? (_componentSlotsCache[_relTypeCode] || null) : null;
   const metaRows=mf.filter(k=>a.meta?.[k]).map(k=>`
     <div><div class="detail-lbl">${metaLabel(k)}</div>
     <div class="detail-val ${k==='password'?'pw-mask mono':'mono'}" ${k==='password'?`data-action="_revealMaskedValue" data-args='${JSON.stringify([esc(a.meta[k] || '')])}'`:''}>
@@ -376,6 +381,14 @@ async function showDetail(id) {
     <button class="btn btn-ghost btn-sm u-m-0" data-action="_toggleVersionsSection" data-args='${JSON.stringify([id])}'>${t('btn_show_versions', { n: versions.length })}</button>
     <div id="asset-versions-box-${id}" class="u-hidden u-mt-8">${_renderVersionsList(versions)}</div>`:''}
     <hr class="sep"/>
+    <div class="section-title">${t('rel_section_title')}</div>
+    <div id="asset-relations-box-${id}">${_renderRelationsList(id, relations, declaredSlots)}</div>
+    ${canEdit()?`
+    <div class="u-mt-8">
+      <input type="text" id="rel-search-${id}" placeholder="${t('rel_search_placeholder')}" autocomplete="off">
+      <div id="rel-search-results-${id}" class="u-mt-4"></div>
+    </div>`:''}
+    <hr class="sep"/>
     <div class="u-flex-col-center-gap-8 u-p-8-0">
       <div id="detail-qr-${id}" class="qr-frame"></div>
       <div class="u-text-11 u-text-muted u-text-center u-max-w-200 u-lh-14">${buildQrText(a).replace(/\n/g, ' · ')}</div>
@@ -403,6 +416,131 @@ async function showDetail(id) {
   // миниатюры (байты изображений) подгружаются лениво по клику на кнопку
   // «Показать фото» (см. _togglePhotoSection выше).
 
+  // ARCH (составные активы): живой поиск по мере ввода, debounce 250мс —
+  // тот же UX, что у остальных быстрых поисков в приложении (global-search.js).
+  const relInput = document.getElementById(`rel-search-${id}`);
+  if (relInput) {
+    let relSearchTimer = null;
+    relInput.addEventListener('input', () => {
+      clearTimeout(relSearchTimer);
+      const q = relInput.value.trim();
+      const resultsBox = document.getElementById(`rel-search-results-${id}`);
+      if (q.length < 2) { resultsBox.innerHTML = ''; return; }
+      relSearchTimer = setTimeout(() => _relSearchAndRender(id, q), 250);
+    });
+  }
+}
+
+// ARCH: поиск переиспользует уже существующий GET /api/assets/search —
+// та же логика, что у глобального поиска в приложении, не отдельный
+// эндпоинт под пикер.
+async function _relSearchAndRender(assetId, q) {
+  const resultsBox = document.getElementById(`rel-search-results-${assetId}`);
+  if (!resultsBox) return;
+  try {
+    const results = await fetch(`${API}/api/assets/search?q=${encodeURIComponent(q)}`, { headers: ah() }).then(r => r.json());
+    const filtered = results.filter(r => r.id !== assetId).slice(0, 8);
+    if (!filtered.length) { resultsBox.innerHTML = `<div class="u-text-12 u-text-muted">${t('rel_search_empty')}</div>`; return; }
+    resultsBox.innerHTML = filtered.map(r => `
+      <div class="u-flex-between u-py-6" style="border-bottom:1px solid var(--border); cursor:pointer;"
+           data-action="_linkComponent" data-args='${JSON.stringify([assetId, r.id, esc(r.model)])}'>
+        <div class="u-text-13">${esc(r.model)} ${r.inv?`— ${esc(r.inv)}`:''} ${r.serial?`(S/N ${esc(r.serial)})`:''}</div>
+      </div>`).join('');
+  } catch (e) { resultsBox.innerHTML = ''; }
+}
+
+// slot_label запрашиваем через простой prompt() — сознательно не отдельная
+// модалка ради одного текстового поля, которое к тому же необязательно
+// (пустая строка/Cancel — оба ведут к созданию связи без метки).
+async function _linkComponent(fromId, toId, otherModel) {
+  const defaultSlot = _relPendingSlotLabel[fromId] || '';
+  const slot = prompt(t('rel_prompt_slot', { model: otherModel }), defaultSlot);
+  delete _relPendingSlotLabel[fromId];
+  if (slot === null) return; // явная отмена — Cancel в prompt()
+  try {
+    const r = await fetch(`${API}/api/asset-relations`, {
+      method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from_asset_id: fromId, to_asset_id: toId, relation_type: 'component_of', slot_label: slot }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    toast(t('msg_saved'), 'success');
+    showDetail(fromId); // перерисовать карточку целиком — проще и надёжнее частичного патча DOM
+  } catch (e) {
+    toast(t('msg_save_error', { msg: e.message }), 'error');
+  }
+}
+
+async function _unlinkRelation(relationId, assetId) {
+  if (!confirm(t('rel_confirm_unlink'))) return;
+  try {
+    const r = await fetch(`${API}/api/asset-relations/${relationId}`, { method: 'DELETE', headers: ah() });
+    if (!r.ok) { const d = await r.json().catch(()=>({})); throw new Error(d.error || ('HTTP ' + r.status)); }
+    showDetail(assetId);
+  } catch (e) {
+    toast(t('msg_save_error', { msg: e.message }), 'error');
+  }
+}
+
+// REL-6: declaredSlots — объявленные для этого type_code слоты
+// (component_slots), см. settings.repo.js. Слоты описывают только
+// direction='from' связи (что этот актив ожидает содержать) — 'to'
+// связи (этот актив сам чей-то компонент) слотами не описываются,
+// показываются отдельным блоком без привязки к схеме.
+function _renderRelationsList(assetId, relations, declaredSlots) {
+  const STATUS_LABELS = { 'используется':'', 'списан':` (${t('rel_retired_suffix')})` };
+  const fromRels = relations.filter(r => r.direction === 'from');
+  const toRels = relations.filter(r => r.direction === 'to');
+  const slots = declaredSlots || [];
+
+  const filledRow = (r) => `<div class="u-flex-between u-py-6" style="border-bottom:1px solid var(--border)">
+      <div class="u-text-13">
+        <span class="u-text-muted u-text-11">${r.slot_label?esc(r.slot_label):t('rel_component_label')}:</span>
+        ${esc(r.other.model)}${r.other.inv?` — ${esc(r.other.inv)}`:''}${STATUS_LABELS[r.other.status] || ''}
+      </div>
+      ${canEdit()?`<button class="btn btn-ghost btn-sm" data-action="_unlinkRelation" data-args='${JSON.stringify([r.id, assetId])}'>✕</button>`:''}
+    </div>`;
+
+  const emptySlotRow = (slot) => `<div class="u-flex-between u-py-6" style="border-bottom:1px solid var(--border)">
+      <div class="u-text-13 u-text-muted">${esc(slot.slot_label)}: <i>${t('rel_slot_empty')}</i></div>
+      ${canEdit()?`<button class="btn btn-ghost btn-sm" data-action="_focusRelSearchForSlot" data-args='${JSON.stringify([assetId, slot.slot_label])}'>${t('rel_btn_fill_slot')}</button>`:''}
+    </div>`;
+
+  // Слот считается заполненным, если среди fromRels есть связь с ТАКОЙ ЖЕ
+  // slot_label (регистрозависимо — метки задаёт админ, сверка буквальная).
+  const slotsHtml = slots.map(slot => {
+    const filled = fromRels.find(r => r.slot_label === slot.slot_label);
+    return filled ? filledRow(filled) : emptySlotRow(slot);
+  }).join('');
+
+  // Связи, не попавшие ни в один объявленный слот (свободные, или слот
+  // с таким именем позже удалили/переименовали в схеме) — не теряются,
+  // просто показываются отдельно, без спец-обработки.
+  const slotLabels = new Set(slots.map(s => s.slot_label));
+  const freeformFrom = fromRels.filter(r => !slotLabels.has(r.slot_label));
+  const freeformHtml = freeformFrom.map(filledRow).join('');
+
+  const toHtml = toRels.map(r => `<div class="u-flex-between u-py-6" style="border-bottom:1px solid var(--border)">
+      <div class="u-text-13">
+        <span class="u-text-muted u-text-11">${t('rel_parent_label')}:</span>
+        ${esc(r.other.model)}${r.other.inv?` — ${esc(r.other.inv)}`:''}${STATUS_LABELS[r.other.status] || ''}
+      </div>
+      ${canEdit()?`<button class="btn btn-ghost btn-sm" data-action="_unlinkRelation" data-args='${JSON.stringify([r.id, assetId])}'>✕</button>`:''}
+    </div>`).join('');
+
+  const body = slotsHtml + freeformHtml + toHtml;
+  return body || `<div class="u-text-12 u-text-muted">${t('rel_empty')}</div>`;
+}
+
+// Клик «Заполнить» у пустого слота — просто ставит фокус и подсказку в
+// уже существующее поле поиска, не открывает отдельный UI: тот же пикер,
+// тот же живой поиск, только с запомненной меткой слота для prompt() при
+// выборе результата (см. _linkComponent).
+let _relPendingSlotLabel = {};
+function _focusRelSearchForSlot(assetId, slotLabel) {
+  _relPendingSlotLabel[assetId] = slotLabel;
+  const input = document.getElementById(`rel-search-${assetId}`);
+  if (input) { input.focus(); input.placeholder = t('rel_search_for_slot', { slot: slotLabel }); }
 }
 
 // ─── MOVE MODAL ───────────────────────────────────────────────────────────────
@@ -431,6 +569,7 @@ async function showMoveModal(id) {
     </div>
     <div class="form-row"><label>${t('field_location')}</label>
       <select id="m-loc">${locOpts}</select></div>
+    <div id="m-warehouse-hint" class="u-text-11 u-text-muted u-mb-8"></div>
     <div class="form-row"><label>${t('field_reason')}</label>
       <select id="m-reason">${['Перемещение','Увольнение сотрудника','Трудоустройство сотрудника','Замена оборудования','Заявка на оборудование','Ремонт','Другое'].map(r=>`<option>${r}</option>`).join('')}</select></div>
     <div class="modal-actions">
@@ -438,6 +577,7 @@ async function showMoveModal(id) {
       <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
     </div>`);
   setTimeout(() => initEmployeeAutocomplete('m-resp'), 80);
+  _wireWarehouseAutoFill('m-loc', 'm-resp', 'm-warehouse-hint');
 }
 async function doMove(id) {
   try {
@@ -509,7 +649,7 @@ function _buildLocOpts(filialId, selected='') {
   // Always include current value even if not in filtered list
   const hasSelected = locs.some(l=>l.name===selected);
   let opts = locs.map(l =>
-    `<option value="${esc(l.name)}" ${l.name===selected?'selected':''}>${esc(l.name)}</option>`
+    `<option value="${esc(l.name)}" data-type="${esc(l.type||'')}" data-responsible="${esc(l.responsible||'')}" ${l.name===selected?'selected':''}>${esc(l.name)}</option>`
   ).join('');
   if (!hasSelected && selected)
     opts = `<option value="${esc(selected)}" selected>${esc(selected)}</option>` + opts;

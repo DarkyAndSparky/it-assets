@@ -1,6 +1,6 @@
 {
   "name": "it-assets",
-  "version": "beta-1-26w38-08",
+  "version": "beta-1-26w39-03",
   "description": "IT Assets Management — beta 1",
   "author": "DarkyAndSparky",
   "license": "UNLICENSED",
@@ -15,6 +15,7 @@
   "scripts": {
     "prepare": "node scripts/install-hooks.js",
     "sync-version": "node scripts/sync-version.js",
+    "bump-version": "node scripts/bump-version.js && node scripts/sync-version.js",
     "start": "node server/index.js",
     "dev": "node server/index.js",
     "test": "jest --runInBand --forceExit",
@@ -29,7 +30,9 @@
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "express-rate-limit": "^8.7.0",
+    "ldapts": "^9.2.0",
     "lowdb": "^1.0.0",
+    "nodemailer": "^10.0.10",
     "qrcode": "^1.5.4",
     "selfsigned": "^5.5.0",
     "uuid": "11.1.1",

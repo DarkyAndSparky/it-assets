@@ -47,6 +47,9 @@ db.setTypeCodes   = settingsRepo.setTypeCodes;
 db.getFieldSchemas = settingsRepo.getFieldSchemas;
 db.getFieldSchema  = settingsRepo.getFieldSchema;
 db.setFieldSchema  = settingsRepo.setFieldSchema;
+db.getComponentSlots          = settingsRepo.getComponentSlots;
+db.getComponentSlotsForType   = settingsRepo.getComponentSlotsForType;
+db.setComponentSlotsForType   = settingsRepo.setComponentSlotsForType;
 
 // ─── db.config — методы для справочников ──────────────────────────────────────
 

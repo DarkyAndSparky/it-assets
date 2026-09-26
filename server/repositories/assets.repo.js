@@ -679,6 +679,55 @@ function reassignEmployeeAssets(employeeId, toEmployeeId, changedByStr) {
   };
 }
 
+// IDEA-3: «Инвентаризация по месту» — оператор физически обходит
+// помещение со сканером (тот же keyboard-emulation паттерн, что у
+// /scan.html, PROD-8), сканирует всё, что реально там стоит, накапливает
+// список кодов НА ФРОНТЕНДЕ (без серверной сессии — проще и безопаснее:
+// нет риска "зависшей" незавершённой сессии инвентаризации в БД, если
+// вкладку закрыли на середине обхода), затем одним запросом сверяет с
+// тем, что должно быть в этом месте по учёту.
+//
+// Осознанно ТОЛЬКО отчёт о расхождениях — НЕ авто-перемещение найденных
+// не на своём месте активов. Правка (move/update) остаётся ручным
+// действием через уже существующие эндпоинты — авто-перемещение по
+// результату скана было бы более рискованной операцией (что если
+// сканировали по ошибке не то место?), явно за рамками MVP.
+function checkInventoryByLocation(location, scannedCodes) {
+  const loc = String(location || '').trim();
+  const codes = (Array.isArray(scannedCodes) ? scannedCodes : [])
+    .map(c => String(c || '').trim().replace(/^(INV|SN):/i, '').trim())
+    .filter(Boolean);
+
+  const active = stmts.selectActive.all().map(rowToAsset);
+  const sameLocation = (a) => (a.location || '').trim().toLowerCase() === loc.toLowerCase();
+  const expectedAtLocation = active.filter(sameLocation);
+
+  const matched = [];
+  const unexpected = []; // отсканирован, существует, но числится в ДРУГОМ месте
+  const unknown = [];    // отсканированный код не найден в системе вообще
+  const foundKeys = new Set();
+
+  for (const code of codes) {
+    const codeLc = code.toLowerCase();
+    const asset = active.find(a => (a.inv || '').toLowerCase() === codeLc || (a.serial || '').toLowerCase() === codeLc);
+    if (!asset) { unknown.push(code); continue; }
+    const key = (asset.inv || asset.serial || '').toLowerCase();
+    if (key) foundKeys.add(key);
+    const row = { id: asset.id, model: asset.model, inv: asset.inv, serial: asset.serial };
+    if (sameLocation(asset)) matched.push(row);
+    else unexpected.push({ ...row, actual_location: asset.location || '' });
+  }
+
+  const missing = expectedAtLocation
+    .filter(a => {
+      const key = (a.inv || a.serial || '').toLowerCase();
+      return key && !foundKeys.has(key);
+    })
+    .map(a => ({ id: a.id, model: a.model, inv: a.inv, serial: a.serial }));
+
+  return { location: loc, expected_count: expectedAtLocation.length, matched, unexpected, unknown, missing };
+}
+
 function getAllAssets() {
   // Все статусы (включая списанные) — нужно для CSV-экспорта/дедупликации
   // при импорте, в отличие от listAssets/searchAssets, которые по
@@ -768,5 +817,5 @@ function bulkUpdateMeta(body, changedByStr) {
 module.exports = {
   listAssets, searchAssets, getAssetById, createAsset, updateAsset,
   retireAsset, moveAsset, bulkMoveAssets, bulkAssignInv, bulkUpdateMeta, reassignEmployeeAssets,
-  getAllAssets, bulkImportAssets, getPublicAssetInfo, getAssetVersions,
+  getAllAssets, bulkImportAssets, getPublicAssetInfo, getAssetVersions, checkInventoryByLocation,
 };

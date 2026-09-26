@@ -230,6 +230,24 @@ app.use('/api/qr', require('./routes/qr.routes'));
 // см. подробное обоснование в server/routes/public.routes.js.
 app.use('/api/public', require('./routes/public.routes'));
 app.use('/api/api-keys', require('./routes/apikeys.routes'));
+app.use('/api/asset-relations', require('./routes/relations.routes'));
+
+// HEALTH-1: проактивные уведомления о деградации health-статуса — тот
+// же паттерн disabled-in-tests/настраиваемый интервал, что уже есть у
+// автобэкапа (routes/backup.routes.js) — не полагаемся на то, что кто-то
+// смотрит на health-бар в интерфейсе. Реально шлёт уведомление только
+// при СМЕНЕ статуса (см. notify.js::checkAndNotifyHealth) — сам таймер
+// может тикать часто, спама это не создаёт.
+if (process.env.NODE_ENV !== 'test') {
+  const notify = require('./lib/notify');
+  const healthNotifyIntervalMs = (() => {
+    const min = parseInt(process.env.IT_ASSETS_HEALTH_CHECK_INTERVAL_MIN);
+    return (Number.isInteger(min) && min > 0 ? min : 5) * 60 * 1000;
+  })();
+  setInterval(() => {
+    notify.checkAndNotifyHealth().catch(e => logger.warn('health', 'periodic check failed', e.message));
+  }, healthNotifyIntervalMs);
+}
 
 // OPS-5 (Track 9, найдено при аудите net-monitor): без этого несуществующий
 // /api/... путь (опечатка, устаревший вызов после рефакторинга) проваливался

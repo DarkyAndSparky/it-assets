@@ -95,7 +95,7 @@
 <nav class="sidebar">
   <div class="sidebar-logo">
     <div class="project">⚙️ IT Assets</div>
-    <div class="version">β1 · 26w38·08</div>
+    <div class="version">β1 · 26w39·03</div>
     <div class="badge">Developer Documentation</div>
   </div>
   <div class="nav-section">
@@ -336,6 +336,7 @@ sudo systemctl enable --now it-assets</pre>
     <tr><td><code>IT_ASSETS_BACKUP_MAX_MB</code></td><td>2048</td><td>Максимальный суммарный размер папки <code>data/backups/</code> в МБ</td></tr>
     <tr><td><code>IT_ASSETS_AUTO_BACKUP_ENABLED</code></td><td>1 (вкл)</td><td>Выключить автобэкап — <code>0</code></td></tr>
     <tr><td><code>IT_ASSETS_AUTO_BACKUP_INTERVAL_MIN</code></td><td>60</td><td>Интервал автобэкапа в минутах</td></tr>
+    <tr><td><code>IT_ASSETS_HEALTH_CHECK_INTERVAL_MIN</code></td><td>5</td><td>Интервал фонового health-таймера в минутах (HEALTH-1). Уведомление уходит только при смене статуса, не на каждый тик</td></tr>
     <tr><td><code>IT_ASSETS_LOG_RETENTION_DAYS</code></td><td>14</td><td>Сколько дней хранить файлы логов</td></tr>
   </table>
 
@@ -505,6 +506,8 @@ git push origin dev</pre>
 ├── scripts/
 │   ├── check-deps-fresh.js  — Сравнение mtime package-lock.json vs node_modules для START.bat/start.sh
 │   ├── install-hooks.js     — Ставит scripts/hooks/pre-commit в .git/hooks/ (npm "prepare")
+│   ├── bump-version.js      — Считает СЛЕДУЮЩУЮ версию по ISO-неделе (детерминизм — см. ниже),
+│   │                          пишет в VERSION. Отдельно от sync-version.js намеренно.
 │   ├── sync-version.js      — Раскидывает VERSION по package.json/README-бейджу/docs/index.html
 │   └── hooks/pre-commit     — Неблокирующее напоминание обновить CHANGELOG.md при правке кода
 ├── server/
@@ -557,6 +560,7 @@ git push origin dev</pre>
 │           ├── employees.js        — Сотрудники
 │           ├── accounts.js         — Учётки (аккаунты)
 │           ├── alerts.js           — Раздел Внимание
+│           ├── inventory.js        — IDEA-3: инвентаризация по месту (скан → сверка с учётом)
 │           ├── inv-generator.js    — Генератор инв. номеров
 │           ├── qr-print.js         — Печать QR-карточки
 │           ├── settings-general.js — Общие настройки
@@ -1100,6 +1104,54 @@ type_codes        — справочник типов устройств (code, 
         аутентификацию — проверяется на каждый запрос в <code>authenticateApiKey()</code>.</p>
     </div>
   </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/settings/ldap-config</div><div class="endpoint-desc">Конфиг LDAP/AD (PROD-13) <span class="admin-badge">👑 admin</span></div></div>
+    <div class="endpoint-body">
+      <pre>{ "enabled": true, "url": "ldaps://ad.example.com:636",
+  "bind_dn": "cn=svc,dc=example,dc=com", "bind_password": "••••3xYz",
+  "base_dn": "dc=example,dc=com", "user_filter": "(sAMAccountName={{username}})",
+  "default_role": "viewer", "auto_create_users": false }</pre>
+      <p><code>bind_password</code> — секрет, отдаётся ТОЛЬКО замаскированным (тот же принцип, что у
+        <code>notify-config</code>/пароля пользователя — write-only).</p>
+    </div>
+  </div>
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method PUT">PUT</div><div class="endpoint-path">/api/settings/ldap-config</div><div class="endpoint-desc">Сохранить конфиг LDAP/AD <span class="admin-badge">👑 admin</span></div></div>
+    <div class="endpoint-body">
+      <p>Поле <code>bind_password</code>, начинающееся с <code>••••</code> (то, что вернул GET) —
+        трактуется как «не менялось», старое значение сохраняется как есть.</p>
+    </div>
+  </div>
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method POST">POST</div><div class="endpoint-path">/api/settings/ldap-test</div><div class="endpoint-desc">Проверить подключение (бинд сервисной учётки) <span class="admin-badge">👑 admin</span></div></div>
+    <div class="endpoint-body">
+      <p>Не сохраняет конфиг — только пробует <code>bind(bind_dn, bind_password)</code> прямо сейчас с
+        переданными значениями. Проверяет ТОЛЬКО доступность сервера и валидность сервисной учётки —
+        не проверяет реальный пользовательский логин/пароль (для этого нет готового тестового
+        пользователя в момент настройки).</p>
+      <h4>200 OK</h4><pre>{ "ok": true }</pre>
+      <h4>502 (сервер недоступен / неверные креды)</h4><pre>{ "error": "Invalid Credentials" }</pre>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method POST">POST</div><div class="endpoint-path">/api/users/login</div><div class="endpoint-desc">Логин — теперь с LDAP-фолбэком (PROD-13)</div></div>
+    <div class="endpoint-body">
+      <p>Порядок проверки: (1) локальный логин/пароль (<code>authByLogin</code>, без изменений) — если
+        подошёл, LDAP вообще не трогаем; (2) если локально не подошло И LDAP включён —
+        <code>ldap.authenticateAndSync()</code> (<code>server/lib/ldap.js</code>): бинд сервисной
+        учёткой → поиск по <code>user_filter</code> (значение логина экранируется через
+        <code>Filter.escape()</code> — защита от LDAP injection) → РОВНО одно совпадение → бинд найденным
+        DN с введённым паролем. 0 или &gt;1 совпадений в поиске — отказ, не гадаем. Пустой пароль
+        отклоняется ДО обращения к LDAP-серверу (иначе — anonymous bind, классическая уязвимость обхода
+        аутентификации). Успех + <code>auto_create_users</code> + нет локальной записи — создаётся
+        локальный пользователь с ролью <code>default_role</code> и случайным (никому не известным,
+        НЕ пустым — пустой PIN в этой системе означает «вход без пароля») локальным PIN, единственный
+        путь входа для такой записи — LDAP. Ответ и код ошибки — идентичны обычному неверному
+        логину/паролю, разница между «сервер недоступен» и «неверный пароль» наружу не просачивается.</p>
+    </div>
+  </div>
 </section>
 
 <!-- API ASSETS -->
@@ -1163,6 +1215,71 @@ type_codes        — справочник типов устройств (code, 
         бы шквал версий, а код там пишет историю инлайн-аргументами, не через объект). Подробности и
         обоснование — в <code>SCHEMA.md</code> и комментариях <code>assets.repo.js</code>. Нет функции
         восстановления (rollback) из версии — вне рамок задачи, см. SCHEMA.md.</p>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/assets/:id/relations</div><div class="endpoint-desc">Связи актива (компоненты/родитель) — составные активы</div></div>
+    <div class="endpoint-body">
+      <pre>[
+  { "id":"...", "relation_type":"component_of", "slot_label":"Диск 1", "note":"",
+    "direction":"from", "other_asset_id":"...",
+    "other": { "model":"SSD Samsung 1TB", "inv":"IT-DISK-042", "serial":"S3Z9...", "status":"используется" },
+    "created_at":"...", "created_by":"admin" }
+]</pre>
+      <p>Отдаёт связи актива В ОБЕ СТОРОНЫ одним запросом: <code>direction:"from"</code> — этот актив
+        владеет компонентом (<code>other</code> — сам компонент); <code>direction:"to"</code> — этот
+        актив САМ является чьим-то компонентом (<code>other</code> — родитель). Универсальная таблица
+        связей (<code>asset_relations</code>) — не только для компонентов, см. <code>SCHEMA.md</code> для
+        полного архитектурного обоснования (почему универсальная таблица, а не meta-поле или bespoke-таблица
+        под каждый тип связи — важно для будущей миграции БД).</p>
+    </div>
+  </div>
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method POST">POST</div><div class="endpoint-path">/api/asset-relations</div><div class="endpoint-desc">Создать связь между активами <span class="auth-badge">🔐 auth</span></div></div>
+    <div class="endpoint-body">
+      <h4>Body</h4><pre>{ "from_asset_id":"...", "to_asset_id":"...", "relation_type":"component_of", "slot_label":"Диск 1" }</pre>
+      <p><code>relation_type</code> — белый список в коде (<code>relations.repo.js::SUPPORTED_RELATION_TYPES</code>),
+        сейчас только <code>component_of</code>. Для него действует правило кардинальности «один компонент —
+        максимум один родитель одновременно» (диск физически не может стоять в двух системниках сразу) —
+        обеспечено частичным UNIQUE-индексом в БД, не только проверкой в коде. Прямой цикл (B→A, когда уже
+        есть A→B того же типа) отклоняется. Оба актива должны существовать — иначе 404.</p>
+      <p>Привязка симметрично пишет запись <code>action_type: 'relation_add'</code> в историю ОБОИХ активов
+        (видна и в истории компонента, и в истории родителя).</p>
+    </div>
+  </div>
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method DELETE">DELETE</div><div class="endpoint-path">/api/asset-relations/:id</div><div class="endpoint-desc">Удалить связь <span class="auth-badge">🔐 auth</span></div></div>
+    <div class="endpoint-body">
+      <p>Отвязка НЕ каскадит ни на что и не блокируется статусом активов — актив можно списать, даже
+        когда у него есть активные связи (связь остаётся как историческая запись, не удаляется
+        автоматически). Пишет <code>action_type: 'relation_remove'</code> в историю обоих активов.</p>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/component-slots</div><div class="endpoint-desc">Слоты компонентов по type_code (REL-6)</div></div>
+    <div class="endpoint-body">
+      <pre>{ "PC": [ { "slot_label":"Видеокарта", "target_type_codes":["GPU"] },
+           { "slot_label":"Диск", "target_type_codes":["HDD","SSD"] } ] }</pre>
+      <p>НЕ часть <code>/api/field-schemas</code>/<code>META_KEYS</code> осознанно — слоты ничего не
+        пишут в <code>meta_*</code>, значение живёт в <code>asset_relations</code> (см. выше).
+        Заводить фиктивный META_KEY означало бы либо мусорить схему БД, либо специально обрабатывать
+        этот тип поля везде, где перебирается <code>meta</code> в <code>createAsset</code>/
+        <code>updateAsset</code> — больше риска для отлаженной системы PROD-1..4. Полное обоснование —
+        <code>server/repositories/settings.repo.js</code> над <code>getComponentSlots()</code>.</p>
+      <p><code>target_type_codes</code> — МЯГКАЯ подсказка для UI-пикера на карточке актива (в какой
+        слот что предлагать), НЕ проверяется на сервере при создании связи —
+        <code>relations.repo.js::createRelation</code> ничего не знает о слотах. Это не пробел в
+        целостности данных: кардинальность и защита от циклов обеспечиваются независимо от слотов.</p>
+    </div>
+  </div>
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method PUT">PUT</div><div class="endpoint-path">/api/component-slots/:type_code</div><div class="endpoint-desc">Сохранить слоты для типа <span class="auth-badge">🔐 auth</span></div></div>
+    <div class="endpoint-body">
+      <h4>Body</h4><pre>{ "slots": [ { "slot_label":"Видеокарта", "target_type_codes":["GPU"] } ] }</pre>
+      <p>Пустой массив <code>slots</code> удаляет запись для этого <code>type_code</code> целиком (не
+        хранит пустой массив) — та же логика, что у <code>DELETE /api/field-schemas/:type_code</code>.</p>
     </div>
   </div>
 
@@ -1244,6 +1361,32 @@ type_codes        — справочник типов устройств (code, 
       <h4>Body</h4><pre>{ "ids": ["UUID", ...], "org_id": "UUID", "type_code": "NB" }</pre>
       <p><code>org_id</code> и <code>type_code</code> обязательны. Пропускает ассеты, у которых <code>inv</code> уже заполнен. Каждому присвоенному пишется <code>action_type: 'inv_assigned'</code> в history.</p>
       <h4>200 OK</h4><pre>{ "ok": true, "assigned": 5, "skipped": 2 }</pre>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method POST">POST</div><div class="endpoint-path">/api/assets/inventory-check</div><div class="endpoint-desc">Инвентаризация по месту (IDEA-3) <span class="auth-badge">🔐 auth</span></div></div>
+    <div class="endpoint-body">
+      <h4>Body</h4><pre>{ "location": "Кабинет 305", "codes": ["INV-001-00042", "SN:PF1234", ...] }</pre>
+      <h4>200 OK</h4>
+      <pre>{
+  "location": "Кабинет 305", "expected_count": 12,
+  "matched":    [ { "id":"...", "model":"...", "inv":"...", "serial":"..." } ],
+  "unexpected": [ { "id":"...", "model":"...", "inv":"...", "serial":"...", "actual_location":"Склад" } ],
+  "unknown":    ["CODE-NOT-IN-SYSTEM"],
+  "missing":    [ { "id":"...", "model":"...", "inv":"...", "serial":"..." } ]
+}</pre>
+      <p>Только ОТЧЁТ о расхождениях — ничего не мутирует в БД. <code>codes</code> ищутся точным
+        совпадением (не подстрокой) по <code>inv</code> ИЛИ <code>serial</code> среди активных
+        (не списанных) активов; принимает голое значение и QR-стиль префиксы
+        (<code>INV:</code>/<code>SN:</code>), регистронезависимо — та же логика поиска, что у
+        <code>/api/public/scan</code> (PROD-8). <code>missing</code> — числится в указанном месте, но не
+        было отсканировано; <code>unexpected</code> — отсканировано, существует, но числится в ДРУГОМ
+        месте (<code>actual_location</code> показывает, где); <code>unknown</code> — отсканированный код
+        не найден в системе вообще (опечатка/чужая наклейка).</p>
+      <p>Список сканов накапливается на фронтенде (без серверной сессии инвентаризации) — обход
+        начинается заново при перезагрузке вкладки, осознанное упрощение (см. комментарий в
+        <code>assets.repo.js::checkInventoryByLocation</code>).</p>
     </div>
   </div>
 
@@ -1455,11 +1598,17 @@ type_codes        — справочник типов устройств (code, 
   </div>
   <div class="endpoint">
     <div class="endpoint-header" onclick="toggle(this)"><div class="method POST">POST</div><div class="endpoint-path">/api/locations</div><div class="endpoint-desc">Создать <span class="auth-badge">🔐 auth</span></div></div>
-    <div class="endpoint-body"><pre>{ "name": "Серверная", "filial_id": "UUID", "type": "office" }</pre></div>
+    <div class="endpoint-body"><pre>{ "name": "Серверная", "filial_id": "UUID", "type": "office", "responsible_id": "UUID" }</pre>
+      <p><code>responsible_id</code> (WH-1) — необязательный, ссылка на <code>employees</code>. Держатель
+        склада/МОЛ — снапшот имени пишется автоматически рядом (<code>responsible</code> в ответе),
+        несуществующий id тихо трактуется как «без держателя», не ошибка.</p>
+    </div>
   </div>
   <div class="endpoint">
     <div class="endpoint-header" onclick="toggle(this)"><div class="method PUT">PUT</div><div class="endpoint-path">/api/locations/:id</div><div class="endpoint-desc">Обновить <span class="auth-badge">🔐 auth</span></div></div>
-    <div class="endpoint-body"><p>Поля: name, type, filial_id.</p></div>
+    <div class="endpoint-body"><p>Поля: name, type, filial_id, responsible_id. Частичное обновление —
+      поле, отсутствующее в теле запроса, не трогается (в отличие от <code>responsible_id: ""</code>,
+      которое явно ОЧИЩАЕТ держателя).</p></div>
   </div>
   <div class="endpoint">
     <div class="endpoint-header" onclick="toggle(this)"><div class="method POST">POST</div><div class="endpoint-path">/api/locations/:id/close</div><div class="endpoint-desc">Закрыть <span class="auth-badge">🔐 auth</span></div></div>
@@ -1625,19 +1774,32 @@ type_codes        — справочник типов устройств (code, 
   </div>
 
   <div class="endpoint">
-    <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/settings/notify-config</div><div class="endpoint-desc">Конфиг Webhook/Telegram-уведомлений (PROD-7) <span class="admin-badge">👑 admin</span></div></div>
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/settings/notify-config</div><div class="endpoint-desc">Конфиг Webhook/Telegram/Email-уведомлений (PROD-7 + PROD-14) <span class="admin-badge">👑 admin</span></div></div>
     <div class="endpoint-body">
       <pre>{
   "enabled": true, "webhook_url": "••••1234", "telegram_bot_token": "••••DDEF",
-  "telegram_chat_id": "-100987654321", "events": ["add", "retire"]
+  "telegram_chat_id": "-100987654321",
+  "smtp_host": "smtp.example.com", "smtp_port": 587, "smtp_secure": false,
+  "smtp_user": "notify@example.com", "smtp_password": "••••pass",
+  "smtp_from": "IT Assets <notify@example.com>", "smtp_to": "team@example.com",
+  "events": ["add", "retire"], "notify_on_health_issues": false
 }</pre>
-      <p><code>webhook_url</code>/<code>telegram_bot_token</code> — секреты, отдаются ТОЛЬКО в
-        замаскированном виде (последние 4 символа) — тот же принцип, что у пароля пользователя (write-only,
-        никогда не читается обратно в открытом виде). Область действия — только события <code>add</code>
-        (создание), <code>retire</code> (списание), <code>status_change</code> (смена статуса);
-        <code>move</code> и все <code>bulk-*</code>-операции НЕ триггерят уведомления (осознанное
-        ограничение — при массовой операции над сотней активов уведомление на каждый было бы спамом, не
-        сигналом; подробности в <code>server/lib/notify.js</code>).</p>
+      <p><code>webhook_url</code>/<code>telegram_bot_token</code>/<code>smtp_password</code> — секреты,
+        отдаются ТОЛЬКО в замаскированном виде (последние 4 символа) — тот же принцип, что у пароля
+        пользователя (write-only, никогда не читается обратно в открытом виде). Область действия — только
+        события <code>add</code> (создание), <code>retire</code> (списание), <code>status_change</code>
+        (смена статуса); <code>move</code> и все <code>bulk-*</code>-операции НЕ триггерят уведомления
+        (осознанное ограничение — при массовой операции над сотней активов уведомление на каждый было бы
+        спамом, не сигналом; подробности в <code>server/lib/notify.js</code>). Email (PROD-14) — тот же
+        движок и те же события, что webhook/Telegram, не отдельная система: библиотека
+        <code>nodemailer</code>, отправка через <code>createTransport({host, port, secure, auth})</code> +
+        <code>sendMail()</code>, соединение закрывается после отправки.</p>
+      <p><code>notify_on_health_issues</code> (HEALTH-1) — отдельный тумблер, НЕ часть <code>events[]</code>
+        (те про историю активов, health-статус — другая природа сигнала). Раз в
+        <code>IT_ASSETS_HEALTH_CHECK_INTERVAL_MIN</code> минут (по умолчанию 5) фоновый таймер сверяет
+        текущий <code>overall</code> из <code>GET /api/settings/health</code> с прошлым — уведомление
+        уходит ТОЛЬКО при смене статуса (в любую сторону, включая восстановление), не на каждый тик
+        таймера. См. <code>notify.js::checkAndNotifyHealth()</code>.</p>
     </div>
   </div>
 
@@ -1646,21 +1808,27 @@ type_codes        — справочник типов устройств (code, 
     <div class="endpoint-body">
       <h4>Body</h4>
       <pre>{ "enabled": true, "webhook_url": "https://...", "telegram_bot_token": "123:ABC",
-  "telegram_chat_id": "-100...", "events": ["add", "retire", "status_change"] }</pre>
+  "telegram_chat_id": "-100...", "smtp_host": "...", "smtp_port": 587, "smtp_secure": false,
+  "smtp_user": "...", "smtp_password": "...", "smtp_from": "...", "smtp_to": "a@b.com,c@d.com",
+  "events": ["add", "retire", "status_change"] }</pre>
       <p>Поле, начинающееся с <code>••••</code> (то, что вернул GET) — трактуется как «не менялось», старое
-        значение секрета сохраняется как есть, а не затирается маской. Ответ — тот же замаскированный
-        конфиг, что и у GET.</p>
+        значение секрета сохраняется как есть, а не затирается маской (действует одинаково для
+        <code>webhook_url</code>, <code>telegram_bot_token</code> и <code>smtp_password</code>). Ответ —
+        тот же замаскированный конфиг, что и у GET. Некорректный <code>smtp_port</code> (не число вне
+        диапазона 1-65535) тихо фолбэчится на 587, не роняет сохранение.</p>
     </div>
   </div>
 
   <div class="endpoint">
     <div class="endpoint-header" onclick="toggle(this)"><div class="method POST">POST</div><div class="endpoint-path">/api/settings/notify-test</div><div class="endpoint-desc">Отправить тестовое уведомление <span class="admin-badge">👑 admin</span></div></div>
     <div class="endpoint-body">
-      <h4>Body</h4><pre>{ "webhook_url": "...", "telegram_bot_token": "...", "telegram_chat_id": "..." }</pre>
-      <h4>200 OK</h4><pre>{ "webhook": "sent", "telegram": "error: ..." }</pre>
+      <h4>Body</h4><pre>{ "webhook_url": "...", "telegram_bot_token": "...", "telegram_chat_id": "...",
+  "smtp_host": "...", "smtp_to": "..." }</pre>
+      <h4>200 OK</h4><pre>{ "webhook": "sent", "telegram": "error: ...", "email": "sent" }</pre>
       <p>Не сохраняет конфиг — только пробует отправить прямо сейчас с переданными значениями (в том числе
-        ещё не сохранёнными, прямо из формы). Ключи <code>webhook</code>/<code>telegram</code> в ответе
-        присутствуют только для тех каналов, для которых были переданы данные.</p>
+        ещё не сохранёнными, прямо из формы). Ключи <code>webhook</code>/<code>telegram</code>/<code>email</code>
+        в ответе присутствуют только для тех каналов, для которых были переданы данные
+        (email — если заполнены и <code>smtp_host</code>, и <code>smtp_to</code>).</p>
     </div>
   </div>
 
@@ -1693,7 +1861,7 @@ type_codes        — справочник типов устройств (code, 
   <div class="endpoint">
     <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/settings/version</div><div class="endpoint-desc">Лёгкий эндпоинт версии <span class="auth-badge">🔐 login</span></div></div>
     <div class="endpoint-body">
-      <pre>{ "version": "beta-1-26w38-08" }</pre>
+      <pre>{ "version": "beta-1-26w38-15" }</pre>
       <p>Умышленно отдельный от <code>/system-info</code> — для мини-виджетов (шапка и т.п.), которым не
         нужен весь список зависимостей. Доступен любому залогиненному пользователю (<code>requireLogin</code>),
         не только admin.</p>
@@ -1717,6 +1885,13 @@ type_codes        — справочник типов устройств (code, 
         <code>cert.js → certDaysLeft()</code>. Диск — свободное место под <code>IT_ASSETS_DATA_DIR</code>
         через <code>fs.statfsSync</code>. Фронтенд опрашивает раз в минуту, только пока пользователь
         залогинен — цветная точка в шапке, разворачивается по клику.</p>
+      <p><b>HEALTH-1:</b> логика вынесена в <code>server/lib/health.js::checkHealth()</code> — до этого
+        жила инлайн прямо в роуте. Раньше health был ЧИСТО pull-based: узнать о проблеме можно было
+        только открыв вкладку с health-баром — если никто не смотрел в интерфейс, растущий диск или
+        просроченный сертификат оставались незамеченными сколько угодно. Теперь та же функция
+        переиспользуется фоновым таймером (см. <code>index.js</code>, отключён в тестах — тот же
+        паттерн, что у автобэкапа), который проактивно шлёт уведомление через уже настроенные каналы
+        (webhook/Telegram/email, см. <code>notify-config</code> выше) при смене статуса.</p>
     </div>
   </div>
   <div class="endpoint">
@@ -1820,6 +1995,22 @@ npm run dev          # то же самое</pre>
     <code>CHANGELOG.md</code> при правке <code>server/</code>/<code>public/js/</code>, неблокирующий,
     молча пропускается в неинтерактивном/не-git окружении). <code>npm run sync-version</code> —
     раскидывает версию из <code>VERSION</code> по <code>package.json</code>/README-бейджу/этому файлу.</p>
+  <p><code>npm run bump-version</code> — считает СЛЕДУЮЩУЮ версию по формату
+    <code>&lt;alpha|beta&gt;-N-YYwWW-NN</code> и сразу прогоняет <code>sync-version</code>: та же
+    ISO-неделя, что уже в <code>VERSION</code> — счётчик <code>NN</code> просто <code>+1</code>;
+    неделя сменилась (обычно понедельник) — счётчик сбрасывается на <code>01</code>, подставляется
+    новая неделя. Специально ОТДЕЛЬНО от <code>sync-version.js</code>: тот — чистая пропагация уже
+    готовой строки, без обращения к дате, идемпотентен (два прогона подряд без изменения
+    <code>VERSION</code> дают одинаковый результат везде). Если бы <code>sync-version.js</code> сам
+    считал неделю по текущей дате при каждом запуске — два прогона в разные дни без реального релиза
+    давали бы РАЗНЫЙ результат, версия перестала бы быть детерминированной. ISO-неделя (не наивный
+    <code>getMonth()</code>) — недели с понедельника, неделя 1 года — та, что содержит первый четверг
+    года; единственный способ, который не ломается на границе года (29 декабря 2025 — уже неделя 1
+    2026-го). Проверено против Python <code>date.isocalendar()</code> на граничных датах, включая
+    53-недельный год — тесты в <code>tests/bump-version.test.js</code>. Не дублирует
+    <code>tools/release/release.sh</code> (берёт версию явным аргументом и делает полный релизный
+    флоу — merge/tag/push) — это для повседневных dev-сборок, не считать неделю в уме перед тем, как
+    решить, какую строку передать дальше.</p>
 
   <h2>Первый запуск</h2>
   <p>Если папка <code>data/</code> отсутствует — создаётся автоматически. Оба JSON-файла инициализируются дефолтами: системные заглушки, категории, коды типов, системный пользователь <code>sys-user-admin</code> (login <code>admin</code>, PIN <code>admn0000</code>). При первом старте также генерируется самоподписанный TLS-сертификат (<code>data/cert.pem</code>, <code>data/key.pem</code>, через <code>server/cert.js</code>, ~825 дней срок действия) — процесс может занять пару секунд.</p>
@@ -1874,6 +2065,7 @@ HTTPS (main):
     <tr><td><code>IT_ASSETS_BACKUP_MAX_MB</code></td><td>2048</td><td>Максимальный суммарный размер папки <code>data/backups/</code> в МБ — старые бэкапы удаляются автоматически при превышении.</td></tr>
     <tr><td><code>IT_ASSETS_AUTO_BACKUP_ENABLED</code></td><td>1 (вкл)</td><td><code>0</code>/<code>false</code> — выключает и часовой автобэкап, и бэкап при старте сервера.</td></tr>
     <tr><td><code>IT_ASSETS_AUTO_BACKUP_INTERVAL_MIN</code></td><td>60</td><td>Интервал автобэкапа в минутах. Некорректное значение — тихий фолбэк на 60.</td></tr>
+    <tr><td><code>IT_ASSETS_HEALTH_CHECK_INTERVAL_MIN</code></td><td>5</td><td>Интервал фонового health-таймера в минутах (HEALTH-1, <code>server/lib/notify.js::checkAndNotifyHealth()</code>). Уведомление — только при смене статуса. Некорректное значение — тихий фолбэк на 5.</td></tr>
     <tr><td><code>IT_ASSETS_LOG_RETENTION_DAYS</code></td><td>14</td><td>Сколько дней хранить файлы структурированных логов (<code>server/logger.js</code>).</td></tr>
   </table>
   <p>Полный список с примерами — в файле <code>.env.example</code> в корне репозитория.</p>

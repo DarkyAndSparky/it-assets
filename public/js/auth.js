@@ -164,7 +164,7 @@ function _updateAuthUI() {
     if (btn)    btn.textContent     = t('btn_login');
     if (status) status.textContent  = t('lbl_viewer');
     // Если были на закрытой вкладке — возвращаем на дашборд
-    const protectedTabs = ['os','small','infra','history','accounts','alerts','settings'];
+    const protectedTabs = ['os','small','infra','history','accounts','alerts','inventory','settings'];
     if (protectedTabs.includes(currentTab)) {
       currentTab = 'dashboard';
       document.querySelectorAll('.nav-btn').forEach(b =>

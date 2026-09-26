@@ -10,11 +10,12 @@ const express = require('express');
 const fs = require('fs');
 const db = require('../database');
 const assetsRepo = require('../repositories/assets.repo');
+const relationsRepo = require('../repositories/relations.repo');
 const photosRepo = require('../repositories/photos.repo');
 const { requireAuth, requireLogin, requireOrgAccess, changedBy } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { createAssetSchema, updateAssetSchema, moveAssetSchema,
-        bulkMoveAssetsSchema, bulkAssignInvSchema, bulkUpdateMetaSchema, addAssetPhotoSchema } = require('../validation/schemas');
+        bulkMoveAssetsSchema, bulkAssignInvSchema, bulkUpdateMetaSchema, addAssetPhotoSchema, inventoryCheckSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
@@ -67,6 +68,15 @@ router.get('/:id/versions', requireLogin, (req, res) => {
   res.json(assetsRepo.getAssetVersions(req.params.id));
 });
 
+// ARCH (составные активы, вариант C): связи актива в обе стороны — и
+// «мои компоненты», и «я сам чей-то компонент», см.
+// relationsRepo.listRelationsForAsset().
+router.get('/:id/relations', requireLogin, (req, res) => {
+  const asset = assetsRepo.getAssetById(req.params.id);
+  if (!asset) return res.status(404).json({ error: 'Not found' });
+  res.json(relationsRepo.listRelationsForAsset(req.params.id));
+});
+
 router.post('/', requireAuth, requireOrgAccess(_orgIdFromCreateBody), validate(createAssetSchema), (req, res) => {
   try { res.json(assetsRepo.createAsset(req.body, changedBy(req))); }
   catch(e) { res.status(400).json({ error: e.message }); }
@@ -107,6 +117,15 @@ router.post('/bulk-assign-inv', requireAuth, validate(bulkAssignInvSchema), (req
 router.post('/bulk-update-meta', requireAuth, validate(bulkUpdateMetaSchema), (req, res) => {
   try { res.json(assetsRepo.bulkUpdateMeta(req.body, changedBy(req))); }
   catch(e) { res.status(e.badRequest ? 400 : 400).json({ error: e.message }); }
+});
+
+// IDEA-3: «Инвентаризация по месту» — сверка отсканированных кодов с тем,
+// что должно быть в указанном месте. Только ОТЧЁТ о расхождениях, ничего
+// не меняет — requireAuth по той же логике, что у /import/csv/preview
+// (не read-only в строгом смысле «публичная информация», а рабочее
+// действие с бизнес-контекстом, хоть и без мутации БД).
+router.post('/inventory-check', requireAuth, validate(inventoryCheckSchema), (req, res) => {
+  res.json(assetsRepo.checkInventoryByLocation(req.body.location, req.body.codes));
 });
 
 // ─── Фото активов ────────────────────────────────────────────────────────

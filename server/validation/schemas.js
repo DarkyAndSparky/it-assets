@@ -141,6 +141,26 @@ const bulkUpdateMetaSchema = z.object({
           { message: `key должен быть одним из: ${META_KEYS.join(', ')}` }),
 });
 
+// IDEA-3: `codes` — список отсканированных строк, разумный потолок на
+// размер одного обхода (за один присест реалистично сканируют десятки-
+// сотни единиц, не тысячи — 500 щедрый запас).
+const inventoryCheckSchema = z.object({
+  location: z.string().trim().min(1, 'location required').max(200),
+  codes: z.array(z.string().max(200)).max(500).optional().default([]),
+});
+
+// ARCH: relation_type проверяется на белый список внутри
+// relations.repo.js::createRelation (SUPPORTED_RELATION_TYPES), не здесь —
+// схема тут просто про форму запроса (обязательные строки разумной
+// длины), не про бизнес-правила.
+const createRelationSchema = z.object({
+  from_asset_id: z.string().trim().min(1).max(100),
+  to_asset_id: z.string().trim().min(1).max(100),
+  relation_type: z.string().trim().min(1).max(50),
+  slot_label: z.string().max(100).optional(),
+  note: z.string().max(500).optional(),
+});
+
 // ─── Учётные записи («Учётные записи» — хранилище логинов/паролей от
 // оборудования, см. SEC-4) ─────────────────────────────────────────────
 
@@ -257,12 +277,16 @@ const createLocationSchema = z.object({
   name:      z.string().trim().min(1, 'name и filial_id обязательны').max(200, 'Слишком длинное название'),
   filial_id: z.string().trim().min(1, 'name и filial_id обязательны'),
   type:      freeText(50, 'Слишком длинный тип').default('office'),
+  // WH-1: держатель склада (МОЛ) — необязателен при создании, пустая
+  // строка/null трактуются как "без держателя" (см. locations.repo.js).
+  responsible_id: freeTextOpt(100, 'Некорректный responsible_id'),
 });
 
 const updateLocationSchema = z.object({
   name:      z.string().trim().min(1, 'Название не может быть пустым').max(200, 'Слишком длинное название').optional(),
   filial_id: freeTextOpt(100, 'Некорректный filial_id'),
   type:      freeTextOpt(50, 'Слишком длинный тип'),
+  responsible_id: freeTextOpt(100, 'Некорректный responsible_id'),
 });
 
 const setCategoriesSchema = z.object({
@@ -301,6 +325,18 @@ const fieldSchemaEntrySchema = z.object({
 
 const setFieldSchemaSchema = z.object({
   fields: z.array(fieldSchemaEntrySchema, { message: 'Array expected' }).max(META_KEYS.length, 'Слишком много полей'),
+});
+
+// REL-6: слот-запись — просто метка + список type_code-целей, без
+// сложной вложенной валидации (target_type_codes не сверяется с реально
+// существующими type_codes на этом уровне — мягкая подсказка, не
+// критичная для целостности связей, см. обоснование в types.routes.js).
+const componentSlotEntrySchema = z.object({
+  slot_label: z.string().trim().min(1, 'slot_label required').max(100),
+  target_type_codes: z.array(z.string().max(50)).max(20).optional().default([]),
+});
+const setComponentSlotsSchema = z.object({
+  slots: z.array(componentSlotEntrySchema).max(30, 'Слишком много слотов'),
 });
 
 const reserveInvSchema = z.object({
@@ -362,7 +398,32 @@ const notifyConfigSchema = z.object({
   webhook_url: z.string().max(500).optional(),
   telegram_bot_token: z.string().max(200).optional(),
   telegram_chat_id: z.string().max(100).optional(),
+  // PROD-14: smtp_password может прийти маскированным (см.
+  // notify.js::resolveSecrets) — та же причина не валидировать строго,
+  // что у webhook_url/telegram_bot_token выше.
+  smtp_host: z.string().max(300).optional(),
+  smtp_port: z.union([z.number(), z.string()]).optional(),
+  smtp_secure: z.boolean().optional(),
+  smtp_user: z.string().max(300).optional(),
+  smtp_password: z.string().max(300).optional(),
+  smtp_from: z.string().max(300).optional(),
+  smtp_to: z.string().max(500).optional(),
   events: z.array(z.string()).max(10).optional(),
+  notify_on_health_issues: z.boolean().optional(),
+});
+
+// PROD-13: bind_password может прийти маскированным (см.
+// ldap.js::resolveSecrets), та же причина не валидировать строго формат,
+// что у notifyConfigSchema для webhook_url/telegram_bot_token.
+const ldapConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  url: z.string().max(300).optional(),
+  bind_dn: z.string().max(300).optional(),
+  bind_password: z.string().max(300).optional(),
+  base_dn: z.string().max(300).optional(),
+  user_filter: z.string().max(300).optional(),
+  default_role: z.enum(['admin', 'operator', 'viewer']).optional(),
+  auto_create_users: z.boolean().optional(),
 });
 
 const importDiffSchema = z.object({
@@ -417,6 +478,8 @@ module.exports = {
   bulkMoveAssetsSchema,
   bulkAssignInvSchema,
   bulkUpdateMetaSchema,
+  inventoryCheckSchema,
+  createRelationSchema,
   createAccountSchema,
   updateAccountSchema,
   createEmployeeSchema,
@@ -438,6 +501,7 @@ module.exports = {
   setCategoriesSchema,
   setTypeCodesSchema,
   setFieldSchemaSchema,
+  setComponentSlotsSchema,
   reserveInvSchema,
   putStylesSchema,
   putLogoSvgSchema,
@@ -445,6 +509,7 @@ module.exports = {
   putCompanyNameSchema,
   putPasswordSchema,
   notifyConfigSchema,
+  ldapConfigSchema,
   importDiffSchema,
   importApplySchema,
   importHistorySchema,

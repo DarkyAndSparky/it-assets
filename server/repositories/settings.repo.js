@@ -108,10 +108,48 @@ function setFieldSchema(typeCode, fields) {
   return all[typeCode] || null;
 }
 
+// ARCH (REL-6, составные активы): «слоты компонентов» — НЕ часть
+// field_schemas/META_KEYS осознанно. field_schemas — про meta_* колонки
+// в таблице assets (PROD-1: каждый key там — реальная SQL-колонка),
+// слоты компонентов же вообще ничего не пишут в meta — значение живёт в
+// asset_relations (Track 11). Заводить фиктивный META_KEY, который
+// никогда не пишется в свою колонку, означало бы либо мусорить схему
+// БД, либо учить createAsset/updateAsset специально пропускать этот тип
+// поля везде, где перебирается meta, — больше риска для отлаженной
+// системы PROD-1..4, чем отдельный маленький settings-ключ рядом.
+//
+// Формат: { [type_code]: [{ slot_label, target_type_codes: [] }] }.
+// target_type_codes — МЯГКОЕ ограничение (подсказка/фильтр в UI-пикере
+// на карточке актива), не проверяется на сервере при создании связи —
+// relations.repo.js::createRelation ничего не знает о слотах и типах,
+// это осознанно остаётся так (см. REL-6 в roadmap: кардинальность и
+// защита от циклов — это про целостность данных и проверяется всегда;
+// «допустимый тип цели» — это подсказка при выборе, не гарантия
+// целостности, и её отсутствие на сервере не пробел в безопасности).
+const COMPONENT_SLOTS_KEY = 'component_slots';
+
+function getComponentSlots() {
+  return getSetting(COMPONENT_SLOTS_KEY) || {};
+}
+
+function getComponentSlotsForType(typeCode) {
+  const all = getComponentSlots();
+  return all[typeCode] || [];
+}
+
+function setComponentSlotsForType(typeCode, slots) {
+  const all = getComponentSlots();
+  if (!slots || !slots.length) delete all[typeCode];
+  else all[typeCode] = slots;
+  setSetting(COMPONENT_SLOTS_KEY, all);
+  return all[typeCode] || [];
+}
+
 module.exports = {
   getOrgCodesMap, getTypeCodesMap,
   getSettings, getSetting, setSetting,
   getCategories, setCategories,
   getTypeCodes, setTypeCodes,
   getFieldSchemas, getFieldSchema, setFieldSchema,
+  getComponentSlots, getComponentSlotsForType, setComponentSlotsForType,
 };

@@ -156,9 +156,10 @@ function _renderLocationsFiltered() {
       <td><b>${esc(l.name)}</b></td>
       <td class="u-text-muted u-text-12">${esc(fil?.name||'—')}</td>
       <td><span class="badge-cat">${esc(l.type||'office')}</span></td>
+      <td class="u-text-muted u-text-12">${l.responsible?esc(l.responsible):'—'}</td>
       <td><span class="badge-s ${l.status==='active'?'s-used':'s-off'}">${l.status}</span></td>
       <td class="u-nowrap">
-        <button class="btn-icon" title="${t('tooltip_edit')}" data-action="showEditLocationModal" data-args='${JSON.stringify([l.id, esc(l.name), l.filial_id, l.type||"office"])}'>✏️</button>
+        <button class="btn-icon" title="${t('tooltip_edit')}" data-action="showEditLocationModal" data-args='${JSON.stringify([l.id, esc(l.name), l.filial_id, l.type||"office", l.responsible_id||""])}'>✏️</button>
         ${l.status==='active'?`<button class="btn-icon" title="${t('tooltip_close')}" data-action="closeLocation" data-args='${JSON.stringify([l.id, esc(l.name)])}'>🔒</button>`:''}
       </td>
     </tr>`;
@@ -175,7 +176,7 @@ function _renderLocationsFiltered() {
       </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>${t('th_name')}</th><th>${t('th_filial')}</th><th>${t('th_type')}</th><th>${t('th_status')}</th><th></th></tr></thead>
+          <thead><tr><th>${t('th_name')}</th><th>${t('th_filial')}</th><th>${t('th_type')}</th><th>${t('field_loc_responsible')}</th><th>${t('th_status')}</th><th></th></tr></thead>
           <tbody>${rows||`<tr><td colspan="5" class="u-text-muted u-text-center">${t('msg_no_data')}</td></tr>`}</tbody>
         </table>
       </div>
@@ -486,9 +487,14 @@ async function closeFilial(id, name) {
 }
 
 // ── CRUD: Локации ─────────────────────────────────────────────────────────────
-function showCreateLocationModal() {
+async function showCreateLocationModal() {
   const opts = _filialsCache.filter(f=>f.status==='active')
     .map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('');
+  // WH-1: держатель склада — необязательное поле, список сотрудников
+  // грузим по требованию (тот же паттерн, что employees.js — общего
+  // кеша сотрудников в проекте нет, каждый экран запрашивает сам).
+  const emps = await fetch(`${API}/api/employees?active=true`, { headers: ah() }).then(r=>r.json()).catch(()=>[]);
+  const empOpts = emps.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('');
   showModal(`<h2>${t('modal_new_location_title')}</h2>
     <div class="form-row"><label>${t('field_name_required')}</label><input id="cl-name" placeholder="${t('msg_location_name_placeholder')}"/></div>
     <div class="form-row"><label>${t('field_filial_required')}</label><select id="cl-filial">${opts}</select></div>
@@ -500,6 +506,9 @@ function showCreateLocationModal() {
         <option value="other">${t('loc_type_other')}</option>
       </select>
     </div>
+    <div class="form-row"><label>${t('field_loc_responsible')}</label>
+      <select id="cl-responsible"><option value="">${t('lbl_not_assigned')}</option>${empOpts}</select>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-primary" data-action="doCreateLocation">${t('btn_create')}</button>
       <button class="btn btn-secondary" data-action="closeModal">${t('btn_cancel')}</button>
@@ -509,15 +518,18 @@ async function doCreateLocation() {
   const name = document.getElementById('cl-name').value.trim();
   const filial_id = document.getElementById('cl-filial').value;
   const type = document.getElementById('cl-type').value;
+  const responsible_id = document.getElementById('cl-responsible').value;
   if (!name || !filial_id) return toast(t('msg_fill_all_fields'),'error');
-  const r = await fetch(`${API}/api/locations`, { method:'POST', headers:ah(), body:JSON.stringify({ name, filial_id, type }) });
+  const r = await fetch(`${API}/api/locations`, { method:'POST', headers:ah(), body:JSON.stringify({ name, filial_id, type, responsible_id }) });
   const d = await r.json();
   if (r.ok) { closeModal(); toast(t('msg_location_created'),'success'); await renderSettings(); }
   else toast(d.error||t('msg_error'),'error');
 }
-function showEditLocationModal(id, name, filialId, type) {
+async function showEditLocationModal(id, name, filialId, type, responsibleId) {
   const opts = _filialsCache.map(f=>`<option value="${f.id}" ${f.id===filialId?'selected':''}>${esc(f.name)}</option>`).join('');
   const typeLabels = { office:t('loc_type_office'), warehouse:t('loc_type_warehouse'), server_room:t('loc_type_server_room'), other:t('loc_type_other') };
+  const emps = await fetch(`${API}/api/employees?active=true`, { headers: ah() }).then(r=>r.json()).catch(()=>[]);
+  const empOpts = emps.map(e=>`<option value="${e.id}" ${e.id===responsibleId?'selected':''}>${esc(e.name)}</option>`).join('');
   showModal(`<h2>${t('modal_edit_location_title')}</h2>
     <div class="form-row"><label>${t('field_name')}</label><input id="el-name" value="${esc(name)}"/></div>
     <div class="form-row"><label>${t('field_filial')}</label><select id="el-filial">${opts}</select></div>
@@ -525,6 +537,9 @@ function showEditLocationModal(id, name, filialId, type) {
       <select id="el-type">
         ${['office','warehouse','server_room','other'].map(ty=>`<option value="${ty}" ${ty===type?'selected':''}>${typeLabels[ty]}</option>`).join('')}
       </select>
+    </div>
+    <div class="form-row"><label>${t('field_loc_responsible')}</label>
+      <select id="el-responsible"><option value="">${t('lbl_not_assigned')}</option>${empOpts}</select>
     </div>
     <div class="modal-actions">
       <button class="btn btn-primary" data-action="doUpdateLocation" data-args='${JSON.stringify([id])}'>${t('btn_save')}</button>
@@ -535,7 +550,8 @@ async function doUpdateLocation(id) {
   const name = document.getElementById('el-name').value.trim();
   const filial_id = document.getElementById('el-filial').value;
   const type = document.getElementById('el-type').value;
-  const r = await fetch(`${API}/api/locations/${id}`, { method:'PUT', headers:ah(), body:JSON.stringify({ name, filial_id, type }) });
+  const responsible_id = document.getElementById('el-responsible').value;
+  const r = await fetch(`${API}/api/locations/${id}`, { method:'PUT', headers:ah(), body:JSON.stringify({ name, filial_id, type, responsible_id }) });
   if (r.ok) { closeModal(); toast(t('msg_saved'),'success'); await renderSettings(); }
   else toast(t('msg_error'),'error');
 }
