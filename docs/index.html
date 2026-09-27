@@ -95,7 +95,7 @@
 <nav class="sidebar">
   <div class="sidebar-logo">
     <div class="project">⚙️ IT Assets</div>
-    <div class="version">β1 · 26w39·03</div>
+    <div class="version">β1 · 26w39·05</div>
     <div class="badge">Developer Documentation</div>
   </div>
   <div class="nav-section">
@@ -130,6 +130,7 @@
     <div class="nav-item" onclick="show('api-employees')"><span class="icon">🧑‍💼</span>Employees</div>
     <div class="nav-item" onclick="show('api-assets')"><span class="icon">💻</span>Assets</div>
     <div class="nav-item" onclick="show('api-history')"><span class="icon">🔄</span>History</div>
+    <div class="nav-item" onclick="show('api-audit')"><span class="icon">🛡️</span>Audit</div>
     <div class="nav-item" onclick="show('api-orgs')"><span class="icon">🏢</span>Organizations</div>
     <div class="nav-item" onclick="show('api-filials')"><span class="icon">📍</span>Filials & Locations</div>
     <div class="nav-item" onclick="show('api-inv')"><span class="icon">🔢</span>Inv Numbers</div>
@@ -524,7 +525,7 @@ git push origin dev</pre>
 │   │                          только «залогинен и активен», см. раздел «Авторизация» ниже),
 │   │                          rateLimit.js (rateLimitLogin)
 │   ├── repositories/        — orgs, filials, locations, accounts, employees, users, settings,
-│   │                          assets, history, csv, stats — вся бизнес-логика по одному файлу на сущность,
+│   │                          assets, history, csv, stats, api-keys, audit — вся бизнес-логика по одному файлу на сущность,
 │   │                          все на SQLite (кроме stats/history — чистая агрегация без своих данных)
 │   ├── routes/               — express.Router() на каждую сущность, монтируются в index.js
 │   ├── migrate.js           — Одноразовая миграция lowdb-схемы (v1→v7), выполняется ДО SQLite-слоя,
@@ -567,7 +568,8 @@ git push origin dev</pre>
 │           ├── settings-config.js  — Орги, филиалы, локации
 │           ├── settings-refdata.js — Справочники
 │           ├── types-admin.js      — Управление типами
-│           └── users-admin.js      — Управление пользователями
+│           ├── users-admin.js      — Управление пользователями
+│           └── audit-log.js        — Вкладка «Аудит» (GET /api/audit)
 ├── data/                     — Создаётся автоматически при первом запуске (или в IT_ASSETS_DATA_DIR)
 │   ├── it-assets.sqlite      — Вся прикладная база (SQLite, node:sqlite) — активы, история,
 │   │                          организации, филиалы, локации, сотрудники, пользователи, аккаунты,
@@ -1484,6 +1486,49 @@ type_codes        — справочник типов устройств (code, 
       <p>Дедупликация — на уровне отдельной позиции (после разбивки), по ключу <code>date|позиция|from_who</code>, а не по исходной строке целиком.</p>
       <h4>200 OK</h4><pre>{ "ok": true, "added": 10, "skipped": 2, "matched": 6 }</pre>
       <p><code>added</code> считает отдельные позиции (может быть больше числа строк в исходном файле — одна строка с двумя предметами через запятую даёт 2 в <code>added</code>). <code>matched</code> — сколько из них успешно привязались к реальному активу по серийнику.</p>
+    </div>
+  </div>
+</section>
+
+<!-- API AUDIT -->
+<section id="api-audit" class="section">
+  <div class="top-bar"><div class="breadcrumb">Docs / API / <span>Audit</span></div></div>
+  <h1>Audit API</h1>
+  <p>Общесистемный журнал действий — НЕ путать с History (та про перемещения/версии активов). Здесь: вход/неудачный вход, управление API-ключами, изменение LDAP-конфига, смена роли пользователя, restore из бэкапа. Только для администраторов — действия пользователей друг о друге не витринные данные.</p>
+
+  <div class="endpoint">
+    <div class="endpoint-header" onclick="toggle(this)"><div class="method GET">GET</div><div class="endpoint-path">/api/audit</div><div class="endpoint-desc">Список записей журнала <span class="admin-badge">👑 admin</span></div></div>
+    <div class="endpoint-body">
+      <h4>Query параметры</h4>
+      <table>
+        <tr><th>Параметр</th><th>По умолч.</th><th>Описание</th></tr>
+        <tr><td>limit</td><td>50</td><td>Зажимается на сервере в диапазон 1–500; невалидное значение → дефолт 50</td></tr>
+        <tr><td>actor_id</td><td>—</td><td>Точное совпадение с id пользователя, совершившего действие</td></tr>
+        <tr><td>entity</td><td>—</td><td>Тип объекта — <code>user</code> / <code>apikey</code> / <code>settings</code> / <code>system</code></td></tr>
+        <tr><td>entity_id</td><td>—</td><td>Точное совпадение с id объекта</td></tr>
+        <tr><td>from</td><td>—</td><td>С даты/времени (ISO 8601), сравнение как TEXT по столбцу <code>ts</code></td></tr>
+        <tr><td>to</td><td>—</td><td>По дату/время (ISO 8601)</td></tr>
+      </table>
+      <p>Нет offset-пагинации и полнотекстового поиска — только точные совпадения по <code>actor_id</code>/<code>entity</code>/<code>entity_id</code> и диапазон по <code>ts</code>. Фронтенд (вкладка «Аудит» в настройках) поверх этого делает лёгкий клиентский текстовый фильтр — только по уже загруженной странице, не по всей таблице.</p>
+      <h4>200 OK</h4>
+      <pre>[
+  { "id": "...", "ts": "2026-09-27T10:15:00.000Z",
+    "actor_id": "u1", "actor_name": "Иван Иванов",
+    "action": "user.role_change", "entity": "user", "entity_id": "u2",
+    "detail": { "from": "viewer", "to": "operator" } }
+]</pre>
+      <p><code>actor_id</code>/<code>actor_name</code> — пустые строки (не <code>null</code>) для действий без известного актёра
+        (например <code>login.fail</code> с несуществующим <code>user_id</code>). <code>detail</code> — произвольный
+        JSON или <code>null</code>, если для действия нечего уточнять.</p>
+      <h4>Известные action / entity (не enum — просто то, что реально пишется сейчас)</h4>
+      <table>
+        <tr><th>action</th><th>entity</th><th>Откуда</th></tr>
+        <tr><td><code>login.success</code> / <code>login.fail</code></td><td>user</td><td><code>POST /api/users/auth</code> (PIN), <code>POST /api/users/login</code> (логин/пароль + LDAP)</td></tr>
+        <tr><td><code>apikey.create</code> / <code>apikey.revoke</code></td><td>apikey</td><td><code>POST</code>/<code>DELETE /api/api-keys/*</code></td></tr>
+        <tr><td><code>user.role_change</code></td><td>user</td><td><code>PUT /api/users/:id</code> — только если поле <code>role</code> реально изменилось</td></tr>
+        <tr><td><code>ldap.config_update</code></td><td>settings</td><td><code>PUT /api/settings/ldap-config</code> — <code>detail.fields_changed</code> содержит ТОЛЬКО имена полей, не значения (без утечки <code>bind_password</code>)</td></tr>
+        <tr><td><code>backup.restore</code></td><td>system</td><td><code>POST /api/backup/restore/:name</code> — пишется ДО замены файлов на диске, иначе терялась бы при restore из архива с <code>it-assets.sqlite</code></td></tr>
+      </table>
     </div>
   </div>
 </section>

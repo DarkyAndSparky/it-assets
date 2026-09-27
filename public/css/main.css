@@ -468,6 +468,7 @@ hr.sep{border:none;border-top:1px solid var(--border);margin:16px 0}
 .u-text-base{color:var(--text)}
 .u-max-w-140{max-width:140px}
 .u-max-w-160{max-width:160px}
+.u-max-w-260{max-width:260px}
 
 /* Фаза 7e (CSP-19): settings-refdata.js. Два разных opacity намеренно НЕ
    слиты в один класс — разные смысловые состояния (ликвидированная орг.

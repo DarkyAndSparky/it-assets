@@ -16,6 +16,7 @@ const { putStylesSchema, putLogoSvgSchema, putCompanyNameSchema, putPasswordSche
 const notify = require('../lib/notify');
 const { checkHealth } = require('../lib/health');
 const ldap = require('../lib/ldap');
+const auditRepo = require('../repositories/audit.repo');
 const fs   = require('fs');
 const path = require('path');
 
@@ -190,7 +191,11 @@ router.get('/ldap-config', requireAdmin, (req, res) => {
 });
 
 router.put('/ldap-config', requireAdmin, validate(ldapConfigSchema), (req, res) => {
-  try { ldap.setConfig(req.body || {}); res.json(ldap.getConfigMasked()); }
+  try {
+    ldap.setConfig(req.body || {});
+    auditRepo.logAction(req.currentUser, 'ldap.config_update', 'settings', 'ldap', { fields_changed: Object.keys(req.body || {}) });
+    res.json(ldap.getConfigMasked());
+  }
   catch (e) { res.status(400).json({ error: e.message }); }
 });
 

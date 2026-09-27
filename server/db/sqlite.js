@@ -535,6 +535,25 @@ sqlite.exec(`
 sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);`);
 sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_prefix ON api_keys(key_prefix);`);
 
+// Общесистемный аудит-лог действий (не путать с history — та про
+// перемещения/версии конкретных активов). Сюда — вход/неудачный вход,
+// управление API-ключами, изменение LDAP-конфига, смена роли
+// пользователя, restore из бэкапа. См. server/repositories/audit.repo.js.
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id         TEXT PRIMARY KEY,
+    ts         TEXT NOT NULL,
+    actor_id   TEXT NOT NULL DEFAULT '',
+    actor_name TEXT NOT NULL DEFAULT '',
+    action     TEXT NOT NULL,             -- 'user.create' | 'apikey.revoke' | 'login.fail' | ...
+    entity     TEXT NOT NULL DEFAULT '',  -- 'user' | 'asset' | 'settings' | 'apikey' | 'ldap' | ...
+    entity_id  TEXT NOT NULL DEFAULT '',
+    detail     TEXT                       -- произвольный JSON, как org_snapshot у history
+  );
+`);
+sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_audit_ts     ON audit_log(ts);`);
+sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_log(entity, entity_id);`);
+
 // ARCH (составные активы, вариант C из обсуждения с пользователем):
 // asset_relations — УНИВЕРСАЛЬНАЯ таблица связей между активами, не только
 // «компонент чего-то». Осознанный выбор вместо (а) meta-поля с ID другого

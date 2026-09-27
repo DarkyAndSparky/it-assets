@@ -55,6 +55,7 @@ async function renderSettings() {
         <button class="cat-tab ${_settingsTab==='locations'?'active':''}" data-stab="locations" data-action="switchSettingsTab" data-args='["locations"]'>${t('tab_settings_locations')}</button>
         <button class="cat-tab ${_settingsTab==='types'?'active':''}" data-stab="types" data-action="switchSettingsTab" data-args='["types"]'>${t('tab_settings_types')}</button>
         <button class="cat-tab ${_settingsTab==='config'?'active':''}" data-stab="config" data-action="switchSettingsTab" data-args='["config"]'>${t('tab_settings_config')}</button>
+        <button class="cat-tab ${_settingsTab==='audit'?'active':''}" data-stab="audit" data-action="switchSettingsTab" data-args='["audit"]'>${t('tab_settings_audit')}</button>
         ` : ''}
       </div>
 
@@ -88,6 +89,7 @@ async function _renderSettingsPanel(isAdmin) {
   if (_settingsTab === 'filials')   return _renderFilialsPanel();
   if (_settingsTab === 'locations') return _renderLocationsPanel();
   if (_settingsTab === 'config')    return _renderConfigPanel(isAdmin);
+  if (_settingsTab === 'audit')     return isAdmin ? await _renderAuditPanel() : _renderGeneralPanel(isAdmin, _companyName, '', _appVersion);
   const _gs = await fetch(`${API}/api/settings`).then(r=>r.json()).catch(()=>({}));
   const html = _renderGeneralPanel(isAdmin, _gs.company_name || _companyName, _gs.logo_svg || '', _appVersion);
   setTimeout(() => {

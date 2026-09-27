@@ -22,6 +22,7 @@ const ldap = require('../lib/ldap');
 const { rateLimitLogin } = require('../middleware/rateLimit');
 const { validate } = require('../middleware/validate');
 const { createUserSchema, updateUserSchema } = require('../validation/schemas');
+const auditRepo = require('../repositories/audit.repo');
 
 const router = express.Router();
 
@@ -48,7 +49,11 @@ router.post('/auth', rateLimitLogin, (req, res) => {
   const { user_id, pin } = req.body || {};
   if (!user_id) return res.status(400).json({ error: 'user_id required' });
   const user = db.authUser(user_id, pin || '');
-  if (!user) return res.status(401).json({ error: 'Неверный PIN или пользователь не найден' });
+  if (!user) {
+    auditRepo.logAction(null, 'login.fail', 'user', user_id, { method: 'pin' });
+    return res.status(401).json({ error: 'Неверный PIN или пользователь не найден' });
+  }
+  auditRepo.logAction(user, 'login.success', 'user', user.id, { method: 'pin' });
   res.json({
     ok:true,
     user:{ id:user.id, name:user.name, role:effectiveRoleOf(user) },
@@ -68,7 +73,11 @@ router.post('/login', rateLimitLogin, async (req, res) => {
   if (!user) {
     user = await ldap.authenticateAndSync(login, password || '');
   }
-  if (!user) return res.status(401).json({ error: 'Неверный логин или пароль' });
+  if (!user) {
+    auditRepo.logAction(null, 'login.fail', 'user', login, { method: 'password' });
+    return res.status(401).json({ error: 'Неверный логин или пароль' });
+  }
+  auditRepo.logAction(user, 'login.success', 'user', user.id, { method: 'password' });
 
   const isDefaultPin = mustChangePin(user);
 
@@ -86,7 +95,14 @@ router.post('/', requireAdmin, validate(createUserSchema), (req, res) => {
 });
 
 router.put('/:id', requireAdmin, validate(updateUserSchema), (req, res) => {
-  try { res.json(db.updateUser(req.params.id, req.body)); }
+  try {
+    const before = db.getUser(req.params.id);
+    const updated = db.updateUser(req.params.id, req.body);
+    if (before && req.body && req.body.role !== undefined && req.body.role !== before.role) {
+      auditRepo.logAction(req.currentUser, 'user.role_change', 'user', req.params.id, { from: before.role, to: req.body.role });
+    }
+    res.json(updated);
+  }
   catch(e) { res.status(400).json({ error: e.message }); }
 });
 

@@ -21,6 +21,7 @@ const { v7: uuidv7 } = require('uuid');
 const { sqlite } = require('../db/sqlite');
 const logger   = require('../logger');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const auditRepo = require('../repositories/audit.repo');
 
 const router = express.Router();
 
@@ -282,6 +283,12 @@ router.post('/restore/:name', requireAdmin, (req, res) => {
       if (configEntry) _validateConfigJson(configEntry.getData().toString('utf8'));
       if (sqliteEntry) _validateSqliteHeader(sqliteEntry.getData());
 
+      // Пишем ДО makeBackup/extractEntryTo: если бэкап содержит
+      // it-assets.sqlite, файл ниже будет полностью заменён на диске —
+      // запись должна попасть в ЕЩЁ живой файл, иначе потеряется вместе
+      // с остальным текущим содержимым audit_log.
+      auditRepo.logAction(req.currentUser, 'backup.restore', 'system', '', { source_file: name });
+
       makeBackup('pre-restore'); // сохраняем текущее состояние
 
       if (dbEntry)     zip.extractEntryTo('db.json',     DATA_DIR, false, true);
@@ -330,6 +337,8 @@ router.post('/restore/:name', requireAdmin, (req, res) => {
       const cfgBak = file.replace('.json', '.config.json');
       const hasCfg = fs.existsSync(cfgBak);
       if (hasCfg) _validateConfigJson(fs.readFileSync(cfgBak, 'utf8'));
+
+      auditRepo.logAction(req.currentUser, 'backup.restore', 'system', '', { source_file: name });
 
       makeBackup('pre-restore');
       fs.copyFileSync(file, path.join(DATA_DIR, 'db.json'));

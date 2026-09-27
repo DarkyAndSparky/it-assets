@@ -25,7 +25,7 @@
 // Синхронизируется вместе с версией приложения (scripts/sync-version.js) —
 // смена версии автоматически инвалидирует старый кеш при активации нового
 // SW (см. 'activate' ниже), без риска годами кешировать устаревший JS.
-const CACHE_NAME = 'it-assets-shell-beta-1-26w39-03';
+const CACHE_NAME = 'it-assets-shell-beta-1-26w39-05';
 
 const SHELL_ASSETS = [
   '/',
